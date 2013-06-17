@@ -2544,6 +2544,22 @@
 						<!--CSS alignments not respected see bug lp:605530 , lets call <Alignment>-->
 						<Alignment>center</Alignment>
 					</NumberRate>
+					
+					<!--
+					**********************************************
+					Text- Track Key
+					**********************************************
+					-->
+					<TrackProperty>
+						<TooltipId>track_key</TooltipId>
+						<Style>QLabel { font: bold 20px/22px Lucida Grande, Lucida Sans Unicode, Arial, Verdana, sans-serif;
+						background-color: transparent; color: #0099FF; text-align: right; padding-right: 1px; }
+						</Style>
+						<Property>key</Property>
+						<Channel>1</Channel>
+						<Pos>50,40</Pos>
+						<Size>52,23</Size>
+					</TrackProperty>
 
 					<!--
 					**********************************************
@@ -3045,6 +3061,22 @@
 						<!--CSS alignments not respected see bug lp:605530 , lets call <Alignment>-->
 						<Alignment>center</Alignment>
 					</NumberRate>
+
+					<!--
+					**********************************************
+					Text- Track Key
+					**********************************************
+					-->
+					<TrackProperty>
+						<TooltipId>track_key</TooltipId>
+						<Style>QLabel { font: bold 20px/22px Lucida Grande, Lucida Sans Unicode, Arial, Verdana, sans-serif;
+						background-color: transparent; color: #E17800; text-align: right; padding-right: 1px; }
+						</Style>
+						<Property>key</Property>
+						<Channel>2</Channel>
+						<Pos>0,40</Pos>
+						<Size>52,23</Size>
+					</TrackProperty>
 
 					<!--
 					**********************************************
@@ -4255,7 +4287,6 @@
 				<Pos>0,50</Pos>
 				<Size>393f,15</Size>
 			</TrackProperty>
-
 			<!--
 			**********************************************
 			Text- BPM number display
