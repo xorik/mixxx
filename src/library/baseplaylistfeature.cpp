@@ -3,6 +3,7 @@
 #include "library/parser.h"
 #include "library/parserm3u.h"
 #include "library/parserpls.h"
+#include "library/parsernml.h"
 #include "library/parsercsv.h"
 #include "library/playlisttablemodel.h"
 #include "library/trackcollection.h"
@@ -334,7 +335,7 @@ void BasePlaylistFeature::slotExportPlaylist() {
         tr("Export Playlist"),
         music_directory.append("/").append(playlist_filename),
         tr("M3U Playlist (*.m3u);;M3U8 Playlist (*.m3u8);;"
-           "PLS Playlist (*.pls);;Text CSV (*.csv);;Readable Text (*.txt)"));
+           "PLS Playlist (*.pls);;Tracktor Playlist (*.nml);;Text CSV (*.csv);;Readable Text (*.txt)"));
     // Exit method if user cancelled the open dialog.
     if (file_location.isNull() || file_location.isEmpty()) {
         return;
@@ -362,6 +363,8 @@ void BasePlaylistFeature::slotExportPlaylist() {
         } else {
             ParserCsv::writeReadableTextFile(file_location, pPlaylistTableModel.data(), false);
         }
+    } else if (file_location.endsWith(".nml", Qt::CaseInsensitive)) {
+            ParserNml::writeNMLFile(file_location, pPlaylistTableModel.data());
     } else {
         // Create and populate a list of files of the playlist
         QList<QString> playlist_items;
