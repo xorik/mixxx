@@ -4493,7 +4493,7 @@
 
 			<!-- Playback control sub-widget -->
 			<WidgetGroup>
-				<Pos>163,115</Pos>
+                                <Pos>6,115</Pos>
 				<Size>357,54</Size>
 				<Style>QGroupBox { border: 0px solid yellow; } QWidget { margin: 0; padding: 0; }</Style>
 				<Children>
@@ -5078,6 +5078,46 @@
 				</Children>
 			</WidgetGroup>
 
+                        <!-- Filter effect -->
+                        <WidgetGroup>
+                            <Pos>460,115</Pos>
+                            <Size>40,54</Size>
+                            <Style>QGroupBox { border: 0px solid red; } QWidget { margin: 0; padding: 0; }</Style>
+                            <Children>
+                                <Knob>
+                                        <TooltipId>filterDepth</TooltipId>
+                                        <Style></Style>
+                                        <NumberStates>63</NumberStates>
+                                        <Path>knobs/knob_rotary_s%1.png</Path>
+                                        <Pos>17,17</Pos>
+                                        <Connection>
+                                                <ConfigKey>[Channel1],filterDepth</ConfigKey>
+                                        </Connection>
+                                </Knob>
+
+                                <PushButton>
+                                        <TooltipId>filter</TooltipId>
+                                        <Style></Style>
+                                        <NumberStates>2</NumberStates>
+                                        <State>
+                                                <Number>0</Number>
+                                                <Pressed>btn_kill_down.png</Pressed>
+                                                <Unpressed>btn_kill.png</Unpressed>
+                                        </State>
+                                        <State>
+                                                <Number>1</Number>
+                                                <Pressed>btn_kill_overdown.png</Pressed>
+                                                <Unpressed>btn_kill_over.png</Unpressed>
+                                        </State>
+                                        <Pos>40,0</Pos>
+                                        <Connection>
+                                                <ConfigKey>[Channel1],filter</ConfigKey>
+                                                <EmitOnPressAndRelease>true</EmitOnPressAndRelease>
+                                                <ButtonState>LeftButton</ButtonState>
+                                        </Connection>
+                                </PushButton>
+                            </Children>
+                        </WidgetGroup>
 		</Children>
 	</WidgetGroup>
 
@@ -6059,6 +6099,47 @@
 
 				</Children>
 			</WidgetGroup>
+
+                        <!-- Filter effect -->
+                        <WidgetGroup>
+                            <Pos>0,115</Pos>
+                            <Size>40,54</Size>
+                            <Style>QGroupBox { border: 0px solid red; } QWidget { margin: 0; padding: 0; }</Style>
+                            <Children>
+                                <Knob>
+                                        <TooltipId>filterDepth</TooltipId>
+                                        <Style></Style>
+                                        <NumberStates>63</NumberStates>
+                                        <Path>knobs/knob_rotary_s%1.png</Path>
+                                        <Pos>5,17</Pos>
+                                        <Connection>
+                                                <ConfigKey>[Channel2],filterDepth</ConfigKey>
+                                        </Connection>
+                                </Knob>
+
+                                <PushButton>
+                                        <TooltipId>filter</TooltipId>
+                                        <Style></Style>
+                                        <NumberStates>2</NumberStates>
+                                        <State>
+                                                <Number>0</Number>
+                                                <Pressed>btn_kill_down.png</Pressed>
+                                                <Unpressed>btn_kill.png</Unpressed>
+                                        </State>
+                                        <State>
+                                                <Number>1</Number>
+                                                <Pressed>btn_kill_overdown.png</Pressed>
+                                                <Unpressed>btn_kill_over.png</Unpressed>
+                                        </State>
+                                        <Pos>5,0</Pos>
+                                        <Connection>
+                                                <ConfigKey>[Channel2],filter</ConfigKey>
+                                                <EmitOnPressAndRelease>true</EmitOnPressAndRelease>
+                                                <ButtonState>LeftButton</ButtonState>
+                                        </Connection>
+                                </PushButton>
+                            </Children>
+                        </WidgetGroup>
 
 		</Children>
 	</WidgetGroup>
