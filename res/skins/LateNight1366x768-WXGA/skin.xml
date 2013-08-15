@@ -5149,6 +5149,36 @@
                                 </PushButton>
                             </Children>
                         </WidgetGroup>
+
+                        <!-- Slip knob -->
+                        <WidgetGroup>
+                            <Pos>440,115</Pos>
+                            <Size>20,54</Size>
+                            <Style>QGroupBox { border: 0px solid red; } QWidget { margin: 0; padding: 0; }</Style>
+                            <Children>
+                                <PushButton>
+                                        <TooltipId>slip_mode</TooltipId>
+                                        <Style></Style>
+                                        <NumberStates>2</NumberStates>
+                                        <State>
+                                                <Number>0</Number>
+                                                <Pressed>btn_kill_down.png</Pressed>
+                                                <Unpressed>btn_kill.png</Unpressed>
+                                        </State>
+                                        <State>
+                                                <Number>1</Number>
+                                                <Pressed>btn_kill_overdown.png</Pressed>
+                                                <Unpressed>btn_kill_over.png</Unpressed>
+                                        </State>
+                                        <Pos>0,0</Pos>
+                                        <Connection>
+                                                <ConfigKey>[Channel1],slip_enabled</ConfigKey>
+                                                <EmitOnPressAndRelease>true</EmitOnPressAndRelease>
+                                                <ButtonState>LeftButton</ButtonState>
+                                        </Connection>
+                                </PushButton>
+                            </Children>
+                        </WidgetGroup>
 		</Children>
 	</WidgetGroup>
 
@@ -6172,6 +6202,35 @@
                             </Children>
                         </WidgetGroup>
 
+                        <!-- Slip knob -->
+                        <WidgetGroup>
+                            <Pos>65,115</Pos>
+                            <Size>20,54</Size>
+                            <Style>QGroupBox { border: 0px solid red; } QWidget { margin: 0; padding: 0; }</Style>
+                            <Children>
+                                <PushButton>
+                                        <TooltipId>slip_mode</TooltipId>
+                                        <Style></Style>
+                                        <NumberStates>2</NumberStates>
+                                        <State>
+                                                <Number>0</Number>
+                                                <Pressed>btn_kill_down.png</Pressed>
+                                                <Unpressed>btn_kill.png</Unpressed>
+                                        </State>
+                                        <State>
+                                                <Number>1</Number>
+                                                <Pressed>btn_kill_overdown.png</Pressed>
+                                                <Unpressed>btn_kill_over.png</Unpressed>
+                                        </State>
+                                        <Pos>0,0</Pos>
+                                        <Connection>
+                                                <ConfigKey>[Channel2],slip_enabled</ConfigKey>
+                                                <EmitOnPressAndRelease>true</EmitOnPressAndRelease>
+                                                <ButtonState>LeftButton</ButtonState>
+                                        </Connection>
+                                </PushButton>
+                            </Children>
+                        </WidgetGroup>
 		</Children>
 	</WidgetGroup>
 
