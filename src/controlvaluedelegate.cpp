@@ -34,6 +34,7 @@ ControlValueDelegate::ControlValueDelegate(QObject *parent)
         m_channelControlValues.append("filterMid");
         m_channelControlValues.append("filterMidKill");
         m_channelControlValues.append("flanger");
+        m_channelControlValues.append("slip_enabled");
         m_channelControlValues.append("keylock");
         m_channelControlValues.append("LoadSelectedTrack");
         m_channelControlValues.append("NextTrack");
