@@ -482,6 +482,7 @@ class MixxxCore(Feature):
                    "engine/enginedelay.cpp",
                    "engine/engineflanger.cpp",
                    "engine/enginefiltereffect.cpp",
+                   "engine/engine8biteffect.cpp",
                    "engine/enginevumeter.cpp",
                    "engine/enginevinylsoundemu.cpp",
                    "engine/sidechain/enginesidechain.cpp",

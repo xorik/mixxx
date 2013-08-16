@@ -444,6 +444,14 @@ void Tooltips::addStandardTooltips() {
             << tr("Filter Depth")
             << tr("Adjusts the intensity of the filter effect (when active).");
 
+    add("8bit")
+            << tr("8bit")
+            << tr("Toggles the 8bit effect. Use the depth knobs to adjust.");
+
+    add("8bitDepth")
+            << tr("8bit Depth")
+            << tr("Adjusts the intensity of the 8bit effect (when active).");
+
     add("time")
             << tr("Clock")
             << tr("Displays the current time.");
