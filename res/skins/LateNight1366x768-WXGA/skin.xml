@@ -2587,15 +2587,20 @@
 					<PushButton>
 						<TooltipId>beatsync_beatsync_tempo</TooltipId>
 						<Style></Style>
-						<NumberStates>1</NumberStates>
+						<NumberStates>2</NumberStates>
 						<State>
 							<Number>0</Number>
 							<Pressed>btn_sync1_overdown.png</Pressed>
 							<Unpressed>btn_sync1.png</Unpressed>
 						</State>
+						<State>
+							<Number>1</Number>
+							<Pressed>btn_sync1_overdown.png</Pressed>
+							<Unpressed>btn_sync1_overdown.png</Unpressed>
+						</State>
 						<Pos>54,8</Pos>
 						<Connection>
-							<ConfigKey>[Channel1],beatsync</ConfigKey>
+							<ConfigKey>[Channel1],sync_enabled</ConfigKey>
 							<EmitOnPressAndRelease>true</EmitOnPressAndRelease>
 							<ButtonState>LeftButton</ButtonState>
 						</Connection>
@@ -3104,15 +3109,20 @@
 					<PushButton>
 						<TooltipId>beatsync_beatsync_tempo</TooltipId>
 						<Style></Style>
-						<NumberStates>1</NumberStates>
+						<NumberStates>2</NumberStates>
 						<State>
 							<Number>0</Number>
 							<Pressed>btn_sync2_overdown.png</Pressed>
 							<Unpressed>btn_sync2.png</Unpressed>
 						</State>
+						<State>
+							<Number>1</Number>
+							<Pressed>btn_sync2_overdown.png</Pressed>
+							<Unpressed>btn_sync2_overdown.png</Unpressed>
+						</State>
 						<Pos>6,8</Pos>
 						<Connection>
-							<ConfigKey>[Channel2],beatsync</ConfigKey>
+							<ConfigKey>[Channel2],sync_enabled</ConfigKey>
 							<EmitOnPressAndRelease>true</EmitOnPressAndRelease>
 							<ButtonState>LeftButton</ButtonState>
 						</Connection>
