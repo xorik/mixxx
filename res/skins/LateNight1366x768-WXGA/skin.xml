@@ -2544,6 +2544,22 @@
 						<!--CSS alignments not respected see bug lp:605530 , lets call <Alignment>-->
 						<Alignment>center</Alignment>
 					</NumberRate>
+					
+					<!--
+					**********************************************
+					Text- Track Key
+					**********************************************
+					-->
+					<TrackProperty>
+						<TooltipId>track_key</TooltipId>
+						<Style>QLabel { font: bold 20px/22px Lucida Grande, Lucida Sans Unicode, Arial, Verdana, sans-serif;
+						background-color: transparent; color: #0099FF; text-align: right; padding-right: 1px; }
+						</Style>
+						<Property>key</Property>
+						<Channel>1</Channel>
+						<Pos>50,40</Pos>
+						<Size>52,23</Size>
+					</TrackProperty>
 
 					<!--
 					**********************************************
@@ -2571,15 +2587,20 @@
 					<PushButton>
 						<TooltipId>beatsync_beatsync_tempo</TooltipId>
 						<Style></Style>
-						<NumberStates>1</NumberStates>
+						<NumberStates>2</NumberStates>
 						<State>
 							<Number>0</Number>
 							<Pressed>btn_sync1_overdown.png</Pressed>
 							<Unpressed>btn_sync1.png</Unpressed>
 						</State>
+						<State>
+							<Number>1</Number>
+							<Pressed>btn_sync1_overdown.png</Pressed>
+							<Unpressed>btn_sync1_overdown.png</Unpressed>
+						</State>
 						<Pos>54,8</Pos>
 						<Connection>
-							<ConfigKey>[Channel1],beatsync</ConfigKey>
+							<ConfigKey>[Channel1],sync_enabled</ConfigKey>
 							<EmitOnPressAndRelease>true</EmitOnPressAndRelease>
 							<ButtonState>LeftButton</ButtonState>
 						</Connection>
@@ -3048,6 +3069,22 @@
 
 					<!--
 					**********************************************
+					Text- Track Key
+					**********************************************
+					-->
+					<TrackProperty>
+						<TooltipId>track_key</TooltipId>
+						<Style>QLabel { font: bold 20px/22px Lucida Grande, Lucida Sans Unicode, Arial, Verdana, sans-serif;
+						background-color: transparent; color: #E17800; text-align: right; padding-right: 1px; }
+						</Style>
+						<Property>key</Property>
+						<Channel>2</Channel>
+						<Pos>0,40</Pos>
+						<Size>52,23</Size>
+					</TrackProperty>
+
+					<!--
+					**********************************************
 					Slider- Pitch control
 					**********************************************
 					-->
@@ -3072,15 +3109,20 @@
 					<PushButton>
 						<TooltipId>beatsync_beatsync_tempo</TooltipId>
 						<Style></Style>
-						<NumberStates>1</NumberStates>
+						<NumberStates>2</NumberStates>
 						<State>
 							<Number>0</Number>
 							<Pressed>btn_sync2_overdown.png</Pressed>
 							<Unpressed>btn_sync2.png</Unpressed>
 						</State>
+						<State>
+							<Number>1</Number>
+							<Pressed>btn_sync2_overdown.png</Pressed>
+							<Unpressed>btn_sync2_overdown.png</Unpressed>
+						</State>
 						<Pos>6,8</Pos>
 						<Connection>
-							<ConfigKey>[Channel2],beatsync</ConfigKey>
+							<ConfigKey>[Channel2],sync_enabled</ConfigKey>
 							<EmitOnPressAndRelease>true</EmitOnPressAndRelease>
 							<ButtonState>LeftButton</ButtonState>
 						</Connection>
@@ -4255,7 +4297,6 @@
 				<Pos>0,50</Pos>
 				<Size>393f,15</Size>
 			</TrackProperty>
-
 			<!--
 			**********************************************
 			Text- BPM number display
@@ -4493,7 +4534,7 @@
 
 			<!-- Playback control sub-widget -->
 			<WidgetGroup>
-				<Pos>163,115</Pos>
+                                <Pos>6,115</Pos>
 				<Size>357,54</Size>
 				<Style>QGroupBox { border: 0px solid yellow; } QWidget { margin: 0; padding: 0; }</Style>
 				<Children>
@@ -5090,6 +5131,101 @@
 				</Children>
 			</WidgetGroup>
 
+                        <WidgetGroup>
+                            <Pos>380,115</Pos>
+                            <Size>20,54</Size>
+                            <Style>QGroupBox { border: 0px solid red; } QWidget { margin: 0; padding: 0; }</Style>
+                            <Children>
+                                <!-- Slip knob -->
+                                <PushButton>
+                                        <TooltipId>slip_mode</TooltipId>
+                                        <Style></Style>
+                                        <NumberStates>2</NumberStates>
+                                        <State>
+                                                <Number>0</Number>
+                                                <Pressed>btn_kill_down.png</Pressed>
+                                                <Unpressed>btn_kill.png</Unpressed>
+                                        </State>
+                                        <State>
+                                                <Number>1</Number>
+                                                <Pressed>btn_kill_overdown.png</Pressed>
+                                                <Unpressed>btn_kill_over.png</Unpressed>
+                                        </State>
+                                        <Pos>25,0</Pos>
+                                        <Connection>
+                                                <ConfigKey>[Channel1],slip_enabled</ConfigKey>
+                                                <EmitOnPressAndRelease>true</EmitOnPressAndRelease>
+                                                <ButtonState>LeftButton</ButtonState>
+                                        </Connection>
+                                </PushButton>
+
+                                <!-- 8bit effect -->
+                                <Knob>
+                                        <TooltipId>8bitDepth</TooltipId>
+                                        <Style></Style>
+                                        <NumberStates>63</NumberStates>
+                                        <Path>knobs/knob_rotary_s%1.png</Path>
+                                        <Pos>47,17</Pos>
+                                        <Connection>
+                                                <ConfigKey>[Channel1],8bitDepth</ConfigKey>
+                                        </Connection>
+                                </Knob>
+                                <PushButton>
+                                        <TooltipId>8bit</TooltipId>
+                                        <Style></Style>
+                                        <NumberStates>2</NumberStates>
+                                        <State>
+                                                <Number>0</Number>
+                                                <Pressed>btn_kill_down.png</Pressed>
+                                                <Unpressed>btn_kill.png</Unpressed>
+                                        </State>
+                                        <State>
+                                                <Number>1</Number>
+                                                <Pressed>btn_kill_overdown.png</Pressed>
+                                                <Unpressed>btn_kill_over.png</Unpressed>
+                                        </State>
+                                        <Pos>70,0</Pos>
+                                        <Connection>
+                                                <ConfigKey>[Channel1],8bit</ConfigKey>
+                                                <EmitOnPressAndRelease>true</EmitOnPressAndRelease>
+                                                <ButtonState>LeftButton</ButtonState>
+                                        </Connection>
+                                </PushButton>
+
+                                <!-- Filter effect -->
+                                <Knob>
+                                        <TooltipId>filterDepth</TooltipId>
+                                        <Style></Style>
+                                        <NumberStates>63</NumberStates>
+                                        <Path>knobs/knob_rotary_s%1.png</Path>
+                                        <Pos>97,17</Pos>
+                                        <Connection>
+                                                <ConfigKey>[Channel1],filterDepth</ConfigKey>
+                                        </Connection>
+                                </Knob>
+                                <PushButton>
+                                        <TooltipId>filter</TooltipId>
+                                        <Style></Style>
+                                        <NumberStates>2</NumberStates>
+                                        <State>
+                                                <Number>0</Number>
+                                                <Pressed>btn_kill_down.png</Pressed>
+                                                <Unpressed>btn_kill.png</Unpressed>
+                                        </State>
+                                        <State>
+                                                <Number>1</Number>
+                                                <Pressed>btn_kill_overdown.png</Pressed>
+                                                <Unpressed>btn_kill_over.png</Unpressed>
+                                        </State>
+                                        <Pos>120,0</Pos>
+                                        <Connection>
+                                                <ConfigKey>[Channel1],filter</ConfigKey>
+                                                <EmitOnPressAndRelease>true</EmitOnPressAndRelease>
+                                                <ButtonState>LeftButton</ButtonState>
+                                        </Connection>
+                                </PushButton>
+                            </Children>
+                        </WidgetGroup>
 		</Children>
 	</WidgetGroup>
 
@@ -6084,6 +6220,101 @@
 				</Children>
 			</WidgetGroup>
 
+                        <WidgetGroup>
+                            <Pos>0,115</Pos>
+                            <Size>20,54</Size>
+                            <Style>QGroupBox { border: 0px solid red; } QWidget { margin: 0; padding: 0; }</Style>
+                            <Children>
+                                <!-- Filter effect -->
+                                <Knob>
+                                        <TooltipId>filterDepth</TooltipId>
+                                        <Style></Style>
+                                        <NumberStates>63</NumberStates>
+                                        <Path>knobs/knob_rotary_s%1.png</Path>
+                                        <Pos>5,17</Pos>
+                                        <Connection>
+                                                <ConfigKey>[Channel2],filterDepth</ConfigKey>
+                                        </Connection>
+                                </Knob>
+                                <PushButton>
+                                        <TooltipId>filter</TooltipId>
+                                        <Style></Style>
+                                        <NumberStates>2</NumberStates>
+                                        <State>
+                                                <Number>0</Number>
+                                                <Pressed>btn_kill_down.png</Pressed>
+                                                <Unpressed>btn_kill.png</Unpressed>
+                                        </State>
+                                        <State>
+                                                <Number>1</Number>
+                                                <Pressed>btn_kill_overdown.png</Pressed>
+                                                <Unpressed>btn_kill_over.png</Unpressed>
+                                        </State>
+                                        <Pos>5,0</Pos>
+                                        <Connection>
+                                                <ConfigKey>[Channel2],filter</ConfigKey>
+                                                <EmitOnPressAndRelease>true</EmitOnPressAndRelease>
+                                                <ButtonState>LeftButton</ButtonState>
+                                        </Connection>
+                                </PushButton>
+
+                                <!-- 8bit effect -->
+                                <Knob>
+                                        <TooltipId>8bitDepth</TooltipId>
+                                        <Style></Style>
+                                        <NumberStates>63</NumberStates>
+                                        <Path>knobs/knob_rotary_s%1.png</Path>
+                                        <Pos>55,17</Pos>
+                                        <Connection>
+                                                <ConfigKey>[Channel2],8bitDepth</ConfigKey>
+                                        </Connection>
+                                </Knob>
+                                <PushButton>
+                                        <TooltipId>8bit</TooltipId>
+                                        <Style></Style>
+                                        <NumberStates>2</NumberStates>
+                                        <State>
+                                                <Number>0</Number>
+                                                <Pressed>btn_kill_down.png</Pressed>
+                                                <Unpressed>btn_kill.png</Unpressed>
+                                        </State>
+                                        <State>
+                                                <Number>1</Number>
+                                                <Pressed>btn_kill_overdown.png</Pressed>
+                                                <Unpressed>btn_kill_over.png</Unpressed>
+                                        </State>
+                                        <Pos>55,0</Pos>
+                                        <Connection>
+                                                <ConfigKey>[Channel2],8bit</ConfigKey>
+                                                <EmitOnPressAndRelease>true</EmitOnPressAndRelease>
+                                                <ButtonState>LeftButton</ButtonState>
+                                        </Connection>
+                                </PushButton>
+
+                                <!-- Slip knob -->
+                                <PushButton>
+                                        <TooltipId>slip_mode</TooltipId>
+                                        <Style></Style>
+                                        <NumberStates>2</NumberStates>
+                                        <State>
+                                                <Number>0</Number>
+                                                <Pressed>btn_kill_down.png</Pressed>
+                                                <Unpressed>btn_kill.png</Unpressed>
+                                        </State>
+                                        <State>
+                                                <Number>1</Number>
+                                                <Pressed>btn_kill_overdown.png</Pressed>
+                                                <Unpressed>btn_kill_over.png</Unpressed>
+                                        </State>
+                                        <Pos>105,0</Pos>
+                                        <Connection>
+                                                <ConfigKey>[Channel2],slip_enabled</ConfigKey>
+                                                <EmitOnPressAndRelease>true</EmitOnPressAndRelease>
+                                                <ButtonState>LeftButton</ButtonState>
+                                        </Connection>
+                                </PushButton>
+                            </Children>
+                        </WidgetGroup>
 		</Children>
 	</WidgetGroup>
 
