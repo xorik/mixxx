@@ -272,6 +272,13 @@ QVariant SidebarModel::data(const QModelIndex& index, int role) const {
             font.setBold(pTreeItem->isBold());
             return font;
         }
+        case Qt::ForegroundRole: {
+            if (pTreeItem->isBold()) {
+                return QBrush(Qt::red);
+            } else {
+                return QBrush(Qt::white);
+            }
+        }
         case Qt::DecorationRole:
             return pTreeItem->getIcon();
         case SidebarModel::DataRole:
