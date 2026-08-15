@@ -99,8 +99,8 @@ QByteArray Waveform::toByteArray() const {
     // little off there, and what is written here is what the data actually is.)
     filtered->set_low_cutoff_frequency(155);
     filtered->set_mid_low_cutoff_frequency(155);
-    filtered->set_mid_high_cutoff_frequency(2323);
-    filtered->set_high_cutoff_frequency(2323);
+    filtered->set_mid_high_cutoff_frequency(2024);
+    filtered->set_high_cutoff_frequency(2024);
 
     io::Waveform::Signal* low = filtered->mutable_low();
     io::Waveform::Signal* mid = filtered->mutable_mid();

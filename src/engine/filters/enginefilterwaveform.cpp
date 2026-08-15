@@ -22,43 +22,54 @@ void designOnePole(bool highpass, double fc, double sampleRate, double* pC0, dou
     *pC1 = (k - 1.0) / (k + 1.0);
 }
 
-/// Magnitude of c0 * (1 - z^-1) / (1 - p * z^-1) at `f`, for c0 = 1.
-double onePoleHighpassMagnitude(double p, double f, double sampleRate) {
-    const double w = 2.0 * M_PI * f / sampleRate;
-    return 2.0 * std::sin(w / 2.0) /
-            std::sqrt(1.0 - 2.0 * p * std::cos(w) + p * p);
-}
-
-/// Place the pole of a one pole highpass so that its digital magnitude response
-/// follows the analogue prototype s / (s + 2*pi*fc) across the audible band.
+/// Solve |1 - p| / |1 - p*e^-jw1| = 1/k for the pole p. This is a plain
+/// quadratic whose two roots multiply to one, so exactly one of them is stable.
 ///
-/// The corner is above Nyquist, so the usual prewarped bilinear transform is not
-/// available (fidlib rejects such a spec outright). Instead the pole is chosen
-/// so that the droop of the digital differentiator towards Nyquist matches the
-/// roll-off of the analogue prototype at `fRef`. Writing K for the ratio of the
-/// wanted response at `fRef` to the low frequency asymptote, the condition
-///     |1 - p| / |1 - p*e^-jw| = 1/K
-/// is a plain quadratic in p with one root inside the unit circle.
+/// Both sections of the high band need this. Their corner frequencies lie above
+/// Nyquist, so the usual prewarped bilinear transform is not available at all
+/// (fidlib rejects such a spec outright), and a pole placed by impulse
+/// invariance collapses to nothing useful. Instead the pole is placed so that
+/// the digital response passes through the analogue prototype's value at one
+/// reference frequency, which pins the whole in band shape because a first
+/// order section has only one degree of freedom left.
 ///
-/// The point of doing this rather than using a plain sample difference is that
-/// the resulting response is the same at every sample rate: tracks analysed at
-/// 44.1 and 96 kHz get the same colours.
-double designDifferentiatorPole(double fc, double fRef, double sampleRate) {
-    const double w1 = 2.0 * M_PI * fRef / sampleRate;
-    const double analogRatio = fc / std::hypot(fRef, fc);
-    const double k = 2.0 * std::sin(w1 / 2.0) / (w1 * analogRatio);
+/// The point of doing this rather than reaching for a plain sample difference
+/// is that the result is the same at every sample rate: tracks analysed at 44.1
+/// and 96 kHz get the same colours.
+double solvePoleForGainRatio(double k, double w1) {
     const double kk = k * k;
     const double a = kk - 1.0;
     const double b = -2.0 * (kk - std::cos(w1));
     const double disc = b * b - 4.0 * a * a;
     VERIFY_OR_DEBUG_ASSERT(std::abs(a) > 1e-9 && disc >= 0.0) {
-        // Degenerates into a plain sample difference, which is the correct
-        // limit for very high sample rates anyway.
+        // No bend at all, which is the correct limit for k -> 1.
         return 0.0;
     }
-    // Both roots multiply to a/a = 1, so exactly one of them is stable.
     const double root = (-b - std::sqrt(disc)) / (2.0 * a);
     return std::abs(root) < 1.0 ? root : (-b + std::sqrt(disc)) / (2.0 * a);
+}
+
+/// Magnitude of the analogue first order prototype at `f`, relative to its flat
+/// end: 1/sqrt(1 + (f/fc)^2) for a lowpass, and the same expression for the
+/// ratio of a highpass to its 6 dB/octave asymptote.
+double analogFirstOrderRatio(double fc, double f) {
+    return fc / std::hypot(f, fc);
+}
+
+/// Pole of a differentiator, i.e. a highpass whose corner is above Nyquist. The
+/// zero on DC contributes a sinc factor that has to be divided out before the
+/// remaining bend is matched.
+double designDifferentiatorPole(double fc, double fRef, double sampleRate) {
+    const double w1 = 2.0 * M_PI * fRef / sampleRate;
+    return solvePoleForGainRatio(
+            2.0 * std::sin(w1 / 2.0) / (w1 * analogFirstOrderRatio(fc, fRef)), w1);
+}
+
+/// Pole of a lowpass whose corner is above Nyquist. There is no zero, so the
+/// wanted ratio is used directly.
+double designRolloffPole(double fc, double fRef, double sampleRate) {
+    const double w1 = 2.0 * M_PI * fRef / sampleRate;
+    return solvePoleForGainRatio(1.0 / analogFirstOrderRatio(fc, fRef), w1);
 }
 
 /// Highest frequency we can still measure the response at for a given sample
@@ -67,12 +78,16 @@ double normalizationFrequency(double sampleRate) {
     return math_min(kHighNormalizationHz, 0.49 * sampleRate);
 }
 
-/// Magnitude of the analogue prototype s / (s + 2*pi*fc) at `f`, normalised so
+/// Magnitude of the whole analogue high band prototype at `f`, normalised so
 /// that it is 1.0 at kHighNormalizationHz. Only needed for sample rates too low
-/// to reach 20 kHz, where the filter has to be anchored somewhere else.
-double analogHighpassMagnitude(double fc, double f) {
-    return (f / std::hypot(f, fc)) /
-            (kHighNormalizationHz / std::hypot(kHighNormalizationHz, fc));
+/// to reach 20 kHz, where the band has to be anchored somewhere else and the
+/// level then corrected back so that it keeps its weight against low and mid.
+double analogHighBandMagnitude(double f) {
+    const auto shape = [](double frequency) {
+        return (frequency / std::hypot(frequency, kHighCornerHz)) *
+                analogFirstOrderRatio(kHighRolloffHz, frequency);
+    };
+    return shape(f) / shape(kHighNormalizationHz);
 }
 
 /// Points used to locate the peak of the mid band cascade. The peak is a broad
@@ -81,6 +96,46 @@ double analogHighpassMagnitude(double fc, double f) {
 constexpr int kPeakScanPoints = 256;
 
 } // namespace
+
+template<enum IIRPass PASS>
+EngineFilterOnePoleRaw<PASS>::EngineFilterOnePoleRaw(double gain,
+        double poleCoef,
+        double sampleRate)
+        : m_sampleRate(sampleRate) {
+    std::memcpy(this->m_oldCoef, this->m_coef, sizeof(this->m_coef));
+    this->m_coef[0] = gain;
+    this->m_coef[1] = poleCoef;
+    this->initBuffers();
+}
+
+template<enum IIRPass PASS>
+void EngineFilterOnePoleRaw<PASS>::setGain(double gain) {
+    this->m_coef[0] = gain;
+}
+
+template<enum IIRPass PASS>
+void EngineFilterOnePoleRaw<PASS>::process(const CSAMPLE* pIn,
+        CSAMPLE* pOutput,
+        std::size_t bufferSize) {
+    for (std::size_t i = 0; i < bufferSize; i += 2) {
+        pOutput[i] = static_cast<CSAMPLE>(
+                this->processSample(this->m_coef, this->m_buf1, pIn[i]));
+        pOutput[i + 1] = static_cast<CSAMPLE>(
+                this->processSample(this->m_coef, this->m_buf2, pIn[i + 1]));
+    }
+}
+
+template<enum IIRPass PASS>
+double EngineFilterOnePoleRaw<PASS>::magnitudeAt(double frequencyHz) const {
+    const std::complex<double> zInv =
+            std::exp(std::complex<double>(0.0, -2.0 * M_PI * frequencyHz / m_sampleRate));
+    const std::complex<double> numerator = PASS == IIR_P1 ? std::complex<double>(1.0, 0.0)
+                                                          : 1.0 - zInv;
+    return std::abs(this->m_coef[0] * numerator / (1.0 + this->m_coef[1] * zInv));
+}
+
+template class EngineFilterOnePoleRaw<IIR_HPMO>;
+template class EngineFilterOnePoleRaw<IIR_P1>;
 
 template<enum IIRPass PASS>
 EngineFilterOnePoleShelf<PASS>::EngineFilterOnePoleShelf(double cornerHz,
@@ -174,18 +229,47 @@ void EngineFilterWaveformMid::assumeSettled() {
     m_highShelf.assumeSettled();
 }
 
-EngineFilterWaveformHigh::EngineFilterWaveformHigh(mixxx::audio::SampleRate sampleRate) {
+namespace {
+/// Both sections store the denominator as (1 + c1 * z^-1), so the pole sits at
+/// -c1. Written out because getting this sign wrong is silent and expensive.
+double poleToCoefficient(double pole) {
+    return -pole;
+}
+} // namespace
+
+EngineFilterWaveformHigh::EngineFilterWaveformHigh(mixxx::audio::SampleRate sampleRate)
+        : m_differentiator(1.0,
+                  poleToCoefficient(designDifferentiatorPole(kHighCornerHz,
+                          normalizationFrequency(sampleRate),
+                          sampleRate)),
+                  sampleRate),
+          m_rolloff(1.0,
+                  poleToCoefficient(designRolloffPole(kHighRolloffHz,
+                          normalizationFrequency(sampleRate),
+                          sampleRate)),
+                  sampleRate) {
+    // Anchor the cascade at 20 kHz rather than at its peak: it keeps rising
+    // past that point, and its peak therefore sits on Nyquist, which moves with
+    // the sample rate. For sample rates that cannot reach 20 kHz the anchor
+    // moves down and the level is corrected back, so the band keeps its weight
+    // against low and mid.
     const double fRef = normalizationFrequency(sampleRate);
-    const double pole = designDifferentiatorPole(
-            mixxx::waveformfilter::kHighCornerHz, fRef, sampleRate);
-    // Normalise to unit gain at the top of the measured grid. For sample rates
-    // that cannot reach 20 kHz the anchor moves down but the level is corrected
-    // back, so the band keeps the same weight relative to low and mid.
-    const double gain = analogHighpassMagnitude(mixxx::waveformfilter::kHighCornerHz, fRef) /
-            onePoleHighpassMagnitude(pole, fRef, sampleRate);
-    std::memcpy(m_oldCoef, m_coef, sizeof(m_coef));
-    m_coef[0] = gain;
-    // IIR_HPMO stores the denominator as (1 + c1 * z^-1), the pole is at -c1.
-    m_coef[1] = -pole;
-    initBuffers();
+    const double atRef = m_differentiator.magnitudeAt(fRef) * m_rolloff.magnitudeAt(fRef);
+    VERIFY_OR_DEBUG_ASSERT(atRef > 0.0) {
+        return;
+    }
+    m_differentiator.setGain(analogHighBandMagnitude(fRef) / atRef);
+}
+
+void EngineFilterWaveformHigh::process(const CSAMPLE* pIn,
+        CSAMPLE* pOutput,
+        std::size_t bufferSize) {
+    m_differentiator.process(pIn, pOutput, bufferSize);
+    // In place, which the sections support by construction.
+    m_rolloff.process(pOutput, pOutput, bufferSize);
+}
+
+void EngineFilterWaveformHigh::assumeSettled() {
+    m_differentiator.assumeSettled();
+    m_rolloff.assumeSettled();
 }

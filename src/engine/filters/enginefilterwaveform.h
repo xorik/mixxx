@@ -35,19 +35,54 @@ constexpr double kMidLowShelfDb = -15.0;
 constexpr double kMidHighShelfCornerHz = 1750.0;
 constexpr double kMidHighShelfDb = -3.0;
 
-/// High band: first order highpass with the corner far above the audible band,
-/// i.e. a differentiator. The corner has to stay above 20 kHz: with any shape
-/// that has a finite low frequency shelf the whole subsonic content of a track
-/// leaks into the high band and inflates it tenfold (median hue error 52
-/// degrees instead of 17). A first order highpass has an exact zero at DC, so
-/// that failure mode is impossible by construction.
+/// High band: a first order highpass with the corner far above the audible
+/// band, i.e. a differentiator, followed by a first order roll-off.
+///
+/// The highpass corner has to stay above 20 kHz: with any shape that has a
+/// finite low frequency shelf the whole subsonic content of a track leaks into
+/// the high band and inflates it tenfold (median hue error 52 degrees instead
+/// of 17). A first order highpass has an exact zero at DC, so that failure mode
+/// is impossible by construction.
 constexpr double kHighCornerHz = 50000.0;
-/// Frequency at which the high band is normalised to unit gain. Matches the top
-/// of the measured 1/3 octave grid, which is where the measured high band peaks.
+/// The roll-off is not in color_afr_final.json, and the reason is worth
+/// recording. That file was measured from a frequency sweep, and a sweep is
+/// least accurate at the top, where the frequency moves fastest across a column
+/// that stays the same width. Traktor's high band does not in fact keep rising
+/// to the limit of hearing. Measured against real Traktor stripes, a plain
+/// highpass scores 18.3 degrees of median hue error and adding this pole scores
+/// 15.2; the optimum is broad, 15.2-15.6 anywhere between 18 and 32 kHz, so it
+/// is a real effect and not a fit to noise.
+constexpr double kHighRolloffHz = 32000.0;
+/// Frequency at which the high band is normalised to unit gain, and the top of
+/// the measured 1/3 octave grid. The band still rises slightly past it, so this
+/// is an anchor rather than a peak; anchoring at Nyquist instead would make the
+/// whole response depend on the sample rate, which is a much worse trade.
 constexpr double kHighNormalizationHz = 20000.0;
 
 } // namespace waveformfilter
 } // namespace mixxx
+
+/// A bare first order section with directly assigned coefficients, used where
+/// the corner frequency lies above Nyquist and no standard design applies.
+///
+/// Like the shelves below, it processes in a single pass that is safe to run in
+/// place and skips the crossfade EngineFilterIIR does on coefficient changes.
+template<enum IIRPass PASS>
+class EngineFilterOnePoleRaw : public EngineFilterIIR<1, PASS> {
+  public:
+    /// `poleCoef` is the denominator coefficient, so the pole sits at -poleCoef.
+    EngineFilterOnePoleRaw(double gain, double poleCoef, double sampleRate);
+
+    void process(const CSAMPLE* pIn, CSAMPLE* pOutput, std::size_t bufferSize) override;
+
+    /// Replaces the overall gain, leaving the pole where it is.
+    void setGain(double gain);
+
+    double magnitudeAt(double frequencyHz) const;
+
+  private:
+    double m_sampleRate;
+};
 
 /// A first order shelf: the dry signal mixed with a one pole section. The dry
 /// path is what makes the shelf finite; a bare one pole section would keep
@@ -107,8 +142,15 @@ class EngineFilterWaveformMid : public EngineFilterIIRBase {
     EngineFilterHighShelf1 m_highShelf;
 };
 
-/// High band: first order highpass with a corner far above Nyquist.
-class EngineFilterWaveformHigh : public EngineFilterIIR<1, IIR_HPMO> {
+/// High band: a differentiator followed by a roll-off, anchored at 20 kHz.
+class EngineFilterWaveformHigh : public EngineFilterIIRBase {
   public:
     explicit EngineFilterWaveformHigh(mixxx::audio::SampleRate sampleRate);
+
+    void process(const CSAMPLE* pIn, CSAMPLE* pOutput, std::size_t bufferSize) override;
+    void assumeSettled() override;
+
+  private:
+    EngineFilterOnePoleRaw<IIR_HPMO> m_differentiator;
+    EngineFilterOnePoleRaw<IIR_P1> m_rolloff;
 };

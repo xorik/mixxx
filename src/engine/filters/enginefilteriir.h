@@ -24,6 +24,11 @@ enum IIRPass {
     IIR_HPMO,
     IIR_LP2,
     IIR_HP2,
+    /// A bare pole with no zero anywhere. Unlike IIR_LPMO, which puts a zero on
+    /// Nyquist and therefore always falls to nothing there, this one only
+    /// bends: it is the shape you need when the corner frequency of a lowpass
+    /// lies above Nyquist and only the start of its roll-off is in band.
+    IIR_P1,
 };
 
 
@@ -557,6 +562,16 @@ inline double EngineFilterIIR<5, IIR_BP>::processSample(double* coef,
     fir += coef[5] * iir;
     buf[1] = iir; val = fir;
     return val;
+}
+
+// Single pole, no zero: H(z) = coef[0] / (1 + coef[1] * z^-1)
+template<>
+inline double EngineFilterIIR<1, IIR_P1>::processSample(double* coef,
+        double* buf,
+        double val) {
+    const double out = val * coef[0] - coef[1] * buf[0];
+    buf[0] = out;
+    return out;
 }
 
 // Single one-pole section: H(z) = coef[0] * (1 + z^-1) / (1 + coef[1] * z^-1)

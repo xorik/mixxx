@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <cstddef>
 #include <vector>
 
 #include "engine/filters/enginefilterwaveform.h"
@@ -34,11 +35,19 @@ constexpr ResponsePoint kTarget[] = {
         {16000.0, -35.57, -2.26, -1.22},
 };
 
-/// The fitted shapes stay within about 1 dB RMS of the measured target, with
-/// single point deviations up to 2.2 dB (the worst is the high band below
-/// 100 Hz). For scale: the Bessel crossovers used before missed the same target
-/// by 28-29 dB.
-constexpr double kToleranceDb = 2.5;
+/// The overall level of a band is set by bandColorGain in the renderer, not by
+/// the filter, so what these tests check is the shape: the response with its
+/// mean offset removed. That is also how the shapes were fitted.
+///
+/// The high band gets the widest bound on purpose. It deliberately departs from
+/// color_afr_final.json above a couple of kHz, because that file was measured
+/// with a sweep and a sweep is least accurate at the top; measured against real
+/// Traktor stripes the departure is worth 18.3 -> 15.2 degrees of median hue
+/// error. For scale, the Bessel crossovers used before missed these targets by
+/// 28-29 dB.
+constexpr double kLowToleranceDb = 2.0;
+constexpr double kMidToleranceDb = 1.5;
+constexpr double kHighToleranceDb = 3.0;
 
 /// Feeds a sine at `frequencyHz` through `filter` and returns the RMS gain,
 /// discarding the first half of the buffer so the filter state has settled.
@@ -68,30 +77,65 @@ double toDb(double gain) {
     return 20.0 * std::log10(gain);
 }
 
+/// Deviation of a band from its target at every point of kTarget, with the mean
+/// deviation removed so that only the shape is compared.
+template<typename Filter>
+std::vector<double> shapeDeviation(double ResponsePoint::*targetField) {
+    std::vector<double> deviation;
+    double sum = 0.0;
+    for (const auto& point : kTarget) {
+        Filter filter{mixxx::audio::SampleRate(44100)};
+        const double d = toDb(measureGain(&filter, point.frequencyHz, 44100)) -
+                point.*targetField;
+        deviation.push_back(d);
+        sum += d;
+    }
+    const double mean = sum / static_cast<double>(deviation.size());
+    for (double& d : deviation) {
+        d -= mean;
+    }
+    return deviation;
+}
+
 class EngineFilterWaveformTest : public testing::Test {};
 
 TEST_F(EngineFilterWaveformTest, lowBandMatchesMeasuredResponse) {
-    for (const auto& point : kTarget) {
-        EngineFilterWaveformLow filter{mixxx::audio::SampleRate(44100)};
-        const double db = toDb(measureGain(&filter, point.frequencyHz, 44100));
-        EXPECT_NEAR(db, point.lowDb, kToleranceDb) << "at " << point.frequencyHz << " Hz";
+    const auto deviation = shapeDeviation<EngineFilterWaveformLow>(&ResponsePoint::lowDb);
+    for (std::size_t i = 0; i < deviation.size(); ++i) {
+        EXPECT_LT(std::abs(deviation[i]), kLowToleranceDb)
+                << "at " << kTarget[i].frequencyHz << " Hz";
     }
 }
 
 TEST_F(EngineFilterWaveformTest, midBandMatchesMeasuredResponse) {
-    for (const auto& point : kTarget) {
-        EngineFilterWaveformMid filter{mixxx::audio::SampleRate(44100)};
-        const double db = toDb(measureGain(&filter, point.frequencyHz, 44100));
-        EXPECT_NEAR(db, point.midDb, kToleranceDb) << "at " << point.frequencyHz << " Hz";
+    const auto deviation = shapeDeviation<EngineFilterWaveformMid>(&ResponsePoint::midDb);
+    for (std::size_t i = 0; i < deviation.size(); ++i) {
+        EXPECT_LT(std::abs(deviation[i]), kMidToleranceDb)
+                << "at " << kTarget[i].frequencyHz << " Hz";
     }
 }
 
 TEST_F(EngineFilterWaveformTest, highBandMatchesMeasuredResponse) {
-    for (const auto& point : kTarget) {
-        EngineFilterWaveformHigh filter{mixxx::audio::SampleRate(44100)};
-        const double db = toDb(measureGain(&filter, point.frequencyHz, 44100));
-        EXPECT_NEAR(db, point.highDb, kToleranceDb) << "at " << point.frequencyHz << " Hz";
+    const auto deviation = shapeDeviation<EngineFilterWaveformHigh>(&ResponsePoint::highDb);
+    for (std::size_t i = 0; i < deviation.size(); ++i) {
+        EXPECT_LT(std::abs(deviation[i]), kHighToleranceDb)
+                << "at " << kTarget[i].frequencyHz << " Hz";
     }
+}
+
+/// The roll-off above the audible band is the whole point of the second section
+/// in the high band, so pin it down directly rather than only through the shape
+/// test, whose target does not contain it.
+TEST_F(EngineFilterWaveformTest, highBandRollsOffAtTheTop) {
+    EngineFilterWaveformHigh high{mixxx::audio::SampleRate(44100)};
+    EngineFilterWaveformHigh reference{mixxx::audio::SampleRate(44100)};
+    // Without the roll-off the band would rise at a steady 6 dB per octave, so
+    // the last octave and a bit up to 20 kHz would gain 20*log10(20/10) = 6.02
+    // dB. The 32 kHz pole takes about 1 dB off that.
+    const double gained = toDb(measureGain(&high, 20000.0, 44100)) -
+            toDb(measureGain(&reference, 10000.0, 44100));
+    EXPECT_LT(gained, 5.2);
+    EXPECT_GT(gained, 4.0);
 }
 
 /// Every band is normalised to unit peak gain so a single byte scale can be
