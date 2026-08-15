@@ -36,31 +36,57 @@ if ! grep -rqs "MIXXX_BENCH" "$ROOT/src"; then
     exit 1
 fi
 
+# Two OpenGL applications influence each other through the window server even
+# when one of them is covered, and with a single screen there is no way to
+# separate them. So a measurement never starts next to another Mixxx, and an
+# interrupted series is the correct outcome, not a failure.
+if pgrep -x mixxx >/dev/null; then
+    echo "ERROR: another Mixxx is running; a measurement next to it is meaningless." >&2
+    exit 1
+fi
+
 sha_before=$(shasum -a 256 "$BIN" | cut -d' ' -f1)
 echo "binary sha256 before: $sha_before" | tee "$OUT/provenance.txt"
 
-# The window has already ended up on the wrong screen once, on the laptop the
-# user works on, and it went unnoticed for the whole series because nobody
-# looked. So the screen is checked on the FIRST run and the series stops right
-# there if it is wrong, instead of producing thirty interruptions.
+# The window has already spent a whole series on the laptop screen of the user
+# without anyone noticing, so the first run decides whether the rest may
+# happen. What counts as correct depends on how many screens exist, and the
+# machine tells us that itself:
+#   several screens - the window belongs on the external one, and a series that
+#                     starts on the built-in one is stopped;
+#   one screen      - there is nowhere else to go, so the series runs, but the
+#                     provenance says out loud that it was measured on the
+#                     screen the user works on and may be contaminated by
+#                     whatever else he was doing.
 EXPECT_SCREEN=${WFSCREEN:-DELL U2417H}
 check_screen() {
     local log=$1
-    local line
+    local line screen count
     line=$(grep -m1 "MIXXX_WF_WINDOW=" "$log" 2>/dev/null)
     if [ -z "$line" ]; then
         echo "ERROR: the run did not report a window at all, stopping." >&2
         return 1
     fi
     echo "$line" | tee -a "$OUT/provenance.txt"
-    case "$line" in
-        *"screen=$EXPECT_SCREEN"*) return 0 ;;
-        *)
-            echo "ERROR: the window is not on '$EXPECT_SCREEN', stopping the whole series." >&2
+    screen=${line#*screen=}
+    screen=${screen%% screenAt=*}
+    count=${line#*screenCount=}
+    count=${count%% *}
+    if [ "${count:-1}" -gt 1 ]; then
+        if [ "$screen" != "$EXPECT_SCREEN" ]; then
+            echo "ERROR: $count screens available and the window is on '$screen'," >&2
+            echo "       expected '$EXPECT_SCREEN'. Stopping the whole series." >&2
             return 1
-            ;;
-    esac
+        fi
+        return 0
+    fi
+    echo "WARNING: a single screen ('$screen'), so this series is measured on the screen" |
+        tee -a "$OUT/provenance.txt"
+    echo "         the user works on and can be contaminated by his activity." |
+        tee -a "$OUT/provenance.txt"
+    return 0
 }
+
 first_run_checked=0
 
 # vsync off, otherwise both types sit at the refresh rate and the difference
@@ -82,6 +108,10 @@ for height in "${HEIGHTS[@]}"; do
             if [ "$first_run_checked" -eq 0 ]; then
                 check_screen "$OUT/$label.log" || exit 1
                 first_run_checked=1
+            fi
+            if pgrep -x mixxx >/dev/null; then
+                echo "ERROR: another Mixxx appeared during the series, stopping." >&2
+                exit 1
             fi
         done
         # the stock RGB type as the reference point of every repeat
