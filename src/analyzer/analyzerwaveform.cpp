@@ -5,7 +5,7 @@
 
 #include "analyzer/analyzertrack.h"
 #include "analyzer/constants.h"
-#include "engine/filters/enginefilterbessel4.h"
+#include "engine/filters/enginefilterwaveform.h"
 #include "track/track.h"
 #include "util/logger.h"
 #include "waveform/waveform.h"
@@ -14,10 +14,6 @@
 namespace {
 
 mixxx::Logger kLogger("AnalyzerWaveform");
-
-constexpr double kLowMidFreqHz = 600.0;
-
-constexpr double kMidHighFreqHz = 4000.0;
 
 } // namespace
 
@@ -173,13 +169,14 @@ bool AnalyzerWaveform::shouldAnalyze(TrackPointer pTrack) const {
 }
 
 void AnalyzerWaveform::createFilters(mixxx::audio::SampleRate sampleRate) {
-    // m_filter[Low] = new EngineFilterButterworth8Low(sampleRate, kLowMidFreqHz);
-    // m_filter[Mid] = new EngineFilterButterworth8Band(sampleRate, kLowMidFreqHz, kMidHighFreqHz);
-    // m_filter[High] = new EngineFilterButterworth8High(sampleRate, kMidHighFreqHz);
+    // These are deliberately not crossover filters: they are three heavily
+    // overlapping first order responses measured from Traktor, see
+    // engine/filters/enginefilterwaveform.h. Each one peaks at unit gain, the
+    // relative weighting of the bands happens in the renderer.
     m_filters = {
-            std::make_unique<EngineFilterBessel4Low>(sampleRate, kLowMidFreqHz),
-            std::make_unique<EngineFilterBessel4Band>(sampleRate, kLowMidFreqHz, kMidHighFreqHz),
-            std::make_unique<EngineFilterBessel4High>(sampleRate, kMidHighFreqHz)};
+            std::make_unique<EngineFilterWaveformLow>(sampleRate),
+            std::make_unique<EngineFilterWaveformMid>(sampleRate),
+            std::make_unique<EngineFilterWaveformHigh>(sampleRate)};
 
     // settle filters for silence in preroll to avoids ramping (Issue #7776)
     m_filters.low->assumeSettled();
@@ -234,32 +231,27 @@ bool AnalyzerWaveform::processSamples(const CSAMPLE* pIn, SINT count) {
     m_waveformSummary->setSaveState(Waveform::SaveState::NotSaved);
 
     for (SINT i = 0; i < count; i += 2) {
-        // Take max value, not average of data
+        // The envelope that drives the height of the waveform is a peak.
         CSAMPLE cover[2] = {fabs(pWaveformInput[i]), fabs(pWaveformInput[i + 1])};
-        CSAMPLE clow[2] = {fabs(m_buffers.low[i]), fabs(m_buffers.low[i + 1])};
-        CSAMPLE cmid[2] = {fabs(m_buffers.mid[i]), fabs(m_buffers.mid[i + 1])};
-        CSAMPLE chigh[2] = {fabs(m_buffers.high[i]), fabs(m_buffers.high[i + 1])};
-
-        // This is for if you want to experiment with averaging instead of
-        // maxing.
-        // m_stride.m_overallData[Right] += buffer[i]*buffer[i];
-        // m_stride.m_overallData[Left] += buffer[i + 1]*buffer[i + 1];
-        // m_stride.m_filteredData[Right][Low] += m_buffers.low[i]*m_buffers.low[i];
-        // m_stride.m_filteredData[Left][Low] += m_buffers.low[i + 1]*m_buffers.low[i + 1];
-        // m_stride.m_filteredData[Right][Mid] += m_buffers.mid[i]*m_buffers.mid[i];
-        // m_stride.m_filteredData[Left][Mid] += m_buffers.mid[i + 1]*m_buffers.mid[i + 1];
-        // m_stride.m_filteredData[Right][High] += m_buffers.high[i]*m_buffers.high[i];
-        // m_stride.m_filteredData[Left][High] += m_buffers.high[i + 1]*m_buffers.high[i + 1];
-
         // Record the max across this stride.
         storeIfGreater(&m_stride.m_overallData[Left], cover[Left]);
         storeIfGreater(&m_stride.m_overallData[Right], cover[Right]);
-        storeIfGreater(&m_stride.m_filteredData[Left][Low], clow[Left]);
-        storeIfGreater(&m_stride.m_filteredData[Right][Low], clow[Right]);
-        storeIfGreater(&m_stride.m_filteredData[Left][Mid], cmid[Left]);
-        storeIfGreater(&m_stride.m_filteredData[Right][Mid], cmid[Right]);
-        storeIfGreater(&m_stride.m_filteredData[Left][High], chigh[Left]);
-        storeIfGreater(&m_stride.m_filteredData[Right][High], chigh[Right]);
+
+        // The band magnitudes that drive the colour are the RMS of the
+        // filtered signal inside the bin, so accumulate energy here and take
+        // the root in WaveformStride::store(). This is a different quantity
+        // from the envelope above on purpose: Traktor's height is linear in the
+        // peak while its colour comes from band energy.
+        const CSAMPLE flow[2] = {m_buffers.low[i], m_buffers.low[i + 1]};
+        const CSAMPLE fmid[2] = {m_buffers.mid[i], m_buffers.mid[i + 1]};
+        const CSAMPLE fhigh[2] = {m_buffers.high[i], m_buffers.high[i + 1]};
+        m_stride.m_filteredData[Left][Low] += flow[Left] * flow[Left];
+        m_stride.m_filteredData[Right][Low] += flow[Right] * flow[Right];
+        m_stride.m_filteredData[Left][Mid] += fmid[Left] * fmid[Left];
+        m_stride.m_filteredData[Right][Mid] += fmid[Right] * fmid[Right];
+        m_stride.m_filteredData[Left][High] += fhigh[Left] * fhigh[Left];
+        m_stride.m_filteredData[Right][High] += fhigh[Right] * fhigh[Right];
+        m_stride.m_bandFrameCount++;
 
         for (int s = 0; s < stemCount; s++) {
             CSAMPLE cstem[2] = {

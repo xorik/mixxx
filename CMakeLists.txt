@@ -1369,6 +1369,7 @@ add_library(
   src/engine/filters/enginefilterlinkwitzriley4.cpp
   src/engine/filters/enginefilterlinkwitzriley8.cpp
   src/engine/filters/enginefiltermoogladder4.cpp
+  src/engine/filters/enginefilterwaveform.cpp
   src/engine/positionscratchcontroller.cpp
   src/engine/readaheadmanager.cpp
   src/engine/sidechain/enginenetworkstream.cpp
@@ -2919,6 +2920,7 @@ if(BUILD_TESTING)
     src/test/enginebufferscalelineartest.cpp
     src/test/enginebuffertest.cpp
     src/test/enginefilterbiquadtest.cpp
+    src/test/enginefilterwaveformtest.cpp
     src/test/enginemixertest.cpp
     src/test/enginemicrophonetest.cpp
     src/test/enginesynctest.cpp

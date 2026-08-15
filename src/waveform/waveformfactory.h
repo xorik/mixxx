@@ -36,14 +36,32 @@ class Waveform;
 #define WAVEFORM_6_DESCRIPTION "Waveform 6.1"
 #define WAVEFORMSUMMARY_6_DESCRIPTION "WaveformSummary 6.1"
 
-#define WAVEFORM_CURRENT_VERSION WAVEFORM_6_VERSION
-#define WAVEFORM_CURRENT_DESCRIPTION WAVEFORM_6_DESCRIPTION
-#else
-#define WAVEFORM_CURRENT_VERSION WAVEFORM_5_VERSION
-#define WAVEFORM_CURRENT_DESCRIPTION WAVEFORM_5_DESCRIPTION
 #endif
-#define WAVEFORMSUMMARY_CURRENT_VERSION WAVEFORMSUMMARY_5_VERSION
-#define WAVEFORMSUMMARY_CURRENT_DESCRIPTION WAVEFORMSUMMARY_5_DESCRIPTION
+
+// Used from Mixxx 2.6: the three colour bands are no longer Bessel crossovers
+// but the first order responses measured from Traktor, and the stored band
+// value is the RMS of the filtered signal inside the bin instead of its peak.
+// The byte layout is unchanged but the meaning of the bytes is not, so every
+// track has to be analysed again. 7.1 is the variant that carries stem data.
+// Both the detailed waveform and the overview change, hence both versions are
+// bumped: they are versioned separately and bumping only one of them would
+// leave the library overview showing the old colours forever.
+#define WAVEFORM_7_VERSION "Waveform-7.0"
+#define WAVEFORM_7_DESCRIPTION "Waveform 7.0"
+#define WAVEFORM_7_STEM_VERSION "Waveform-7.1"
+#define WAVEFORM_7_STEM_DESCRIPTION "Waveform 7.1"
+#define WAVEFORMSUMMARY_7_VERSION "WaveformSummary-7.0"
+#define WAVEFORMSUMMARY_7_DESCRIPTION "WaveformSummary 7.0"
+
+#ifdef __STEM__
+#define WAVEFORM_CURRENT_VERSION WAVEFORM_7_STEM_VERSION
+#define WAVEFORM_CURRENT_DESCRIPTION WAVEFORM_7_STEM_DESCRIPTION
+#else
+#define WAVEFORM_CURRENT_VERSION WAVEFORM_7_VERSION
+#define WAVEFORM_CURRENT_DESCRIPTION WAVEFORM_7_DESCRIPTION
+#endif
+#define WAVEFORMSUMMARY_CURRENT_VERSION WAVEFORMSUMMARY_7_VERSION
+#define WAVEFORMSUMMARY_CURRENT_DESCRIPTION WAVEFORMSUMMARY_7_DESCRIPTION
 
 class WaveformFactory {
   public:

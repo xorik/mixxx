@@ -559,6 +559,35 @@ inline double EngineFilterIIR<5, IIR_BP>::processSample(double* coef,
     return val;
 }
 
+// Single one-pole section: H(z) = coef[0] * (1 + z^-1) / (1 + coef[1] * z^-1)
+template<>
+inline double EngineFilterIIR<1, IIR_LPMO>::processSample(double* coef,
+        double* buf,
+        double val) {
+    double tmp, fir, iir;
+    tmp = buf[0];
+    iir = val * coef[0];
+    iir -= coef[1] * tmp; fir = tmp;
+    fir += iir;
+    buf[0] = iir; val = fir;
+    return val;
+}
+
+// Single one-pole section: H(z) = coef[0] * (1 - z^-1) / (1 + coef[1] * z^-1)
+// The zero sits exactly on z = 1, hence the gain at DC is exactly zero.
+template<>
+inline double EngineFilterIIR<1, IIR_HPMO>::processSample(double* coef,
+        double* buf,
+        double val) {
+    double tmp, fir, iir;
+    tmp = buf[0];
+    iir = val * coef[0];
+    iir -= coef[1] * tmp; fir = -tmp;
+    fir += iir;
+    buf[0] = iir; val = fir;
+    return val;
+}
+
 template<>
 inline double EngineFilterIIR<4, IIR_LPMO>::processSample(double* coef,
                                                         double* buf,
