@@ -80,9 +80,9 @@ check_screen() {
         fi
         return 0
     fi
-    echo "WARNING: a single screen ('$screen'), so this series is measured on the screen" |
+    echo "WARNING: measured on the single screen of the user ('$screen'); the numbers can be" |
         tee -a "$OUT/provenance.txt"
-    echo "         the user works on and can be contaminated by his activity." |
+    echo "         contaminated by his activity and by other OpenGL applications sharing it." |
         tee -a "$OUT/provenance.txt"
     return 0
 }
