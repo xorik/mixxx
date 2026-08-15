@@ -124,8 +124,8 @@ for _ in $(seq 1 12); do
     sleep 2
     # What counts is the state we ended up in, not who put us there: when the
     # bundle is marked LSUIElement the process is accessory before the hook
-    # runs, and setting the policy again reports a failure that is not one.
-    if grep -q "policyNow=accessory" "$LOG" 2>/dev/null &&
+    # runs, so "alreadyAccessory" is a success and only "FAILED" is not.
+    if grep -qE "accessoryPolicy=(applied|alreadyAccessory)" "$LOG" 2>/dev/null &&
             grep -q "BENCHHIT MIXXX_BENCH_NO_AUDIO=1" "$LOG" 2>/dev/null; then
         hooks_ok=1
         break
