@@ -31,8 +31,14 @@ PROFILE=${WFPROFILE:-/tmp/mixxx-mix11n}
 OUT=/tmp/wfshot
 SETTLE=${SETTLE:-40}
 
-# Window on the second DELL, 1900x1000 at +2068+40 (QWidget::saveGeometry blob).
-GEOMETRY='AdnQywADAAAAAAgUAAAAKAAAD38AAAQPAAAIFAAAAEQAAA9/AAAEDwAAAAIAAAAAB4AAAAgUAAAARAAAD38AAAQP'
+# Window placement comes from MIXXX_BENCH_GEOMETRY (geometry.patch), not from
+# the settings: writing a QWidget::saveGeometry blob into [MainWindow] geometry
+# does nothing at all. Qt silently rejects a rectangle it does not consider
+# sane for the current virtual desktop, and every run of this harness spent its
+# life on the laptop screen of the user while the config said otherwise.
+# Empty means "wherever it opens", which is the only option while the external
+# monitors are switched off.
+WFGEOMETRY=${WFGEOMETRY:-}
 
 # WFTRACKS overrides the material, colon separated. Only the first two decks
 # are rendered by the LateNight skin, so put what matters in decks 1 and 2.
@@ -82,7 +88,6 @@ awk '/^\[Controller\]/{c=1;print;next} /^\[/{c=0} c && NF {sub(/ [0-9]+$/, " 0")
 # the window position.
 sed -i '' "s/^Version 2\.5\..*/Version 2.7.0-alpha/" "$PROFILE/mixxx.cfg"
 sed -i '' "s/^WaveformType .*/WaveformType $TYPE/" "$PROFILE/mixxx.cfg"
-sed -i '' "s|^geometry .*|geometry $GEOMETRY|" "$PROFILE/mixxx.cfg"
 if [ -n "${WFZOOM:-}" ]; then
     sed -i '' "s/^DefaultZoom .*/DefaultZoom $WFZOOM/" "$PROFILE/mixxx.cfg"
 fi
@@ -100,6 +105,7 @@ if true; then
     [ -d "$BUNDLE" ] || { echo "ERROR: $BUNDLE missing" >&2; exit 1; }
     envargs=(--env "MIXXXBG_BINARY=$BIN"
              --env MIXXX_BENCH_NO_AUDIO=1
+             ${WFGEOMETRY:+--env "MIXXX_BENCH_GEOMETRY=$WFGEOMETRY"}
              --env MIXXX_BENCH_BACKGROUND=1
              --env QT_MAC_DISABLE_FOREGROUND_APPLICATION_TRANSFORM=1
              --env "MIXXX_WF_GRAB=$OUT/$LABEL/wf"
