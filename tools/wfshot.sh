@@ -29,11 +29,17 @@ PROFILE=/tmp/mixxx-mix11u
 OUT=/tmp/wfshot
 SETTLE=${SETTLE:-25}
 
-TRACKS=(
-    "/Users/andrey/Music/zzz/xo/Spor-Powder Monkey .mp3"
-    "/Users/andrey/Music/b01_pop.mp3"
-    "/Users/andrey/Music/b02_dub.mp3"
-)
+# WFTRACK loads a single file instead of the default set, WFZOOM sets the zoom
+# level (1 = most detail, 10 = most time on screen).
+if [ -n "${WFTRACK:-}" ]; then
+    TRACKS=("$WFTRACK")
+else
+    TRACKS=(
+        "/Users/andrey/Music/zzz/xo/Spor-Powder Monkey .mp3"
+        "/Users/andrey/Music/b01_pop.mp3"
+        "/Users/andrey/Music/b02_dub.mp3"
+    )
+fi
 
 mkdir -p "$OUT/$LABEL"
 [ -x "$BIN" ] || { echo "ERROR: $BIN missing" >&2; exit 1; }
@@ -49,6 +55,9 @@ fi
 # this build so the upgrade stays out of the way.
 sed -i '' "s/^Version 2\.5\..*/Version 2.7.0-alpha/" "$PROFILE/mixxx.cfg"
 sed -i '' "s/^WaveformType .*/WaveformType $TYPE/" "$PROFILE/mixxx.cfg"
+if [ -n "${WFZOOM:-}" ]; then
+    sed -i '' "s/^DefaultZoom .*/DefaultZoom $WFZOOM/" "$PROFILE/mixxx.cfg"
+fi
 rm -f "$PROFILE"/mixxx.log* "$OUT/$LABEL"/*.png
 
 env MIXXX_WF_GRAB="$OUT/$LABEL/wf" MIXXX_WF_GRAB_AFTER=200 "$@" \
