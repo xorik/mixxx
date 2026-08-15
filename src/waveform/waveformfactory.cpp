@@ -33,10 +33,21 @@ WaveformFactory::VersionClass WaveformFactory::waveformVersionToVersionClass(con
         return VC_REMOVE;
     }
 
+    if (version == WAVEFORM_5_VERSION) {
+        // Used up to Mixxx 2.5, superseded by the Traktor derived colour model
+        return VC_REMOVE;
+    }
+
 #ifdef __STEM__
     if (version == WAVEFORM_6_0_VERSION) {
         // Used in Mixxx 2.6 beta, introducing stem data but later replaced with
         // the signal scale removal
+        return VC_REMOVE;
+    }
+
+    if (version == WAVEFORM_6_VERSION) {
+        // Used in Mixxx 2.6 beta, superseded by the Traktor derived colour
+        // model
         return VC_REMOVE;
     }
 #endif
@@ -66,6 +77,20 @@ WaveformFactory::VersionClass WaveformFactory::waveformSummaryVersionToVersionCl
         // Used in Mixxx 1.11 beta, suffers Bug #6744
         return VC_REMOVE;
     }
+
+    if (version == WAVEFORMSUMMARY_5_VERSION) {
+        // Used up to Mixxx 2.6 beta, superseded by the Traktor derived colour
+        // model
+        return VC_REMOVE;
+    }
+
+#ifdef __STEM__
+    if (version == WAVEFORMSUMMARY_6_VERSION) {
+        // Never actually written (WAVEFORMSUMMARY_CURRENT_VERSION stayed at
+        // 5.0 in that build), listed so the constant does not go stale
+        return VC_REMOVE;
+    }
+#endif
 
     // possible a future version
     return VC_KEEP;

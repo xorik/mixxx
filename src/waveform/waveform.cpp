@@ -88,22 +88,17 @@ QByteArray Waveform::toByteArray() const {
     for (int i = 0; i < m_stemCount; i++) {
         stems.append(waveform.add_signal_stems());
     }
-    // TODO(rryan) get the actual cutoff values from analyzerwaveform.cpp so
-    // that if they change we don't have to remember to update these.
-
-    // Frequency cutoffs for butterworth filters:
-    // filtered->set_low_cutoff_frequency(200);
-    // filtered->set_mid_low_cutoff_frequency(200);
-    // filtered->set_mid_high_cutoff_frequency(2000);
-    // filtered->set_high_cutoff_frequency(2000);
-
-    // Frequency cutoff for bessel_lowpass4
-    filtered->set_low_cutoff_frequency(600);
-    // Frequency cutoff for bessel_bandpass
-    filtered->set_mid_low_cutoff_frequency(600);
-    filtered->set_mid_high_cutoff_frequency(4000);
-    // Frequency cutoff for bessel_highpass4
-    filtered->set_high_cutoff_frequency(4000);
+    // The band filters in engine/filters/enginefilterwaveform.h are first order
+    // shelves that overlap heavily, so they have no cutoff frequency in the
+    // usual sense; the corner frequencies of the sections (115 / 145 / 50000 Hz)
+    // would be actively misleading here. What is written instead are the
+    // frequencies at which neighbouring bands are equal, which is the only
+    // thing about these responses that behaves like a band boundary. Nothing
+    // reads these fields back, they exist for external tools.
+    filtered->set_low_cutoff_frequency(184);
+    filtered->set_mid_low_cutoff_frequency(184);
+    filtered->set_mid_high_cutoff_frequency(1960);
+    filtered->set_high_cutoff_frequency(1960);
 
     io::Waveform::Signal* low = filtered->mutable_low();
     io::Waveform::Signal* mid = filtered->mutable_mid();
