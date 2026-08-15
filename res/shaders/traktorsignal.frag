@@ -48,6 +48,12 @@ uniform highp vec3 bandColorGain;
 // stores the square root of the band magnitude, so 0.5 imitates its
 // compression on top of the data Mixxx has today. 1.0 leaves the data as is.
 uniform highp float colorGamma;
+// Level below which the color is no longer normalized to full brightness.
+// Without it a column that carries almost nothing (the noise of a quiet
+// passage) is divided by its own maximum and comes out as a fully saturated
+// color decided by noise. With it, quiet columns simply get dark, which is
+// also what Traktor does. 0.0 restores the plain normalization.
+uniform highp float colorLevelFloor;
 
 uniform sampler2D waveformDataTexture;
 
@@ -106,8 +112,9 @@ highp vec3 bandColor(highp vec3 data) {
     data *= bandColorGain;
     highp vec3 color = lowColor.rgb * data.x + midColor.rgb * data.y + highColor.rgb * data.z;
     highp float maxComponent = max(color.r, max(color.g, color.b));
-    if (maxComponent > 0.0) {
-        color /= maxComponent;
+    highp float norm = max(maxComponent, colorLevelFloor);
+    if (norm > 0.0) {
+        color /= norm;
     }
     return color;
 }

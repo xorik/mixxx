@@ -4,6 +4,9 @@
 #include <QApplication>
 #include <QImage>
 #include <QWheelEvent>
+#include <algorithm>
+
+#include "control/controlproxy.h"
 
 #include "rendergraph/engine.h"
 #include "rendergraph/opacitynode.h"
@@ -191,7 +194,24 @@ void WaveformWidget::grabFrameIfRequested() {
             qEnvironmentVariableIntValue("MIXXX_WF_GRAB_AFTER") > 0
             ? qEnvironmentVariableIntValue("MIXXX_WF_GRAB_AFTER")
             : 300;
-    if (++m_framesRendered < grabAfterFrames) {
+    // Decks load paused at the cue point, where there is usually no music yet.
+    // MIXXX_WF_SEEK moves them to a given second of the track a little before
+    // the grab, without ever starting playback.
+    ++m_framesRendered;
+    if (m_framesRendered == std::max(grabAfterFrames - 120, 1)) {
+        const double seconds = qEnvironmentVariable("MIXXX_WF_SEEK").toDouble();
+        if (seconds > 0.0) {
+            ControlProxy duration(getGroup(), QStringLiteral("duration"));
+            const double trackSeconds = duration.get();
+            if (trackSeconds > 0.0) {
+                ControlProxy playPosition(getGroup(), QStringLiteral("playposition"));
+                playPosition.set(seconds / trackSeconds);
+                qDebug() << "WaveformWidget - seeking" << getGroup() << "to" << seconds << "s of"
+                         << trackSeconds << "s";
+            }
+        }
+    }
+    if (m_framesRendered < grabAfterFrames) {
         return;
     }
     m_grabDone = true;

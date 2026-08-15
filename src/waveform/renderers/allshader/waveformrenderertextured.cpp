@@ -58,6 +58,15 @@ float colorGamma() {
     return value;
 }
 
+// Level below which the color of a column is no longer normalized to full
+// brightness, in band units. Keeps quiet passages dark instead of letting the
+// normalization turn their noise into a fully saturated color.
+float colorLevelFloor() {
+    static const float value =
+            std::clamp(tunable("MIXXX_WF_COLOR_LEVEL_FLOOR", 0.03f), 0.0f, 1.0f);
+    return value;
+}
+
 // Measured balance between the three bands of Traktor, applied to the color
 // only. Overridable as MIXXX_WF_BAND_GAIN="low,mid,high".
 QVector3D bandColorGain() {
@@ -420,7 +429,8 @@ void WaveformRendererTextured::paintGL() {
         m_paintLogged = true;
         qDebug() << "WaveformRendererTextured::paintGL - first paint with" << m_fragShader
                  << "smooth" << colorSmoothBins() << "soft" << softEdgePixels() << "floor"
-                 << amplitudeFloor() << "gain" << bandColorGain() << "gamma" << colorGamma();
+                 << amplitudeFloor() << "gain" << bandColorGain() << "gamma" << colorGamma()
+                 << "levelFloor" << colorLevelFloor();
     }
 
     // paint into frame buffer
@@ -471,6 +481,7 @@ void WaveformRendererTextured::paintGL() {
             m_frameShaderProgram->setUniformValue("amplitudeFloor", amplitudeFloor());
             m_frameShaderProgram->setUniformValue("bandColorGain", bandColorGain());
             m_frameShaderProgram->setUniformValue("colorGamma", colorGamma());
+            m_frameShaderProgram->setUniformValue("colorLevelFloor", colorLevelFloor());
         }
 
         m_frameShaderProgram->setUniformValue("axesColor",
