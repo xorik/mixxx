@@ -2,7 +2,9 @@
 #include "waveform/widgets/allshader/waveformwidget.h"
 
 #include <QApplication>
+#include <QGuiApplication>
 #include <QImage>
+#include <QStringList>
 #include <QOpenGLWindow>
 #include <QScreen>
 #include <QWheelEvent>
@@ -233,21 +235,21 @@ void WaveformWidget::grabFrameIfRequested() {
     // way to know which screen it landed on is to ask at run time.
     if (const QOpenGLWindow* pWindow = getOpenGLWindow()) {
         if (const QScreen* pScreen = pWindow->screen()) {
-            const QRect r = pWindow->geometry();
-            qDebug().noquote()
-                    << QStringLiteral("BENCHHIT MIXXX_WF_WINDOW=%1,%2,%3x%4 screen=%5 %6")
-                               .arg(QString::number(r.x()),
-                                       QString::number(r.y()),
-                                       QString::number(r.width()),
-                                       QString::number(r.height()),
-                                       pScreen->name(),
-                                       pScreen->geometry().isNull()
-                                               ? QString()
-                                               : QStringLiteral("screenAt=%1,%2")
-                                                         .arg(QString::number(
-                                                                      pScreen->geometry().x()),
-                                                                 QString::number(
-                                                                         pScreen->geometry().y())));
+            const QRect windowRect = pWindow->geometry();
+            const QRect screenRect = pScreen->geometry();
+            QStringList report;
+            report << QStringLiteral("BENCHHIT MIXXX_WF_WINDOW=%1,%2,%3x%4")
+                              .arg(QString::number(windowRect.x()),
+                                      QString::number(windowRect.y()),
+                                      QString::number(windowRect.width()),
+                                      QString::number(windowRect.height()));
+            report << QStringLiteral("screen=") + pScreen->name();
+            report << QStringLiteral("screenAt=%1,%2")
+                              .arg(QString::number(screenRect.x()),
+                                      QString::number(screenRect.y()));
+            report << QStringLiteral("screenCount=") +
+                            QString::number(QGuiApplication::screens().size());
+            qDebug().noquote() << report.join(QChar(' '));
         }
     }
 

@@ -92,7 +92,10 @@ rm -f "$PROFILE"/mixxx.log* "$OUT/$LABEL"/*.png
 # application from ACTIVATING (taking keyboard focus); "open -g" stops its
 # window from being ORDERED IN FRONT. We were treating the first as if it
 # covered the second, which is why the window kept appearing.
-if [ "${WFLAUNCH:-bundle}" = "bundle" ]; then
+# Bundle only. A bare binary can be launched, but its window is ordered in
+# front of everything, and there is no way to ask macOS not to. "open -g" is
+# the only thing that controls the ORDER, so it is not optional here.
+if true; then
     BUNDLE=/tmp/mixxx-bg/MixxxBg.app
     [ -d "$BUNDLE" ] || { echo "ERROR: $BUNDLE missing" >&2; exit 1; }
     envargs=(--env "MIXXXBG_BINARY=$BIN"
@@ -111,14 +114,6 @@ if [ "${WFLAUNCH:-bundle}" = "bundle" ]; then
     # "open" returns at once and the process writes no stdout of ours, so the
     # log of the profile is the only place to look.
     LOG="$PROFILE/mixxx.log"
-else
-    env MIXXX_BENCH_NO_AUDIO=1 MIXXX_BENCH_BACKGROUND=1 \
-        QT_MAC_DISABLE_FOREGROUND_APPLICATION_TRANSFORM=1 \
-        MIXXX_WF_GRAB="$OUT/$LABEL/wf" MIXXX_WF_GRAB_AFTER=200 "$@" \
-        "$BIN" --developer --settings-path "$PROFILE" "${TRACKS[@]}" \
-        >"$OUT/$LABEL/stdout.txt" 2>&1 &
-    PID=$!
-    LOG="$OUT/$LABEL/stdout.txt"
 fi
 
 # The hooks must report that they actually ran, otherwise the window jumps to
@@ -127,7 +122,10 @@ fi
 hooks_ok=0
 for _ in $(seq 1 12); do
     sleep 2
-    if grep -q "accessoryPolicyApplied=true" "$LOG" 2>/dev/null &&
+    # What counts is the state we ended up in, not who put us there: when the
+    # bundle is marked LSUIElement the process is accessory before the hook
+    # runs, and setting the policy again reports a failure that is not one.
+    if grep -q "policyNow=accessory" "$LOG" 2>/dev/null &&
             grep -q "BENCHHIT MIXXX_BENCH_NO_AUDIO=1" "$LOG" 2>/dev/null; then
         hooks_ok=1
         break
