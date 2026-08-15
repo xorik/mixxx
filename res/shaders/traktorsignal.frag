@@ -58,8 +58,10 @@ uniform highp float colorLevelFloor;
 uniform sampler2D waveformDataTexture;
 
 // The color window never uses more taps than this on each side, whatever
-// colorSmoothBins says. GLSL 1.20 requires a constant loop bound.
-const int kColorMaxTaps = 12;
+// colorSmoothBins says. GLSL 1.20 requires a constant loop bound. Every tap
+// beyond the radius is skipped, so the cost follows colorSmoothBins, not this
+// number.
+const int kColorMaxTaps = 20;
 
 highp vec4 getWaveformData(highp float index) {
     highp vec2 uv_data;

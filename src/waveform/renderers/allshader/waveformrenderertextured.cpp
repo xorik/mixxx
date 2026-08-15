@@ -4,6 +4,7 @@
 
 #include <QOpenGLFramebufferObject>
 #include <QOpenGLShaderProgram>
+#include <QStringList>
 #include <QVector3D>
 #include <algorithm>
 
@@ -25,11 +26,14 @@ float tunable(const char* name, float defaultValue) {
 }
 
 // Radius of the window the color of a column is averaged over, in visual bins
-// (441 bins per second). About 7 bins matches the ~60 color cells per second
-// measured in Traktor. The amplitude is not affected, it keeps the full detail.
+// (441 bins per second). The amplitude is not affected, it keeps the full
+// detail. Measured against Traktor on music: both the colour jitter between
+// neighbouring columns and the strength of the transitions keep improving up
+// to about 12 bins and then flatten out, while the cost keeps growing with the
+// radius, so 12 is where the curve pays for itself.
 float colorSmoothBins() {
     static const float value =
-            std::clamp(tunable("MIXXX_WF_COLOR_SMOOTH_BINS", 7.0f), 0.0f, 12.0f);
+            std::clamp(tunable("MIXXX_WF_COLOR_SMOOTH_BINS", 12.0f), 0.0f, 20.0f);
     return value;
 }
 
@@ -63,7 +67,7 @@ float colorGamma() {
 // normalization turn their noise into a fully saturated color.
 float colorLevelFloor() {
     static const float value =
-            std::clamp(tunable("MIXXX_WF_COLOR_LEVEL_FLOOR", 0.03f), 0.0f, 1.0f);
+            std::clamp(tunable("MIXXX_WF_COLOR_LEVEL_FLOOR", 0.01f), 0.0f, 1.0f);
     return value;
 }
 
@@ -429,10 +433,27 @@ void WaveformRendererTextured::paintGL() {
 
     if (!m_paintLogged) {
         m_paintLogged = true;
-        qDebug() << "WaveformRendererTextured::paintGL - first paint with" << m_fragShader
-                 << "smooth" << colorSmoothBins() << "soft" << softEdgePixels() << "floor"
-                 << amplitudeFloor() << "gain" << bandColorGain() << "gamma" << colorGamma()
-                 << "levelFloor" << colorLevelFloor();
+        // Reported in the BENCHHIT convention of the performance harness: what
+        // is logged is what the shader actually received, not what was asked
+        // for. A knob that silently did not arrive, or a waveform type that was
+        // silently replaced, is the mistake that has cost this project the most
+        // time so far.
+        const QVector3D gain = bandColorGain();
+        const QStringList applied = {
+                QStringLiteral("BENCHHIT MIXXX_WF_COLOR_SMOOTH_BINS=") +
+                        QString::number(colorSmoothBins()),
+                QStringLiteral("type=") + QString::number(static_cast<int>(m_type)),
+                QStringLiteral("shader=") + m_fragShader,
+                QStringLiteral("MIXXX_WF_SOFT_EDGE_PX=") + QString::number(softEdgePixels()),
+                QStringLiteral("MIXXX_WF_AMP_FLOOR=") + QString::number(amplitudeFloor()),
+                QStringLiteral("MIXXX_WF_COLOR_LEVEL_FLOOR=") +
+                        QString::number(colorLevelFloor()),
+                QStringLiteral("MIXXX_WF_COLOR_GAMMA=") + QString::number(colorGamma()),
+                QStringLiteral("MIXXX_WF_BAND_GAIN=") + QString::number(gain.x()) +
+                        QChar(',') + QString::number(gain.y()) + QChar(',') +
+                        QString::number(gain.z()),
+        };
+        qDebug().noquote() << applied.join(QChar(' '));
     }
 
     // paint into frame buffer

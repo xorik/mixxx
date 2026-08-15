@@ -47,6 +47,15 @@ else
     )
 fi
 
+# HARD GUARD. Without the benchmark hooks the window comes to the front and a
+# profile without an output device blocks on a modal dialog. Both have already
+# disturbed the user, so this is a refusal, not a warning.
+if ! grep -rqs "MIXXX_BENCH" "$ROOT/src"; then
+    echo "ERROR: the benchmark hooks are not applied, refusing to launch." >&2
+    echo "       git apply /tmp/mixxx-bench-shared/bench-hooks.patch" >&2
+    exit 1
+fi
+
 mkdir -p "$OUT/$LABEL"
 [ -x "$BIN" ] || { echo "ERROR: $BIN missing" >&2; exit 1; }
 if pgrep -x mixxx >/dev/null; then
@@ -75,6 +84,25 @@ env MIXXX_BENCH_NO_AUDIO=1 MIXXX_BENCH_BACKGROUND=1 \
     "$BIN" --developer --settings-path "$PROFILE" "${TRACKS[@]}" \
     >"$OUT/$LABEL/stdout.txt" 2>&1 &
 PID=$!
+
+# The hooks must report that they actually ran, otherwise the window jumps to
+# the front. A flag that was passed but never executed looks exactly like a
+# working background mode until it is too late.
+hooks_ok=0
+for _ in 1 2 3 4 5 6; do
+    sleep 2
+    if grep -q "accessoryPolicyApplied=true" "$OUT/$LABEL/stdout.txt" 2>/dev/null &&
+            grep -q "BENCHHIT MIXXX_BENCH_NO_AUDIO=1" "$OUT/$LABEL/stdout.txt" 2>/dev/null; then
+        hooks_ok=1
+        break
+    fi
+    kill -0 "$PID" 2>/dev/null || break
+done
+if [ "$hooks_ok" -ne 1 ]; then
+    echo "ERROR: the hooks did not report, killing the run before it can take focus." >&2
+    kill -KILL "$PID" 2>/dev/null
+    exit 1
+fi
 
 waited=0
 while [ "$waited" -lt "$SETTLE" ]; do
