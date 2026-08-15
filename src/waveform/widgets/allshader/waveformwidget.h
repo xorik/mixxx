@@ -48,6 +48,7 @@ class allshader::WaveformWidget final : public ::WGLWidget,
         ::WaveformRendererSignalBase::Options options = ::WaveformRendererSignalBase::Option::None;
         switch (type) {
         case WaveformWidgetType::Type::RGB:
+        case WaveformWidgetType::Type::Traktor:
             options = ::WaveformRendererSignalBase::Option::AllOptionsCombined;
             break;
         case WaveformWidgetType::Type::Filtered:
@@ -70,6 +71,7 @@ class allshader::WaveformWidget final : public ::WGLWidget,
 
   private:
     void castToQWidget() override;
+    void grabFrameIfRequested();
     void paintEvent(QPaintEvent* event) override;
     void wheelEvent(QWheelEvent* event) override;
     void leaveEvent(QEvent* event) override;
@@ -98,6 +100,10 @@ class allshader::WaveformWidget final : public ::WGLWidget,
     WaveformRenderMark* m_pWaveformRenderMarkSlip;
 
     WaveformRendererSignalBase* m_pWaveformRendererSignal;
+
+    // Debug aid, see grabFrameIfRequested().
+    int m_framesRendered{0};
+    bool m_grabDone{false};
 
     DISALLOW_COPY_AND_ASSIGN(WaveformWidget);
 };

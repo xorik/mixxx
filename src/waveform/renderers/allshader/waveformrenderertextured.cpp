@@ -4,6 +4,8 @@
 
 #include <QOpenGLFramebufferObject>
 #include <QOpenGLShaderProgram>
+#include <QVector3D>
+#include <algorithm>
 
 #include "moc_waveformrenderertextured.cpp"
 #include "track/track.h"
@@ -11,6 +13,68 @@
 
 namespace {
 const QString kPassthroughShaderPath = QStringLiteral(":/shaders/passthrough.vert");
+
+// We render into a frame buffer that is this much larger than the renderer
+// itself to "oversample" the texture relative to the surface we're drawing on.
+constexpr int kOversamplingFactor = 4;
+
+float tunable(const char* name, float defaultValue) {
+    bool ok = false;
+    const float value = qEnvironmentVariable(name).toFloat(&ok);
+    return ok ? value : defaultValue;
+}
+
+// Radius of the window the color of a column is averaged over, in visual bins
+// (441 bins per second). About 7 bins matches the ~60 color cells per second
+// measured in Traktor. The amplitude is not affected, it keeps the full detail.
+float colorSmoothBins() {
+    static const float value =
+            std::clamp(tunable("MIXXX_WF_COLOR_SMOOTH_BINS", 7.0f), 0.0f, 12.0f);
+    return value;
+}
+
+// Width of the soft edge of the waveform, in device pixels. Traktor fades out
+// over 3-4 device pixels.
+float softEdgePixels() {
+    static const float value = std::max(tunable("MIXXX_WF_SOFT_EDGE_PX", 3.0f), 0.0f);
+    return value;
+}
+
+// Minimum visible half-height of bins that carry any signal, as a fraction of
+// the half-height of the widget.
+float amplitudeFloor() {
+    static const float value =
+            std::clamp(tunable("MIXXX_WF_AMP_FLOOR", 0.12f), 0.0f, 0.9f);
+    return value;
+}
+
+// Compression applied to the band values before they become a color. Traktor
+// stores the square root of the band magnitude, Mixxx stores it as is, so 0.5
+// imitates Traktor on the data we have today.
+float colorGamma() {
+    static const float value = std::clamp(tunable("MIXXX_WF_COLOR_GAMMA", 1.0f), 0.05f, 4.0f);
+    return value;
+}
+
+// Measured balance between the three bands of Traktor, applied to the color
+// only. Overridable as MIXXX_WF_BAND_GAIN="low,mid,high".
+QVector3D bandColorGain() {
+    static const QVector3D value = []() {
+        const QStringList parts =
+                qEnvironmentVariable("MIXXX_WF_BAND_GAIN").split(QChar(','));
+        if (parts.size() == 3) {
+            bool okLow = false, okMid = false, okHigh = false;
+            const float low = parts.at(0).toFloat(&okLow);
+            const float mid = parts.at(1).toFloat(&okMid);
+            const float high = parts.at(2).toFloat(&okHigh);
+            if (okLow && okMid && okHigh) {
+                return QVector3D(low, mid, high);
+            }
+        }
+        return QVector3D(1.0f, 1.0f, 1.0f);
+    }();
+    return value;
+}
 } // namespace
 
 namespace allshader {
@@ -22,6 +86,8 @@ QString WaveformRendererTextured::fragShaderForType(::WaveformWidgetType::Type t
         return QStringLiteral(":/shaders/filteredsignal.frag");
     case ::WaveformWidgetType::RGB:
         return QStringLiteral(":/shaders/rgbsignal.frag");
+    case ::WaveformWidgetType::Traktor:
+        return QStringLiteral(":/shaders/traktorsignal.frag");
     case ::WaveformWidgetType::Stacked:
         return QStringLiteral(":/shaders/stackedsignal.frag");
     default:
@@ -58,7 +124,8 @@ WaveformRendererTextured::~WaveformRendererTextured() {
 }
 
 bool WaveformRendererTextured::loadShaders() {
-    qDebug() << "WaveformRendererTextured::loadShaders";
+    qDebug() << "WaveformRendererTextured::loadShaders" << m_fragShader << "type"
+             << static_cast<int>(m_type);
     m_shadersValid = false;
 
     if (m_frameShaderProgram->isLinked()) {
@@ -206,9 +273,7 @@ void WaveformRendererTextured::createGeometry() {
 
 void WaveformRendererTextured::createFrameBuffers() {
     const float devicePixelRatio = m_waveformRenderer->getDevicePixelRatio();
-    // We create a frame buffer that is 4x the size of the renderer itself to
-    // "oversample" the texture relative to the surface we're drawing on.
-    constexpr int oversamplingFactor = 4;
+    constexpr int oversamplingFactor = kOversamplingFactor;
     const auto bufferWidth = oversamplingFactor *
             static_cast<int>(m_waveformRenderer->getWidth() * devicePixelRatio);
     const auto bufferHeight = oversamplingFactor *
@@ -349,6 +414,13 @@ void WaveformRendererTextured::paintGL() {
 
     // qDebug() << "GAIN" << allGain << lowGain << midGain << highGain;
 
+    if (!m_paintLogged) {
+        m_paintLogged = true;
+        qDebug() << "WaveformRendererTextured::paintGL - first paint with" << m_fragShader
+                 << "smooth" << colorSmoothBins() << "soft" << softEdgePixels() << "floor"
+                 << amplitudeFloor() << "gain" << bandColorGain() << "gamma" << colorGamma();
+    }
+
     // paint into frame buffer
     {
         glMatrixMode(GL_PROJECTION);
@@ -383,9 +455,20 @@ void WaveformRendererTextured::paintGL() {
         m_frameShaderProgram->setUniformValue("midGain", midGain);
         m_frameShaderProgram->setUniformValue("highGain", highGain);
 
-        if (m_type == ::WaveformWidgetType::RGB) {
+        if (m_type == ::WaveformWidgetType::RGB || m_type == ::WaveformWidgetType::Traktor) {
             m_frameShaderProgram->setUniformValue("splitStereoSignal",
                     m_options & ::WaveformRendererSignalBase::Option::SplitStereoSignal);
+        }
+
+        if (m_type == ::WaveformWidgetType::Traktor) {
+            m_frameShaderProgram->setUniformValue("colorSmoothBins", colorSmoothBins());
+            // The shader works in frame buffer pixels, the tunable is in
+            // device pixels.
+            m_frameShaderProgram->setUniformValue("softEdgePixels",
+                    softEdgePixels() * static_cast<float>(kOversamplingFactor));
+            m_frameShaderProgram->setUniformValue("amplitudeFloor", amplitudeFloor());
+            m_frameShaderProgram->setUniformValue("bandColorGain", bandColorGain());
+            m_frameShaderProgram->setUniformValue("colorGamma", colorGamma());
         }
 
         m_frameShaderProgram->setUniformValue("axesColor",
@@ -411,7 +494,8 @@ void WaveformRendererTextured::paintGL() {
                             static_cast<GLfloat>(m_rgbHighFilteredColor_b),
                             1.0));
         }
-        if (m_type == ::WaveformWidgetType::RGB || m_type == ::WaveformWidgetType::Stacked) {
+        if (m_type == ::WaveformWidgetType::RGB || m_type == ::WaveformWidgetType::Stacked ||
+                m_type == ::WaveformWidgetType::Traktor) {
             m_frameShaderProgram->setUniformValue("lowColor",
                     QVector4D(static_cast<GLfloat>(m_rgbLowColor_r),
                             static_cast<GLfloat>(m_rgbLowColor_g),

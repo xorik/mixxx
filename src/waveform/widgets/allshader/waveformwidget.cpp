@@ -2,6 +2,7 @@
 #include "waveform/widgets/allshader/waveformwidget.h"
 
 #include <QApplication>
+#include <QImage>
 #include <QWheelEvent>
 
 #include "rendergraph/engine.h"
@@ -111,6 +112,7 @@ WaveformWidget::addWaveformSignalRenderer(WaveformWidgetType::Type type,
     if (options & ::WaveformRendererSignalBase::Option::HighDetail) {
         switch (type) {
         case ::WaveformWidgetType::RGB:
+        case ::WaveformWidgetType::Traktor:
         case ::WaveformWidgetType::Filtered:
         case ::WaveformWidgetType::Stacked:
             return addWaveformSignalRenderer<WaveformRendererTextured>(
@@ -125,6 +127,9 @@ WaveformWidget::addWaveformSignalRenderer(WaveformWidgetType::Type type,
     case ::WaveformWidgetType::Simple:
         return addWaveformSignalRenderer<WaveformRendererSimple>(options);
     case ::WaveformWidgetType::RGB:
+    case ::WaveformWidgetType::Traktor:
+        // Without the HighDetail option there is no textured renderer, so the
+        // Traktor style falls back to the geometry based RGB waveform.
         return addWaveformSignalRenderer<WaveformRendererRGB>(positionSource, options);
     case ::WaveformWidgetType::HSV:
         return addWaveformSignalRenderer<WaveformRendererHSV>(options);
@@ -162,6 +167,51 @@ void WaveformWidget::paintGL() {
 
     m_pEngine->preprocess();
     m_pEngine->render();
+
+    grabFrameIfRequested();
+}
+
+// Writes the content of the waveform widget to a PNG file, once, after
+// MIXXX_WF_GRAB_AFTER frames. This reads back the frame buffer that was just
+// drawn, so what lands in the file is exactly what the shader produced,
+// unscaled and independent of what covers the window on the screen.
+// Enabled by setting MIXXX_WF_GRAB to a path prefix, e.g.
+//   MIXXX_WF_GRAB=/tmp/shot build/mixxx ...
+// writes /tmp/shot-[Channel1].png.
+void WaveformWidget::grabFrameIfRequested() {
+    if (m_grabDone) {
+        return;
+    }
+    static const QString prefix = qEnvironmentVariable("MIXXX_WF_GRAB");
+    if (prefix.isEmpty()) {
+        m_grabDone = true;
+        return;
+    }
+    static const int grabAfterFrames =
+            qEnvironmentVariableIntValue("MIXXX_WF_GRAB_AFTER") > 0
+            ? qEnvironmentVariableIntValue("MIXXX_WF_GRAB_AFTER")
+            : 300;
+    if (++m_framesRendered < grabAfterFrames) {
+        return;
+    }
+    m_grabDone = true;
+
+    GLint viewport[4] = {0, 0, 0, 0};
+    glGetIntegerv(GL_VIEWPORT, viewport);
+    const int width = viewport[2];
+    const int height = viewport[3];
+    if (width <= 0 || height <= 0) {
+        return;
+    }
+    QImage image(width, height, QImage::Format_RGBA8888);
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    glReadPixels(viewport[0], viewport[1], width, height, GL_RGBA, GL_UNSIGNED_BYTE, image.bits());
+    const QString path = prefix + QStringLiteral("-") + getGroup() + QStringLiteral(".png");
+    if (image.mirrored(false, true).save(path)) {
+        qDebug() << "WaveformWidget - wrote" << path << width << "x" << height;
+    } else {
+        qWarning() << "WaveformWidget - could not write" << path;
+    }
 }
 
 void WaveformWidget::castToQWidget() {
