@@ -27,13 +27,18 @@ float tunable(const char* name, float defaultValue) {
 
 // Radius of the window the color of a column is averaged over, in visual bins
 // (441 bins per second). The amplitude is not affected, it keeps the full
-// detail. Measured against Traktor on music: both the colour jitter between
-// neighbouring columns and the strength of the transitions keep improving up
-// to about 12 bins and then flatten out, while the cost keeps growing with the
-// radius, so 12 is where the curve pays for itself.
+// detail. Four bins is about 9 ms, which is the grid Traktor appears to use.
+//
+// A wider window scores better on every number we could think of - the colour
+// jitter between neighbouring columns and the sharpness of the transitions
+// both keep improving up to about 12 bins - and looks worse: averaging over
+// 27 ms mixes neighbouring columns into each other, which invents orange
+// between red and green and washes the saturation out. The numbers measured
+// how fast the colour changes, not which colours appear, so they never saw it.
+// The eye did.
 float colorSmoothBins() {
     static const float value =
-            std::clamp(tunable("MIXXX_WF_COLOR_SMOOTH_BINS", 12.0f), 0.0f, 20.0f);
+            std::clamp(tunable("MIXXX_WF_COLOR_SMOOTH_BINS", 4.0f), 0.0f, 20.0f);
     return value;
 }
 
@@ -71,10 +76,14 @@ float colorLevelFloor() {
     return value;
 }
 
-// Measured balance between the three bands of Traktor, applied to the color
-// only. The high band is raised by 17 dB, which is what the measurement says
-// and what the band magnitudes of the analyzer need. Overridable as
-// MIXXX_WF_BAND_GAIN="low,mid,high".
+// Balance between the three bands, applied to the color only. The high band is
+// raised by 17 dB, which is what the measurement of Traktor says and what the
+// band magnitudes of the analyzer need. The mid band is held back to 0.7:
+// measured on the same material, that takes the share of yellow-green columns
+// from 6.1% down to 1.2% and the columns where green dominates from 11% to
+// 2.7%, against 3.0% and 7.5% in Traktor. Overridable as
+// MIXXX_WF_BAND_GAIN="low,mid,high", so 1.068,1,7.111 restores the plain
+// measured balance for comparison.
 QVector3D bandColorGain() {
     static const QVector3D value = []() {
         const QStringList parts =
@@ -88,7 +97,7 @@ QVector3D bandColorGain() {
                 return QVector3D(low, mid, high);
             }
         }
-        return QVector3D(1.068f, 1.0f, 7.111f);
+        return QVector3D(1.068f, 0.7f, 7.111f);
     }();
     return value;
 }
