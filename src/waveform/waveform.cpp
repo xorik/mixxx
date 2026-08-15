@@ -90,7 +90,8 @@ QByteArray Waveform::toByteArray() const {
     }
     // The band filters in engine/filters/enginefilterwaveform.h are first order
     // shelves that overlap heavily, so they have no cutoff frequency in the
-    // usual sense; the corner frequencies of the sections (115 / 145 / 50000 Hz)
+    // usual sense; the corner frequencies of the sections
+    // (115 / 225 / 1750 / 50000 Hz)
     // would be actively misleading here. What is written instead are the
     // frequencies at which neighbouring bands are equal, which is the only
     // thing about these responses that behaves like a band boundary. Nothing

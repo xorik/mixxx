@@ -34,10 +34,13 @@ SETTLE=${SETTLE:-25}
 if [ -n "${WFTRACK:-}" ]; then
     TRACKS=("$WFTRACK")
 else
+    # Standard material: two test files where the comparison with Traktor goes
+    # by segment, and two pieces of music. One run gives one frame per deck.
     TRACKS=(
+        "/Users/andrey/Music/30_mixgrid.wav"
+        "/Users/andrey/Music/40_chip.wav"
         "/Users/andrey/Music/zzz/xo/Spor-Powder Monkey .mp3"
         "/Users/andrey/Music/b01_pop.mp3"
-        "/Users/andrey/Music/b02_dub.mp3"
     )
 fi
 

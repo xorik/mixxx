@@ -199,7 +199,17 @@ void WaveformWidget::grabFrameIfRequested() {
     // the grab, without ever starting playback.
     ++m_framesRendered;
     if (m_framesRendered == std::max(grabAfterFrames - 120, 1)) {
-        const double seconds = qEnvironmentVariable("MIXXX_WF_SEEK").toDouble();
+        // One value seeks every deck to the same second, a comma separated
+        // list gives one value per deck ("12,14,55" for decks 1, 2 and 3).
+        const QStringList seekValues =
+                qEnvironmentVariable("MIXXX_WF_SEEK").split(QChar(','), Qt::SkipEmptyParts);
+        const int deck = getGroup().mid(8).chopped(1).toInt();
+        double seconds = 0.0;
+        if (seekValues.size() == 1) {
+            seconds = seekValues.at(0).toDouble();
+        } else if (deck >= 1 && deck <= seekValues.size()) {
+            seconds = seekValues.at(deck - 1).toDouble();
+        }
         if (seconds > 0.0) {
             ControlProxy duration(getGroup(), QStringLiteral("duration"));
             const double trackSeconds = duration.get();

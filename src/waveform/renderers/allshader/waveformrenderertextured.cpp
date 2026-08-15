@@ -68,7 +68,9 @@ float colorLevelFloor() {
 }
 
 // Measured balance between the three bands of Traktor, applied to the color
-// only. Overridable as MIXXX_WF_BAND_GAIN="low,mid,high".
+// only. The high band is raised by 17 dB, which is what the measurement says
+// and what the band magnitudes of the analyzer need. Overridable as
+// MIXXX_WF_BAND_GAIN="low,mid,high".
 QVector3D bandColorGain() {
     static const QVector3D value = []() {
         const QStringList parts =
@@ -82,7 +84,7 @@ QVector3D bandColorGain() {
                 return QVector3D(low, mid, high);
             }
         }
-        return QVector3D(1.0f, 1.0f, 1.0f);
+        return QVector3D(1.068f, 1.0f, 7.111f);
     }();
     return value;
 }
