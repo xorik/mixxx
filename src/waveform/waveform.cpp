@@ -95,10 +95,12 @@ QByteArray Waveform::toByteArray() const {
     // frequencies at which neighbouring bands are equal, which is the only
     // thing about these responses that behaves like a band boundary. Nothing
     // reads these fields back, they exist for external tools.
-    filtered->set_low_cutoff_frequency(184);
-    filtered->set_mid_low_cutoff_frequency(184);
-    filtered->set_mid_high_cutoff_frequency(1960);
-    filtered->set_high_cutoff_frequency(1960);
+    // (The measured responses cross at 186 and 1927 Hz; the fitted ones are a
+    // little off there, and what is written here is what the data actually is.)
+    filtered->set_low_cutoff_frequency(155);
+    filtered->set_mid_low_cutoff_frequency(155);
+    filtered->set_mid_high_cutoff_frequency(2323);
+    filtered->set_high_cutoff_frequency(2323);
 
     io::Waveform::Signal* low = filtered->mutable_low();
     io::Waveform::Signal* mid = filtered->mutable_mid();

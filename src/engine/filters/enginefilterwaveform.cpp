@@ -1,6 +1,8 @@
 #include "engine/filters/enginefilterwaveform.h"
 
+#include <algorithm>
 #include <cmath>
+#include <complex>
 #include <cstring>
 
 #include "util/math.h"
@@ -9,21 +11,14 @@ namespace {
 
 using namespace mixxx::waveformfilter;
 
-/// Bilinear transform of a one pole lowpass with corner frequency `fc`, in the
-/// coefficient layout of EngineFilterIIR<1, IIR_LPMO>:
-///     H(z) = c0 * (1 + z^-1) / (1 + c1 * z^-1)
-void designOnePoleLowpass(double fc, double sampleRate, double* pC0, double* pC1) {
+/// Bilinear transform of a one pole section with corner frequency `fc`, in the
+/// coefficient layout used by EngineFilterIIR<1, IIR_LPMO / IIR_HPMO>:
+///     lowpass   H(z) = c0 * (1 + z^-1) / (1 + c1 * z^-1)
+///     highpass  H(z) = c0 * (1 - z^-1) / (1 + c1 * z^-1)
+/// Both share the same pole, only the numerator differs.
+void designOnePole(bool highpass, double fc, double sampleRate, double* pC0, double* pC1) {
     const double k = std::tan(M_PI * fc / sampleRate);
-    *pC0 = k / (1.0 + k);
-    *pC1 = (k - 1.0) / (k + 1.0);
-}
-
-/// Bilinear transform of a one pole highpass with corner frequency `fc`, in the
-/// coefficient layout of EngineFilterIIR<1, IIR_HPMO>:
-///     H(z) = c0 * (1 - z^-1) / (1 + c1 * z^-1)
-void designOnePoleHighpass(double fc, double sampleRate, double* pC0, double* pC1) {
-    const double k = std::tan(M_PI * fc / sampleRate);
-    *pC0 = 1.0 / (1.0 + k);
+    *pC0 = highpass ? 1.0 / (1.0 + k) : k / (1.0 + k);
     *pC1 = (k - 1.0) / (k + 1.0);
 }
 
@@ -80,52 +75,103 @@ double analogHighpassMagnitude(double fc, double f) {
             (kHighNormalizationHz / std::hypot(kHighNormalizationHz, fc));
 }
 
+/// Points used to locate the peak of the mid band cascade. The peak is a broad
+/// maximum around 800 Hz, so a coarse logarithmic scan is plenty: 256 points
+/// place it to better than 0.01 dB.
+constexpr int kPeakScanPoints = 256;
+
 } // namespace
 
-EngineFilterWaveformLow::EngineFilterWaveformLow(mixxx::audio::SampleRate sampleRate)
-        : m_dryGain(std::pow(10.0, kLowShelfDb / 20.0)),
-          m_wetGain(1.0 - std::pow(10.0, kLowShelfDb / 20.0)) {
-    // low = dry * x + wet * lowpass(x, 115 Hz); at DC both parts are in phase
-    // and add up to exactly 1.0, which is where this band peaks.
+template<enum IIRPass PASS>
+EngineFilterOnePoleShelf<PASS>::EngineFilterOnePoleShelf(double cornerHz,
+        double shelfDb,
+        mixxx::audio::SampleRate sampleRate,
+        double outputGain)
+        : m_sampleRate(sampleRate),
+          m_dryGain(outputGain * std::pow(10.0, shelfDb / 20.0)),
+          m_wetGain(outputGain * (1.0 - std::pow(10.0, shelfDb / 20.0))) {
     double c0, c1;
-    designOnePoleLowpass(mixxx::waveformfilter::kLowCornerHz, sampleRate, &c0, &c1);
-    std::memcpy(m_oldCoef, m_coef, sizeof(m_coef));
-    m_coef[0] = c0;
-    m_coef[1] = c1;
-    initBuffers();
+    designOnePole(PASS == IIR_HPMO, cornerHz, sampleRate, &c0, &c1);
+    std::memcpy(this->m_oldCoef, this->m_coef, sizeof(this->m_coef));
+    this->m_coef[0] = c0;
+    this->m_coef[1] = c1;
+    this->initBuffers();
 }
 
-void EngineFilterWaveformLow::process(const CSAMPLE* pIn,
+template<enum IIRPass PASS>
+void EngineFilterOnePoleShelf<PASS>::setOutputGain(double outputGain) {
+    const double shelf = m_dryGain / (m_dryGain + m_wetGain);
+    m_dryGain = outputGain * shelf;
+    m_wetGain = outputGain * (1.0 - shelf);
+}
+
+template<enum IIRPass PASS>
+void EngineFilterOnePoleShelf<PASS>::process(const CSAMPLE* pIn,
         CSAMPLE* pOutput,
         std::size_t bufferSize) {
-    EngineFilterIIR<1, IIR_LPMO>::process(pIn, pOutput, bufferSize);
-    for (std::size_t i = 0; i < bufferSize; ++i) {
-        pOutput[i] = static_cast<CSAMPLE>(
-                m_dryGain * pIn[i] + m_wetGain * pOutput[i]);
+    // Each sample is read before the matching output is written, so it is safe
+    // to pass the same buffer for input and output.
+    for (std::size_t i = 0; i < bufferSize; i += 2) {
+        const double left = pIn[i];
+        const double right = pIn[i + 1];
+        pOutput[i] = static_cast<CSAMPLE>(m_dryGain * left +
+                m_wetGain * this->processSample(this->m_coef, this->m_buf1, left));
+        pOutput[i + 1] = static_cast<CSAMPLE>(m_dryGain * right +
+                m_wetGain * this->processSample(this->m_coef, this->m_buf2, right));
     }
 }
 
+template<enum IIRPass PASS>
+double EngineFilterOnePoleShelf<PASS>::magnitudeAt(double frequencyHz) const {
+    const std::complex<double> zInv =
+            std::exp(std::complex<double>(0.0, -2.0 * M_PI * frequencyHz / m_sampleRate));
+    const std::complex<double> numerator =
+            PASS == IIR_HPMO ? 1.0 - zInv : 1.0 + zInv;
+    const std::complex<double> onePole =
+            this->m_coef[0] * numerator / (1.0 + this->m_coef[1] * zInv);
+    return std::abs(m_dryGain + m_wetGain * onePole);
+}
+
+template class EngineFilterOnePoleShelf<IIR_LPMO>;
+template class EngineFilterOnePoleShelf<IIR_HPMO>;
+
+EngineFilterWaveformLow::EngineFilterWaveformLow(mixxx::audio::SampleRate sampleRate)
+        : EngineFilterHighShelf1(kLowCornerHz, kLowShelfDb, sampleRate) {
+    // No normalisation needed: at DC the dry and the filtered path are in phase
+    // and add up to exactly 1.0, which is where this band peaks.
+}
+
 EngineFilterWaveformMid::EngineFilterWaveformMid(mixxx::audio::SampleRate sampleRate)
-        : m_dryGain(std::pow(10.0, kMidShelfDb / 20.0)),
-          m_wetGain(1.0 - std::pow(10.0, kMidShelfDb / 20.0)) {
-    // mid = dry * x + wet * highpass(x, 145 Hz); well above the corner both
-    // parts are in phase and add up to exactly 1.0, the peak of this band.
-    double c0, c1;
-    designOnePoleHighpass(mixxx::waveformfilter::kMidCornerHz, sampleRate, &c0, &c1);
-    std::memcpy(m_oldCoef, m_coef, sizeof(m_coef));
-    m_coef[0] = c0;
-    m_coef[1] = c1;
-    initBuffers();
+        : m_lowShelf(kMidLowShelfCornerHz, kMidLowShelfDb, sampleRate),
+          m_highShelf(kMidHighShelfCornerHz, kMidHighShelfDb, sampleRate) {
+    // Unlike the other two bands the cascade does not peak at either end, so
+    // find the maximum (around 800 Hz) and fold its inverse into the second
+    // section. The measured mid band peaks at 684 Hz, for comparison.
+    const double top = normalizationFrequency(sampleRate);
+    double peak = 0.0;
+    for (int i = 0; i <= kPeakScanPoints; ++i) {
+        const double frequency = 20.0 *
+                std::pow(top / 20.0, static_cast<double>(i) / kPeakScanPoints);
+        peak = std::max(peak,
+                m_lowShelf.magnitudeAt(frequency) * m_highShelf.magnitudeAt(frequency));
+    }
+    VERIFY_OR_DEBUG_ASSERT(peak > 0.0) {
+        return;
+    }
+    m_highShelf.setOutputGain(1.0 / peak);
 }
 
 void EngineFilterWaveformMid::process(const CSAMPLE* pIn,
         CSAMPLE* pOutput,
         std::size_t bufferSize) {
-    EngineFilterIIR<1, IIR_HPMO>::process(pIn, pOutput, bufferSize);
-    for (std::size_t i = 0; i < bufferSize; ++i) {
-        pOutput[i] = static_cast<CSAMPLE>(
-                m_dryGain * pIn[i] + m_wetGain * pOutput[i]);
-    }
+    m_lowShelf.process(pIn, pOutput, bufferSize);
+    // In place, which the sections support by construction.
+    m_highShelf.process(pOutput, pOutput, bufferSize);
+}
+
+void EngineFilterWaveformMid::assumeSettled() {
+    m_lowShelf.assumeSettled();
+    m_highShelf.assumeSettled();
 }
 
 EngineFilterWaveformHigh::EngineFilterWaveformHigh(mixxx::audio::SampleRate sampleRate) {
