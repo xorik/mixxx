@@ -39,7 +39,8 @@ uniform highp float colorSmoothBins;
 // hard edge of the stock RGB waveform.
 uniform highp float softEdgePixels;
 // Minimum visible half-height for bins that carry any signal at all, in
-// [0, 1]. 0.0 disables the floor.
+// [0, 1] (0.19 reproduces the plateau of 0.214 measured in Traktor).
+// 0.0 disables the floor.
 uniform highp float amplitudeFloor;
 // Measured balance between the three bands, applied to the color only.
 uniform highp vec3 bandColorGain;

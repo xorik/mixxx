@@ -41,10 +41,12 @@ float softEdgePixels() {
 }
 
 // Minimum visible half-height of bins that carry any signal, as a fraction of
-// the half-height of the widget.
+// the half-height of the widget. Measured in Traktor: quiet columns stop
+// following the amplitude and sit on a plateau of 0.214 of the half-height,
+// whatever their loudness.
 float amplitudeFloor() {
     static const float value =
-            std::clamp(tunable("MIXXX_WF_AMP_FLOOR", 0.12f), 0.0f, 0.9f);
+            std::clamp(tunable("MIXXX_WF_AMP_FLOOR", 0.19f), 0.0f, 0.9f);
     return value;
 }
 
