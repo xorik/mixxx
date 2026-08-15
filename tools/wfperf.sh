@@ -39,6 +39,30 @@ fi
 sha_before=$(shasum -a 256 "$BIN" | cut -d' ' -f1)
 echo "binary sha256 before: $sha_before" | tee "$OUT/provenance.txt"
 
+# The window has already ended up on the wrong screen once, on the laptop the
+# user works on, and it went unnoticed for the whole series because nobody
+# looked. So the screen is checked on the FIRST run and the series stops right
+# there if it is wrong, instead of producing thirty interruptions.
+EXPECT_SCREEN=${WFSCREEN:-DELL U2417H}
+check_screen() {
+    local log=$1
+    local line
+    line=$(grep -m1 "MIXXX_WF_WINDOW=" "$log" 2>/dev/null)
+    if [ -z "$line" ]; then
+        echo "ERROR: the run did not report a window at all, stopping." >&2
+        return 1
+    fi
+    echo "$line" | tee -a "$OUT/provenance.txt"
+    case "$line" in
+        *"screen=$EXPECT_SCREEN"*) return 0 ;;
+        *)
+            echo "ERROR: the window is not on '$EXPECT_SCREEN', stopping the whole series." >&2
+            return 1
+            ;;
+    esac
+}
+first_run_checked=0
+
 # vsync off, otherwise both types sit at the refresh rate and the difference
 # disappears into the headroom.
 sed -i '' "s/^VSync .*/VSync 0/" "$PROFILE/mixxx.cfg"
@@ -53,7 +77,12 @@ for height in "${HEIGHTS[@]}"; do
             SETTLE=${SETTLE:-35} WFPROFILE="$PROFILE" \
                 "$ROOT/tools/wfshot-bg.sh" "perf-$label" 30 \
                 MIXXX_WF_COLOR_SMOOTH_BINS=$radius >/dev/null 2>&1
-            cp "/tmp/wfshot/perf-$label/stdout.txt" "$OUT/$label.log" 2>/dev/null
+            cp "/tmp/wfshot/perf-$label/mixxx.log" "$OUT/$label.log" 2>/dev/null ||
+                cp "/tmp/wfshot/perf-$label/stdout.txt" "$OUT/$label.log" 2>/dev/null
+            if [ "$first_run_checked" -eq 0 ]; then
+                check_screen "$OUT/$label.log" || exit 1
+                first_run_checked=1
+            fi
         done
         # the stock RGB type as the reference point of every repeat
         label="h${height%%,*}-stock-$repeat"

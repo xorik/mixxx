@@ -443,6 +443,10 @@ void WaveformRendererTextured::paintGL() {
                 QStringLiteral("BENCHHIT MIXXX_WF_COLOR_SMOOTH_BINS=") +
                         QString::number(colorSmoothBins()),
                 QStringLiteral("type=") + QString::number(static_cast<int>(m_type)),
+                QStringLiteral("options=") +
+                        QString::number(static_cast<int>(
+                                static_cast<::WaveformRendererSignalBase::Options::Int>(
+                                        m_options))),
                 QStringLiteral("shader=") + m_fragShader,
                 QStringLiteral("MIXXX_WF_SOFT_EDGE_PX=") + QString::number(softEdgePixels()),
                 QStringLiteral("MIXXX_WF_AMP_FLOOR=") + QString::number(amplitudeFloor()),

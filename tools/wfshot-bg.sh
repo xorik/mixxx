@@ -67,6 +67,16 @@ fi
 # construction.
 cp /tmp/mixxx-bench-shared/soundconfig-silent.xml "$PROFILE/soundconfig.xml"
 
+# Anything that makes Mixxx touch a protected folder or open an input device
+# asks the user for permission, and none of it has anything to do with drawing
+# a waveform. The external libraries scan folders at start-up (the Traktor one
+# lives in ~/Documents), and enabled MIDI controllers open input devices, which
+# is what the "receive keystrokes" prompt is about.
+sed -i '' -E "s/^Show(ITunes|Rekordbox|Serato|Traktor|Rhythmbox|Banshee)Library .*/Show\1Library 0/" \
+    "$PROFILE/mixxx.cfg"
+awk '/^\[Controller\]/{c=1;print;next} /^\[/{c=0} c && NF {sub(/ [0-9]+$/, " 0")} {print}' \
+    "$PROFILE/mixxx.cfg" >"$PROFILE/mixxx.cfg.tmp" && mv "$PROFILE/mixxx.cfg.tmp" "$PROFILE/mixxx.cfg"
+
 # Keep the upgrade path out of the way (an old [Config] Version makes Mixxx
 # silently rewrite the waveform type on every start), then set type, zoom and
 # the window position.
@@ -78,29 +88,56 @@ if [ -n "${WFZOOM:-}" ]; then
 fi
 rm -f "$PROFILE"/mixxx.log* "$OUT/$LABEL"/*.png
 
-env MIXXX_BENCH_NO_AUDIO=1 MIXXX_BENCH_BACKGROUND=1 \
-    QT_MAC_DISABLE_FOREGROUND_APPLICATION_TRANSFORM=1 \
-    MIXXX_WF_GRAB="$OUT/$LABEL/wf" MIXXX_WF_GRAB_AFTER=200 "$@" \
-    "$BIN" --developer --settings-path "$PROFILE" "${TRACKS[@]}" \
-    >"$OUT/$LABEL/stdout.txt" 2>&1 &
-PID=$!
+# Two different things have to be switched off. The benchmark hooks stop the
+# application from ACTIVATING (taking keyboard focus); "open -g" stops its
+# window from being ORDERED IN FRONT. We were treating the first as if it
+# covered the second, which is why the window kept appearing.
+if [ "${WFLAUNCH:-bundle}" = "bundle" ]; then
+    BUNDLE=/tmp/mixxx-bg/MixxxBg.app
+    [ -d "$BUNDLE" ] || { echo "ERROR: $BUNDLE missing" >&2; exit 1; }
+    envargs=(--env "MIXXXBG_BINARY=$BIN"
+             --env MIXXX_BENCH_NO_AUDIO=1
+             --env MIXXX_BENCH_BACKGROUND=1
+             --env QT_MAC_DISABLE_FOREGROUND_APPLICATION_TRANSFORM=1
+             --env "MIXXX_WF_GRAB=$OUT/$LABEL/wf"
+             --env MIXXX_WF_GRAB_AFTER=200)
+    for assignment in "$@"; do
+        envargs+=(--env "$assignment")
+    done
+    open -g "$BUNDLE" "${envargs[@]}" --args \
+        --developer --log-flush-level debug --resource-path "$ROOT/res" \
+        --settings-path "$PROFILE" "${TRACKS[@]}"
+    PID=""
+    # "open" returns at once and the process writes no stdout of ours, so the
+    # log of the profile is the only place to look.
+    LOG="$PROFILE/mixxx.log"
+else
+    env MIXXX_BENCH_NO_AUDIO=1 MIXXX_BENCH_BACKGROUND=1 \
+        QT_MAC_DISABLE_FOREGROUND_APPLICATION_TRANSFORM=1 \
+        MIXXX_WF_GRAB="$OUT/$LABEL/wf" MIXXX_WF_GRAB_AFTER=200 "$@" \
+        "$BIN" --developer --settings-path "$PROFILE" "${TRACKS[@]}" \
+        >"$OUT/$LABEL/stdout.txt" 2>&1 &
+    PID=$!
+    LOG="$OUT/$LABEL/stdout.txt"
+fi
 
 # The hooks must report that they actually ran, otherwise the window jumps to
 # the front. A flag that was passed but never executed looks exactly like a
 # working background mode until it is too late.
 hooks_ok=0
-for _ in 1 2 3 4 5 6; do
+for _ in $(seq 1 12); do
     sleep 2
-    if grep -q "accessoryPolicyApplied=true" "$OUT/$LABEL/stdout.txt" 2>/dev/null &&
-            grep -q "BENCHHIT MIXXX_BENCH_NO_AUDIO=1" "$OUT/$LABEL/stdout.txt" 2>/dev/null; then
+    if grep -q "accessoryPolicyApplied=true" "$LOG" 2>/dev/null &&
+            grep -q "BENCHHIT MIXXX_BENCH_NO_AUDIO=1" "$LOG" 2>/dev/null; then
         hooks_ok=1
         break
     fi
-    kill -0 "$PID" 2>/dev/null || break
+    [ -z "$PID" ] || kill -0 "$PID" 2>/dev/null || break
 done
 if [ "$hooks_ok" -ne 1 ]; then
     echo "ERROR: the hooks did not report, killing the run before it can take focus." >&2
-    kill -KILL "$PID" 2>/dev/null
+    [ -z "$PID" ] || kill -KILL "$PID" 2>/dev/null
+    pkill -9 -x mixxx 2>/dev/null
     exit 1
 fi
 
@@ -114,10 +151,16 @@ while [ "$waited" -lt "$SETTLE" ]; do
     fi
 done
 
-kill -TERM "$PID" 2>/dev/null
-for _ in $(seq 1 20); do kill -0 "$PID" 2>/dev/null || break; sleep 0.5; done
-kill -KILL "$PID" 2>/dev/null
+if [ -n "$PID" ]; then
+    kill -TERM "$PID" 2>/dev/null
+    for _ in $(seq 1 20); do kill -0 "$PID" 2>/dev/null || break; sleep 0.5; done
+    kill -KILL "$PID" 2>/dev/null
+else
+    pkill -x mixxx 2>/dev/null
+    sleep 2
+    pkill -9 -x mixxx 2>/dev/null
+fi
 
 cp "$PROFILE/mixxx.log" "$OUT/$LABEL/mixxx.log" 2>/dev/null
-grep -E "BENCHFLAG|BENCHHIT" "$OUT/$LABEL/stdout.txt" | head -5
+grep -E "BENCHFLAG|BENCHHIT" "$LOG" | head -6
 ls -l "$OUT/$LABEL"/*.png 2>/dev/null || echo "NO FRAMES GRABBED"
