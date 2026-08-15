@@ -173,7 +173,7 @@ LoopingControl::LoopingControl(const QString& group,
     connect(m_pCOBeatJump, &ControlObject::valueChanged,
             this, &LoopingControl::slotBeatJump, Qt::DirectConnection);
     m_pCOBeatJumpSize = new ControlObject(ConfigKey(group, "beatjump_size"),
-                                          true, false, false, 4.0);
+                                          true, false, false, 16.0);
     m_pCOBeatJumpSize->connectValueChangeRequest(this,
             &LoopingControl::slotBeatJumpSizeChangeRequest,
             Qt::DirectConnection);
