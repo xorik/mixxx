@@ -24,8 +24,8 @@ shift
 shift 2>/dev/null || true
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-BIN="$ROOT/build/mixxx"
-PROFILE=/tmp/mixxx-mix11u
+BIN="${WFBIN:-$ROOT/build/mixxx}"
+PROFILE=${WFPROFILE:-/tmp/mixxx-mix11u}
 OUT=/tmp/wfshot
 SETTLE=${SETTLE:-25}
 
@@ -64,7 +64,19 @@ env MIXXX_WF_GRAB="$OUT/$LABEL/wf" MIXXX_WF_GRAB_AFTER=200 "$@" \
     "$BIN" --developer --settings-path "$PROFILE" "${TRACKS[@]}" \
     >"$OUT/$LABEL/stdout.txt" 2>&1 &
 PID=$!
-sleep "$SETTLE"
+
+# Wait in short steps rather than one long sleep, so the run stays visible and
+# interruptible, and stop as soon as the frames are on disk.
+waited=0
+while [ "$waited" -lt "$SETTLE" ]; do
+    sleep 5
+    waited=$((waited + 5))
+    if ls "$OUT/$LABEL"/*.png >/dev/null 2>&1; then
+        sleep 2
+        break
+    fi
+    kill -0 "$PID" 2>/dev/null || break
+done
 
 kill -TERM "$PID" 2>/dev/null
 for _ in $(seq 1 20); do kill -0 "$PID" 2>/dev/null || break; sleep 0.5; done
