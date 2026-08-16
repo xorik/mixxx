@@ -1518,6 +1518,14 @@ bool WOverview::drawNextPixmapPart() {
                 nextCompletion,
                 m_signalColors,
                 !m_stereo);
+    } else if (m_type == OverviewType::Spectrum) {
+        waveformOverviewRenderer::drawWaveformPartSpectrum(
+                &painter,
+                pWaveform,
+                &m_actualCompletion,
+                nextCompletion,
+                m_signalColors,
+                !m_stereo);
     } else if (m_type == OverviewType::HSV) {
         waveformOverviewRenderer::drawWaveformPartHSV(
                 &painter,

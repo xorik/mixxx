@@ -10,10 +10,11 @@
 
 namespace {
 
-/// Balance between the three bands, applied to the colour only, never to the
-/// height. The same numbers as the Spectrum waveform of the deck uses: the
-/// formula that turns the three bands into a colour is the same here, so the
-/// bias of the mid band is the same too.
+/// Balance between the three bands of the Spectrum overview, applied to the
+/// colour only, never to the height. The same numbers as the Spectrum waveform
+/// of the deck uses: the formula that turns the three bands into a colour is
+/// the same here, so the bias of the mid band is the same too. The RGB
+/// overview keeps a neutral gain and is untouched.
 ///
 /// The colour smoothing of the deck is deliberately NOT carried over. One
 /// column of the overview is about 190 ms of audio (the summary is stored at
@@ -74,6 +75,13 @@ QImage render(ConstWaveformPointer pWaveform,
                 dataSize,
                 signalColors,
                 mono);
+    } else if (type == mixxx::OverviewType::Spectrum) {
+        drawWaveformPartSpectrum(&painter,
+                pWaveform,
+                nullptr,
+                dataSize,
+                signalColors,
+                mono);
     } else if (type == mixxx::OverviewType::Filtered) {
         drawWaveformPartLMH(&painter,
                 pWaveform,
@@ -119,13 +127,17 @@ QImage render(ConstWaveformPointer pWaveform,
     return normImage;
 }
 
-void drawWaveformPartRGB(
+/// Shared by the RGB and the Spectrum overview: the same drawing with a
+/// different balance between the bands. RGB passes a neutral gain and is
+/// therefore exactly what it always was.
+void drawWaveformPartRGBWithGain(
         QPainter* pPainter,
         ConstWaveformPointer pWaveform,
         int* start,
         int end,
         const WaveformSignalColors& signalColors,
-        bool mono) {
+        bool mono,
+        const BandColorGain& gain) {
     ScopedTimer t(QStringLiteral("waveformOverviewRenderer::drawNextPixmapPartRGB"));
     int startVal = 0;
     if (start) {
@@ -162,9 +174,9 @@ void drawWaveformPartRGB(
             mid = pWaveform->getMid(i) + pWaveform->getMid(i + 1);
             high = pWaveform->getHigh(i) + pWaveform->getHigh(i + 1);
 
-            low *= bandColorGain().low;
-            mid *= bandColorGain().mid;
-            high *= bandColorGain().high;
+            low *= gain.low;
+            mid *= gain.mid;
+            high *= gain.high;
 
             red = low * lowColor_r + mid * midColor_r + high * highColor_r;
             green = low * lowColor_g + mid * midColor_g + high * highColor_g;
@@ -188,9 +200,9 @@ void drawWaveformPartRGB(
             mid = pWaveform->getMid(i);
             high = pWaveform->getHigh(i);
 
-            low *= bandColorGain().low;
-            mid *= bandColorGain().mid;
-            high *= bandColorGain().high;
+            low *= gain.low;
+            mid *= gain.mid;
+            high *= gain.high;
 
             red = low * lowColor_r + mid * midColor_r + high * highColor_r;
             green = low * lowColor_g + mid * midColor_g + high * highColor_g;
@@ -212,9 +224,9 @@ void drawWaveformPartRGB(
             mid = pWaveform->getMid(i + 1);
             high = pWaveform->getHigh(i + 1);
 
-            low *= bandColorGain().low;
-            mid *= bandColorGain().mid;
-            high *= bandColorGain().high;
+            low *= gain.low;
+            mid *= gain.mid;
+            high *= gain.high;
 
             red = low * lowColor_r + mid * midColor_r + high * highColor_r;
             green = low * lowColor_g + mid * midColor_g + high * highColor_g;
@@ -235,6 +247,28 @@ void drawWaveformPartRGB(
     if (start) {
         *start = end;
     }
+}
+
+void drawWaveformPartRGB(
+        QPainter* pPainter,
+        ConstWaveformPointer pWaveform,
+        int* start,
+        int end,
+        const WaveformSignalColors& signalColors,
+        bool mono) {
+    drawWaveformPartRGBWithGain(
+            pPainter, pWaveform, start, end, signalColors, mono, BandColorGain{1.0f, 1.0f, 1.0f});
+}
+
+void drawWaveformPartSpectrum(
+        QPainter* pPainter,
+        ConstWaveformPointer pWaveform,
+        int* start,
+        int end,
+        const WaveformSignalColors& signalColors,
+        bool mono) {
+    drawWaveformPartRGBWithGain(
+            pPainter, pWaveform, start, end, signalColors, mono, bandColorGain());
 }
 
 void drawWaveformPartLMH(

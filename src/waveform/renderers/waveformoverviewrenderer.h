@@ -27,6 +27,13 @@ void drawWaveformPartRGB(
         int end,
         const WaveformSignalColors& signalColors,
         bool mono = false);
+void drawWaveformPartSpectrum(
+        QPainter* pPainter,
+        ConstWaveformPointer pWaveform,
+        int* start,
+        int end,
+        const WaveformSignalColors& signalColors,
+        bool mono = false);
 void drawWaveformPartLMH(
         QPainter* pPainter,
         ConstWaveformPointer pWaveform,

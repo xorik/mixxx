@@ -40,6 +40,8 @@ DlgPrefWaveform::DlgPrefWaveform(
             tr("Filtered"), QVariant::fromValue(OverviewType::Filtered));
     waveformOverviewComboBox->addItem(tr("HSV"), QVariant::fromValue(OverviewType::HSV));
     waveformOverviewComboBox->addItem(tr("RGB"), QVariant::fromValue(OverviewType::RGB));
+    waveformOverviewComboBox->addItem(
+            tr("Spectrum"), QVariant::fromValue(OverviewType::Spectrum));
     m_pTypeControl = std::make_unique<ControlPushButton>(kOverviewTypeCfgKey);
     m_pTypeControl->setStates(QMetaEnum::fromType<OverviewType>().keyCount());
     m_pTypeControl->setReadOnly();
