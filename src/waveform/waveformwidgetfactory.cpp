@@ -1056,6 +1056,8 @@ void WaveformWidgetFactory::renderSelf() {
             if (perfEnabled) {
                 static int s_perfLastDrops = 0;
                 const int drops = m_vsyncThread->droppedFrames();
+                const VSyncThread::PhaseErrorStats phaseErr =
+                        m_vsyncThread->takePhaseErrorStats();
                 auto& v = s_perfIntervalsMs;
                 double mean = 0.0, p50 = 0.0, p95 = 0.0, p99 = 0.0, maxMs = 0.0;
                 if (!v.empty()) {
@@ -1145,7 +1147,17 @@ void WaveformWidgetFactory::renderSelf() {
                         << " syncIntervalUs=" << static_cast<int>(
                                    m_vsyncThread->getSyncInterval().count())
                         << " pllPeriodUs=" << QString::number(
-                                   m_vsyncThread->pllPeriodMicros(), 'f', 1);
+                                   m_vsyncThread->pllPeriodMicros(), 'f', 1)
+                        // Phase error is the metric that separates "the cause
+                        // is gone" from "the symptom is held down": a period
+                        // clamped to the display can look perfect while the
+                        // loop still fights it every frame. Per second, not
+                        // per ten seconds - a 90 s run would otherwise carry
+                        // nine samples.
+                        << " phaseErrN=" << phaseErr.count
+                        << " phaseErrMeanUs=" << QString::number(phaseErr.meanUs, 'f', 1)
+                        << " phaseErrSdUs=" << QString::number(phaseErr.sdUs, 'f', 1)
+                        << " phaseErrWorstUs=" << QString::number(phaseErr.worstUs, 'f', 1);
                 g_perfTickMs = 0.0;
                 g_perfVisualsMs = 0.0;
                 g_perfUpdateMs = 0.0;

@@ -10,7 +10,8 @@
 # Usage: tools/bench/screens.sh [run_dir]     (default: the most recent run)
 set -u
 
-RESULTS="${BENCH_RESULTS:-/tmp/waveperf}"
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+RESULTS="${BENCH_RESULTS:-$(dirname "$ROOT")/bench-results}"
 DIR="${1:-$(ls -dt "$RESULTS"/*/ 2>/dev/null | head -1)}"
 
 [ -n "${DIR:-}" ] && [ -d "$DIR" ] || {

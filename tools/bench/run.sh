@@ -50,8 +50,15 @@ set -u
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 BIN="${BENCH_BIN:-$ROOT/build/mixxx}"
-PROFILE="${BENCH_PROFILE:-/tmp/mixxx-perf}"
-RESULTS="${BENCH_RESULTS:-/tmp/waveperf}"
+# The test profile lives BESIDE the repository, not in /tmp: /tmp is cleared by
+# macOS and the profile is 1.7 GB with an analysed library of 1788 tracks, whose
+# loss costs hours of re-analysis. Derived from the repository location so the
+# next move needs no edit here. See "The test profile" in README.md.
+PROFILE="${BENCH_PROFILE:-$(dirname "$ROOT")/bench-profile}"
+# Results live beside the repository too, for the same reason as the profile:
+# /tmp is cleared by macOS, and a clean-up in the middle of a 12-minute series
+# would take the whole series with it, silently.
+RESULTS="${BENCH_RESULTS:-$(dirname "$ROOT")/bench-results}"
 
 MEASURE=20
 SETTLE=20
@@ -97,7 +104,20 @@ case "$(file -b "$BIN")" in
     *Mach-O*) : ;;
     *) die "not a Mach-O executable: $BIN" ;;
 esac
-[ -f "$PROFILE/mixxx.cfg" ] || die "profile has no mixxx.cfg: $PROFILE"
+# An empty profile would produce a run against an empty library: it would look
+# entirely valid - frames, telemetry, no errors - and measure nothing of what we
+# care about. So refuse, loudly, and never create one on the fly.
+[ -d "$PROFILE" ] || die "the test profile does not exist: $PROFILE
+It is not created automatically on purpose: an empty profile means an empty
+library, and a run against it looks perfectly valid while measuring nothing.
+Re-create it as an APFS clone of the real profile - see 'The test profile' in
+tools/bench/README.md - or point BENCH_PROFILE at an existing one."
+[ -f "$PROFILE/mixxx.cfg" ] || die "profile has no mixxx.cfg: $PROFILE
+Looks like a directory that is not a Mixxx profile. See 'The test profile' in
+tools/bench/README.md."
+[ -f "$PROFILE/mixxxdb.sqlite" ] || die "profile has no library database: $PROFILE
+A profile without mixxxdb.sqlite has no tracks, and a run against an empty
+library measures nothing while looking valid. See tools/bench/README.md."
 # Guard against ever pointing the harness at the user's real profile.
 case "$PROFILE" in
     "$HOME"/Library/*) die "refusing to run against the real profile: $PROFILE" ;;

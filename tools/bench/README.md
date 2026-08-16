@@ -72,22 +72,31 @@ provenance of a measurement has to travel with it.
 ## The test profile
 
 Every run uses a **separate Mixxx profile**, never the user's own:
-`/tmp/mixxx-perf` by default, overridable with `BENCH_PROFILE`. `run.sh` refuses
-outright to run against a path under `~/Library`, and it restores the profile's
-`mixxx.cfg` after every run, so a run can change settings without leaving traces.
+`~/www/ai/mixxx/bench-profile` by default - beside the repository, derived from
+its location so a future move needs no edit - overridable with `BENCH_PROFILE`.
+`run.sh` refuses outright to run against a path under `~/Library`, and it restores
+the profile's `mixxx.cfg` after every run, so a run can change settings without
+leaving traces.
+
+A missing or incomplete profile is a hard stop, never something the harness
+fixes by itself: an empty profile means an empty library, and a run against it
+looks entirely valid - frames, telemetry, no errors - while measuring nothing we
+care about. `run.sh` checks for the directory, for `mixxx.cfg` and for
+`mixxxdb.sqlite`, and points here.
 
 It is not a small thing: **1.7 GB**, a library of **1788 analysed tracks** and
 2953 analysis files. That analysis is what makes runs realistic and repeatable -
 and re-creating it from scratch means hours of CPU on the user's machine.
 
-**It currently lives in `/tmp`, which macOS clears.** Losing it costs the copy
-plus the re-analysis. If it is gone, re-create it as an APFS clone of the user's
-real profile - on APFS `cp -c` shares the blocks, so the clone costs almost no
-extra disk space (a plain copy of 1.7 GB would):
+It used to live in `/tmp`, which macOS clears; it now sits beside the repository
+and survives reboots. Losing it costs the copy plus the re-analysis. If it is
+gone, re-create it as an APFS clone of the user's real profile - on APFS `cp -c`
+shares the blocks, so the clone costs almost no extra disk space (a plain copy of
+1.7 GB would):
 
 ```sh
 src=~/Library/Containers/org.mixxx.mixxx/Data/Library/Application\ Support/Mixxx
-cp -Rc "$src" /tmp/mixxx-perf          # -c = APFS clone, near-instant, no extra space
+cp -Rc "$src" ~/www/ai/mixxx/bench-profile   # -c = APFS clone, no extra space
 ```
 
 The user's real Mixxx is sandboxed, which is why its profile sits inside
@@ -95,15 +104,11 @@ The user's real Mixxx is sandboxed, which is why its profile sits inside
 The copy is read-only as far as the original is concerned - nothing is ever
 written back.
 
-### Where it should live
+### Why it lives there
 
-`/tmp` is the wrong home for it, and the recommended destination is
-**`~/www/ai/mixxx/bench-profile`** - beside the repository, not inside it. Move
-it there in one go together with the planned repository move; nothing here
-depends on the current path except the default, and `BENCH_PROFILE` overrides
-that meanwhile.
-
-Why that place:
+It sits at **`~/www/ai/mixxx/bench-profile`**, beside the repository
+(`~/www/ai/mixxx/src`) and not inside it. The reasons, in case anyone is tempted
+to move it back:
 
 * same APFS volume as the user's real profile, so `cp -Rc` really clones and the
   1.7 GB cost almost nothing in disk space. That is decisive at 91% disk usage -
@@ -135,7 +140,9 @@ tools/bench/run.sh -d 30 -l noswap -e MIXXX_BENCH_SWAP_INTERVAL=0
 tools/bench/screens.sh                      # where the screens are, per Qt
 ```
 
-Every run writes `/tmp/waveperf/<timestamp>-<label>/` containing `meta.txt`
+Every run writes `~/www/ai/mixxx/bench-results/<timestamp>-<label>/` (override
+with `BENCH_RESULTS`; beside the repository, not in `/tmp`, so a clean-up cannot
+eat a series in progress) containing `meta.txt`
 (binary hash, git head, hash of the working-tree diff, flags, tracks),
 `mixxx.log`, `stdout.txt`, `waveperf.txt`, `frontapp.tsv` (frontmost app and
 power source at 2 Hz), `phases.txt` and `summary.json`.
@@ -195,6 +202,30 @@ from the interval of the screen the window is on by more than 5%. Applied to the
 earlier acceptance run, this check catches it: locked to 16667 us on a 120 Hz
 screen.
 
+## Checking a patch without building it
+
+A patch can be checked for syntax with the *real* compiler flags, taken from the
+build that already exists:
+
+```sh
+ninja -C build -t commands CMakeFiles/mixxx-lib.dir/src/waveform/vsyncthread.cpp.o | tail -1
+```
+
+Substitute the patched file, add `-fsyntax-only`, and **strip `-MD`, `-MT` and
+`-MF`**. Those flags make the compiler write dependency files, and they are
+relative paths: without stripping them, every check litters a `CMakeFiles/`
+directory into whatever the current directory happens to be. That happened here -
+the stray `CMakeFiles/` in the repository root was mistaken for a foreign build
+during the repository move and cost real attention.
+
+For a file with `Q_OBJECT`, generate the moc of the *patched* header into a
+temporary directory and put that directory first in the include path; otherwise
+the build's existing autogen pulls in the unpatched header and the check fails
+with confusing redefinition errors.
+
+This proves the patch compiles. It does not prove it links, and the headers come
+from the current tree rather than from the patch's base - say so when reporting.
+
 ## Switches available to a run (`-e`)
 
 | switch | effect |
@@ -216,20 +247,40 @@ badly that it invited wrong conclusions:
 
 `MIXXX_BENCH_PLL_CLAMP` holds the PLL period near the interval the display
 reports. That stops the period from wandering, but it does not explain why it
-wanders. The current candidate for the root cause is the **asymmetric phase-error
-fold** in `updatePLL()`: upstream folds the error back to the nearest frame only
-when it is positive, so a negative error of any size reaches the loop filter in
-full and the filter moves the period with it. The user's log shows large negative
-phase errors (-3760, -7561, -4975 us) together with a period drifting downwards
+wanders. The candidate for the root cause is the **asymmetric phase-error fold**
+in `updatePLL()`: upstream folds the error back to the nearest frame only when it
+is positive, so a negative error of any size reaches the loop filter in full and
+the filter moves the period with it. The user's log shows large negative phase
+errors (-3760, -7561, -4975 us) together with a period drifting downwards
 (16682 -> 16558 us against a true 16667 us).
 
-This is a hypothesis, not a result: the sign of the phase error also depends on
-accumulated phase offset. `MIXXX_BENCH_PLL_WRAP=sym` exists to test it
-(`pll-symmetric-wrap.patch`).
+A numerical simulation of the loop supports this - true interval 8333.33 us, 1%
+early/spurious calls, ~100 s of frames:
 
-**Do not treat the drift question as closed if the clamp measures well.** A
-clamp that hides a bug and a fix that removes it look the same in a frame-rate
-column.
+| variant | settled period | phase error sd |
+| --- | --- | --- |
+| upstream (asymmetric fold) | 8140.5 us | 2874 us |
+| upstream + drift clamp | 8250.0 us | **3956 us** |
+| symmetric fold | 8332.6 us | **1337 us** |
+
+The clamp improves the period and makes the phase *worse*; the symmetric fold
+improves both. With a steady frame stream, and with *missed* frames, both
+variants behave equally well - it is **early or spurious** calls that hurt,
+because a large negative error is never folded and reaches the integrator whole.
+Notably, the asymmetric variant settles at 8140-8153 us, and the user's real logs
+showed 8163 us.
+
+**The honest caveat, which must travel with these numbers:** that is a simulation
+of *our reading of the code*, not a measurement of the system. The assumption
+that early calls occur is not proven. The simulation shows the mechanism is
+*sufficient* to produce what was observed, not that it is the only one. It has to
+be confirmed by measurement - which is what `series-pllwrap.sh` is for.
+
+**Do not treat the drift question as closed if the clamp measures well.** A clamp
+that hides a bug and a fix that removes it look the same in a frame-rate column.
+That is why the telemetry reports the phase error per second
+(`phaseErrN`, `phaseErrMeanUs`, `phaseErrSdUs`, `phaseErrWorstUs`) and why the
+series report ranks the period and the phase error above fps.
 
 ## Proof that pixels were really drawn
 

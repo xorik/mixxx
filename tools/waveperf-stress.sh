@@ -24,11 +24,11 @@ SETTLE=${3:-20}
 REPS=${4:-5}
 LOADPROCS=${5:-8}
 
-PROFILE=/tmp/mixxx-perf
+PROFILE="$HOME/www/ai/mixxx/bench-profile"   # was /tmp/mixxx-perf until the repo move
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BIN="$ROOT/build/mixxx"
 CFG="$PROFILE/mixxx.cfg"
-BASE=/tmp/waveperf-stress-$MODE-$(date +%Y%m%d-%H%M%S)
+BASE="$HOME/www/ai/mixxx/bench-results/waveperf-stress-$MODE-$(date +%Y%m%d-%H%M%S)"
 
 TRACKS=(
     "/Users/andrey/Music/set/chillstep/Tritonal ft. Cristina Soto - Still With Me (Seven Lions Remix).mp3"

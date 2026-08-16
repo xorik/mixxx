@@ -63,6 +63,17 @@ class VSyncThread : public QThread, public VSyncTimeProvider {
     void updatePLL();
     bool pllInitializing() const;
 
+    /// Phase-error statistics since the previous call, then reset. Signed
+    /// worst value: the sign matters, since only positive errors are folded
+    /// back to the nearest frame in the upstream loop.
+    struct PhaseErrorStats {
+        int count = 0;
+        double meanUs = 0.0;
+        double sdUs = 0.0;
+        double worstUs = 0.0;
+    };
+    PhaseErrorStats takePhaseErrorStats();
+
     /// Refresh rate, in Hz, of the screen the render window is really on.
     /// Pass 0 when it is unknown: the PLL then relies on its median
     /// initialisation alone, instead of sanity-checking and clamping against a
@@ -121,6 +132,15 @@ class VSyncThread : public QThread, public VSyncTimeProvider {
     double m_pllDeltaOut;
     /// 0 = unknown, see setDisplayRefreshRate().
     double m_pllDisplayHz;
+    /// Phase error accumulated since the last take, in microseconds. The phase
+    /// error is what separates "the cause is gone" from "the symptom is held
+    /// down": a clamped period can look perfect while the loop still fights the
+    /// display. Logged once per second via WAVEPERF, because once per ten
+    /// seconds is a handful of samples in a 90 s run.
+    int m_pllPhaseErrCount;
+    double m_pllPhaseErrSum;
+    double m_pllPhaseErrSumSq;
+    double m_pllPhaseErrWorst;
     /// Timestamp of the first of the current run of rejected deltas, 0 if the
     /// last delta was accepted. See the cross-check timeout in updatePLL().
     double m_pllRejectedSinceMicros;

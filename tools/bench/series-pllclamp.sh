@@ -1,6 +1,12 @@
 #!/bin/bash
 # A/B series: does clamping the PLL period to the display interval stop the drift?
 #
+# NOT THE CURRENT SERIES. Kept because the design notes below still apply, but a
+# simulation of the loop suggests the clamp improves the period while making the
+# PHASE worse, i.e. it is a palliative. The series being run is
+# series-pllwrap.sh, which compares the upstream asymmetric phase-error fold
+# against a symmetric one - the candidate root cause.
+#
 # Design, and why it is this and not something shorter or simpler:
 #   * 90 s of measurement per run. The drift accumulates with TIME - measured on
 #     the live profile: lock at 16682.9 us, 16588.9 after 2.5 min, 16565.2,
@@ -21,7 +27,7 @@ set -u
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 BIN="${BENCH_BIN:-$ROOT/build/mixxx}"
-RESULTS="${BENCH_RESULTS:-/tmp/waveperf}"
+RESULTS="${BENCH_RESULTS:-$(dirname "$ROOT")/bench-results}"
 
 GEOMETRY="${BENCH_GEOMETRY:-}"
 REPS=3

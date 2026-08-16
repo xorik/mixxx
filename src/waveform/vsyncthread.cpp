@@ -70,6 +70,10 @@ VSyncThread::VSyncThread(QObject* pParent, VSyncThread::VSyncMode vSyncMode)
           m_pllPhaseOut(0.0),
           m_pllDeltaOut(16666.6),
           m_pllDisplayHz(0.0),
+          m_pllPhaseErrCount(0),
+          m_pllPhaseErrSum(0.0),
+          m_pllPhaseErrSumSq(0.0),
+          m_pllPhaseErrWorst(0.0),
           m_pllRejectedSinceMicros(0.0),
           m_pllRejectedCount(0),
           m_pllCrossCheckOff(false),
@@ -358,6 +362,24 @@ bool VSyncThread::pllInitializing() const {
     return m_pllInitCnt < kNumStableDeltasRequired;
 }
 
+VSyncThread::PhaseErrorStats VSyncThread::takePhaseErrorStats() {
+    std::scoped_lock lock(m_pllMutex);
+    PhaseErrorStats stats;
+    stats.count = m_pllPhaseErrCount;
+    if (m_pllPhaseErrCount > 0) {
+        const double n = static_cast<double>(m_pllPhaseErrCount);
+        stats.meanUs = m_pllPhaseErrSum / n;
+        stats.sdUs = std::sqrt(std::max(0.0,
+                m_pllPhaseErrSumSq / n - stats.meanUs * stats.meanUs));
+        stats.worstUs = m_pllPhaseErrWorst;
+    }
+    m_pllPhaseErrCount = 0;
+    m_pllPhaseErrSum = 0.0;
+    m_pllPhaseErrSumSq = 0.0;
+    m_pllPhaseErrWorst = 0.0;
+    return stats;
+}
+
 void VSyncThread::setDisplayRefreshRate(double hz) {
     const double newHz = hz > 1.0 ? hz : 0.0;
     std::scoped_lock lock(m_pllMutex);
@@ -509,6 +531,16 @@ void VSyncThread::updatePLL() {
     }
 
     // apply loop filter and correct output phase and delta
+    // Record the error the loop is actually left with this frame. Only the
+    // residual matters: an error folded back to the nearest frame has been
+    // dealt with, one that reaches the filter has not.
+    ++m_pllPhaseErrCount;
+    m_pllPhaseErrSum += pllPhaseError;
+    m_pllPhaseErrSumSq += pllPhaseError * pllPhaseError;
+    if (std::abs(pllPhaseError) > std::abs(m_pllPhaseErrWorst)) {
+        m_pllPhaseErrWorst = pllPhaseError;
+    }
+
     m_pllPhaseOut += alpha * pllPhaseError; // adjust phase
     m_pllDeltaOut += beta * pllPhaseError;  // adjust delta
 

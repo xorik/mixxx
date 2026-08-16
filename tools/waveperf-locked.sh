@@ -17,11 +17,11 @@ set -u
 
 PHASE=${1:-45}
 SETTLE=${2:-30}
-PROFILE=/tmp/mixxx-perf
+PROFILE="$HOME/www/ai/mixxx/bench-profile"   # was /tmp/mixxx-perf until the repo move
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BIN="$ROOT/build/mixxx"
 LOG="$PROFILE/mixxx.log"
-OUT=/tmp/waveperf-locked-$(date +%Y%m%d-%H%M%S)
+OUT="$HOME/www/ai/mixxx/bench-results/waveperf-locked-$(date +%Y%m%d-%H%M%S)"
 
 TRACKS=(
     "/Users/andrey/Music/set/chillstep/Tritonal ft. Cristina Soto - Still With Me (Seven Lions Remix).mp3"

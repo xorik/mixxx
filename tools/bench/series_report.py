@@ -22,6 +22,19 @@ PLL_LINE = re.compile(r'^(\d{2}):(\d{2}):(\d{2})\.(\d{3}).*phase-locked-loop: '
                       r'(-?\d+) ([-\d.]+) ([-\d.]+)')
 
 
+def mean_of(values):
+    return sum(values) / len(values) if values else None
+
+
+def arm_of(name):
+    """Which experimental arm a run directory belongs to."""
+    for token, arm in (('asym', 'wrap=asym'), ('sym', 'wrap=sym'),
+                       ('clamp1', 'clamp=1'), ('clamp0', 'clamp=0')):
+        if name.startswith(token):
+            return arm
+    return '?'
+
+
 def pll_lines(outdir, t0, t1):
     """(period_us, phase_error_us) from the 10-second PLL log lines."""
     out = []
@@ -66,7 +79,7 @@ def main(series):
         pll = pll_lines(outdir, t0, t1)
         rows.append({
             'name': name,
-            'arm': 'clamp=1' if 'clamp1' in name else ('clamp=0' if 'clamp0' in name else '?'),
+            'arm': arm_of(name),
             'verdict': summary['verdict'],
             'fails': summary['fails'],
             'sha': (meta.get('bin_sha256', ['?'])[0])[:16],
@@ -76,7 +89,14 @@ def main(series):
             'drops': summary['metrics'].get('drops_total'),
             'type': summary['metrics'].get('waveform_type'),
             'options': summary['metrics'].get('renderer_options'),
-            'benchhit': 'BENCHHIT MIXXX_BENCH_PLL_CLAMP' in read(os.path.join(outdir, 'mixxx.log')),
+            'benchhit': bool(re.search(r'BENCHHIT MIXXX_BENCH_PLL_(CLAMP|WRAP)',
+                                       read(os.path.join(outdir, 'mixxx.log')))),
+            # Phase error: the metric that tells "the cause is gone" from "the
+            # symptom is held down". Logged per second by the telemetry.
+            'phase_sd': mean_of([r['phaseErrSdUs'] for r in wp if 'phaseErrSdUs' in r]),
+            'phase_mean': mean_of([r['phaseErrMeanUs'] for r in wp if 'phaseErrMeanUs' in r]),
+            'phase_worst_tel': max((abs(r['phaseErrWorstUs']) for r in wp
+                                    if 'phaseErrWorstUs' in r), default=None),
             'p_first': periods[0] if periods else None,
             'p_last': periods[-1] if periods else None,
             'p_min': min(periods) if periods else None,
@@ -103,16 +123,22 @@ def main(series):
             problems.append('%s: no BENCHHIT line - the arm it measured is unproven' % r['name'])
 
     print('=== %s' % series)
-    print('%-14s %-8s %-8s %7s %7s %9s %9s %9s %9s %9s' % (
-        'run', 'arm', 'verdict', 'fps', 'drops',
-        'pll_first', 'pll_last', 'pll_min', 'pll_max', 'phase_wr'))
+    print('%-14s %-9s %-8s %9s %9s %9s %9s %8s %8s %7s %6s' % (
+        'run', 'arm', 'verdict',
+        'pll_first', 'pll_last', 'pll_drift', 'phase_sd', 'phase_wr', 'fps', 'drops', 'scr'))
     for r in rows:
         def f(x, w=9, d=1):
             return ('%*.*f' % (w, d, x)) if isinstance(x, (int, float)) else '%*s' % (w, '-')
-        print('%-14s %-8s %-8s %s %s %s %s %s %s %s' % (
-            r['name'], r['arm'], r['verdict'], f(r['fps'], 7), f(r['drops'], 7, 0),
-            f(r['p_first']), f(r['p_last']), f(r['p_min']), f(r['p_max']),
-            f(r['phase_worst'])))
+        drift = (r['p_last'] - r['p_first']) if (
+                r['p_first'] is not None and r['p_last'] is not None) else None
+        worst = r['phase_worst_tel']
+        if worst is None:
+            worst = r['phase_worst']
+        print('%-14s %-9s %-8s %s %s %s %s %s %s %s %6s' % (
+            r['name'], r['arm'], r['verdict'],
+            f(r['p_first']), f(r['p_last']), f(drift), f(r['phase_sd']), f(worst, 8),
+            f(r['fps'], 7), f(r['drops'], 6, 0),
+            r['refresh'] and ('%dHz' % r['refresh']) or '-'))
         for fail in r['fails']:
             print('%-14s   FAIL: %s' % ('', fail))
 
@@ -125,7 +151,7 @@ def main(series):
         print('EXCLUDED (shown above, not replaced by repeats): %s'
               % ', '.join(r['name'] for r in excluded))
 
-    for arm in ('clamp=1', 'clamp=0'):
+    for arm in sorted({r['arm'] for r in valid}):
         sel = [r for r in valid if r['arm'] == arm]
         if not sel:
             print('%s: no valid run' % arm)
@@ -133,12 +159,18 @@ def main(series):
         fps = [r['fps'] for r in sel if r['fps'] is not None]
         drift = [r['p_last'] - r['p_first'] for r in sel
                  if r['p_first'] is not None and r['p_last'] is not None]
-        print('%s over %d valid run(s): fps %s | period drift over the window %s us'
+        sd = [r['phase_sd'] for r in sel if r['phase_sd'] is not None]
+        last = [r['p_last'] for r in sel if r['p_last'] is not None]
+        print('%s over %d valid run(s): period at end %s us | drift over the window %s us '
+              '| phase error sd %s us | fps %s'
               % (arm, len(sel),
-                 ('%.1f' % (sum(fps) / len(fps))) if fps else '-',
-                 (', '.join('%+.1f' % d for d in drift)) if drift else '-'))
+                 ('%.1f' % (sum(last) / len(last))) if last else '-',
+                 (', '.join('%+.1f' % d for d in drift)) if drift else '-',
+                 ('%.0f' % (sum(sd) / len(sd))) if sd else '-',
+                 ('%.1f' % (sum(fps) / len(fps))) if fps else '-'))
     print()
-    print('Frame rate is the comparison metric; the drop counter is reference only.')
+    print('Order of importance: the period and where it drifts, then the phase error,')
+    print('then fps. The drop counter is reference only.')
     return 1 if problems else 0
 
 
