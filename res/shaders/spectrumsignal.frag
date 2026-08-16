@@ -48,6 +48,22 @@ uniform highp vec3 bandColorGain;
 // stores the square root of the band magnitude, so 0.5 imitates its
 // compression on top of the data Mixxx has today. 1.0 leaves the data as is.
 uniform highp float colorGamma;
+// How strongly the column is shaded from its centre to its edge, in [0, 1].
+// 0 gives the flat fill of the other waveform types.
+uniform highp float verticalStrength;
+// Shape of that shading. Larger values concentrate it closer to the centre or
+// to the edge, smaller values spread it out.
+uniform highp float verticalSharpness;
+// The crest factor (peak over RMS) at which the column is drawn flat. A sine
+// sits at 1.41, impulsive material goes to 3 and beyond, and a square wave
+// approaches 1.
+uniform highp float crestNeutral;
+// How fast the shading follows the crest factor away from that neutral point.
+uniform highp float crestScale;
+// Level below which the crest factor is not trusted and the column is drawn
+// flat: the bands are stored in one byte each, so on quiet columns peak and
+// RMS are a few units and their ratio is noise.
+uniform highp float crestLevelFloor;
 // Level below which the color is no longer normalized to full brightness.
 // Without it a column that carries almost nothing (the noise of a quiet
 // passage) is divided by its own maximum and comes out as a fully saturated
@@ -103,6 +119,50 @@ highp vec3 smoothedBands(highp float visualIndex, highp float stereoOffset) {
         weightSum += 2.0 * weight;
     }
     return acc / weightSum;
+}
+
+// Vertical shading of a column, as the alpha of a fragment at distance
+// `inside` from the centre of the column (0 at the centre, 1 at the edge).
+//
+// What it imitates: in the data of Traktor the alpha of a column follows the
+// distribution of the amplitude inside it - the share of samples above a given
+// level. A steady tone spends most of its time near its peaks, so its column
+// is dense at the edge and thinner in the middle; percussive material is the
+// other way round. The shape of that distribution is what the crest factor
+// describes, and we have it: `all` is the peak of the bin and the three bands
+// are RMS values, so their ratio says which of the two cases this column is.
+//
+// Two things to know before touching this:
+//   * the crest factor here is approximate. The bands are shaped by the
+//     frequency responses of the analyzer, so a kick and a shaker with the
+//     same waveform can end up with a different one. We need the character,
+//     not the number, and the knobs above exist for exactly that;
+//   * it only works because the analyzer scales all four stored values -
+//     peak and the three bands - with the SAME factor. If bands are ever
+//     normalized on their own, the ratio silently stops meaning anything.
+//     There is a warning about this in analyzerwaveform.h as well.
+highp float verticalProfile(highp float inside, highp float peak, highp vec3 bands) {
+    if (verticalStrength <= 0.0) {
+        return 1.0;
+    }
+    highp float rms = length(bands);
+    if (rms < crestLevelFloor || peak <= 0.0) {
+        return 1.0;
+    }
+    highp float crest = peak / rms;
+    highp float shape = clamp((crest - crestNeutral) * crestScale, -1.0, 1.0);
+    highp float t = clamp(inside, 0.0, 1.0);
+    highp float profile;
+    if (shape >= 0.0) {
+        // Impulsive: most of the time the signal is well below its peak, so
+        // the column is dense near the centre and fades towards the edge.
+        profile = mix(1.0, pow(max(1.0 - t * t, 0.0), verticalSharpness), shape);
+    } else {
+        // Tonal: the signal spends most of its time near its extremes, so the
+        // edge is dense and the middle is thinner.
+        profile = mix(1.0, pow(t, verticalSharpness), -shape);
+    }
+    return mix(1.0, profile, verticalStrength);
 }
 
 // Linearly combine the low, mid, and high colors according to the low, mid,
@@ -189,6 +249,14 @@ void main(void) {
         highp float softness = max(softEdgePixels * 2.0 / framebufferSize.y, 1e-6);
         signalCoverage = clamp((signalDistance - ourDistance) / softness + 0.5, 0.0, 1.0);
         shadowCoverage = clamp((shadowDistance - ourDistance) / softness + 0.5, 0.0, 1.0);
+
+        // The profile is measured against the column as drawn, including the
+        // amplitude floor: the floor exists to make quiet parts visible, and a
+        // visible column that is hollow inside would defeat it.
+        highp float inside = ourDistance / max(signalDistance, 1e-4);
+        highp float shading = verticalProfile(inside, dataUnscaled.w, dataUnscaled.xyz);
+        signalCoverage *= shading;
+        shadowCoverage *= shading;
 
         signalRgb = bandColor(colorScaled);
         shadowRgb = bandColor(colorUnscaled);

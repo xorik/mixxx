@@ -51,6 +51,14 @@ struct WaveformStride {
     /// stores. The same scale is used for every band on purpose: normalising
     /// bands individually pushes quiet bands into the bottom of the range and
     /// costs a lot of colour accuracy.
+    ///
+    /// WARNING, this is load bearing beyond colour accuracy: the renderer of
+    /// the Spectrum waveform divides the stored peak (all) by the stored band
+    /// magnitudes to get the crest factor of the bin, and shades the column
+    /// vertically with it. That division is only meaningful while peak and
+    /// bands share one scale. Normalising bands on their own would not break
+    /// anything visibly here - it would silently turn that shading into
+    /// nonsense. See verticalProfile() in res/shaders/spectrumsignal.frag.
     inline unsigned char toByte(float value) const {
         return static_cast<unsigned char>(std::min(255.0,
                 static_cast<double>(m_postScaleConversion) *

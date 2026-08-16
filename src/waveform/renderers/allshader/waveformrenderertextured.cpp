@@ -77,6 +77,43 @@ float colorLevelFloor() {
     return value;
 }
 
+// How strongly a column is shaded from its centre to its edge. 0 draws the
+// flat fill of the other types; the default is deliberately mild, enough to
+// give the waveform a texture without emptying its middle.
+float verticalStrength() {
+    static const float value =
+            std::clamp(tunable("MIXXX_WF_VERT_STRENGTH", 0.35f), 0.0f, 1.0f);
+    return value;
+}
+
+// Shape of that shading.
+float verticalSharpness() {
+    static const float value =
+            std::clamp(tunable("MIXXX_WF_VERT_SHARPNESS", 1.5f), 0.1f, 8.0f);
+    return value;
+}
+
+// The crest factor at which a column is drawn flat, and how fast the shading
+// follows it away from there. A sine sits at 1.41 and percussive material goes
+// well above it.
+float crestNeutral() {
+    static const float value = std::clamp(tunable("MIXXX_WF_CREST_NEUTRAL", 1.6f), 0.5f, 8.0f);
+    return value;
+}
+
+float crestScale() {
+    static const float value = std::clamp(tunable("MIXXX_WF_CREST_SCALE", 0.6f), 0.0f, 5.0f);
+    return value;
+}
+
+// Below this band level the crest factor is noise (one byte per band), so the
+// column is drawn flat instead.
+float crestLevelFloor() {
+    static const float value =
+            std::clamp(tunable("MIXXX_WF_CREST_LEVEL_FLOOR", 0.02f), 0.0f, 1.0f);
+    return value;
+}
+
 // Whether the EQ knobs of the deck are allowed to change what the Spectrum
 // waveform draws. They are not, by default: the waveform shows what is in the
 // file, as it does in Traktor, and not the current position of the knobs.
@@ -507,6 +544,10 @@ void WaveformRendererTextured::paintGL() {
                 QStringLiteral("MIXXX_WF_COLOR_LEVEL_FLOOR=") +
                         QString::number(colorLevelFloor()),
                 QStringLiteral("MIXXX_WF_COLOR_GAMMA=") + QString::number(colorGamma()),
+                QStringLiteral("MIXXX_WF_VERT_STRENGTH=") + QString::number(verticalStrength()),
+                QStringLiteral("MIXXX_WF_VERT_SHARPNESS=") + QString::number(verticalSharpness()),
+                QStringLiteral("MIXXX_WF_CREST_NEUTRAL=") + QString::number(crestNeutral()),
+                QStringLiteral("MIXXX_WF_CREST_SCALE=") + QString::number(crestScale()),
                 QStringLiteral("MIXXX_WF_BAND_GAIN=") + QString::number(gain.x()) +
                         QChar(',') + QString::number(gain.y()) + QChar(',') +
                         QString::number(gain.z()),
@@ -563,6 +604,11 @@ void WaveformRendererTextured::paintGL() {
             m_frameShaderProgram->setUniformValue("bandColorGain", bandColorGain());
             m_frameShaderProgram->setUniformValue("colorGamma", colorGamma());
             m_frameShaderProgram->setUniformValue("colorLevelFloor", colorLevelFloor());
+            m_frameShaderProgram->setUniformValue("verticalStrength", verticalStrength());
+            m_frameShaderProgram->setUniformValue("verticalSharpness", verticalSharpness());
+            m_frameShaderProgram->setUniformValue("crestNeutral", crestNeutral());
+            m_frameShaderProgram->setUniformValue("crestScale", crestScale());
+            m_frameShaderProgram->setUniformValue("crestLevelFloor", crestLevelFloor());
         }
 
         m_frameShaderProgram->setUniformValue("axesColor",
