@@ -22,5 +22,5 @@
   26,
   26
  ],
- "note": "данные в формате анализатора Mixxx: all=пик, полосы=RMS, uint8"
+ "note": "data in the analyser format: all = peak, bands = RMS, uint8"
 }
