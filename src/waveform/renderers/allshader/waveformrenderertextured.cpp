@@ -9,6 +9,7 @@
 #include <algorithm>
 
 #include "control/controlproxy.h"
+#include "waveform/renderers/allshader/spectrumparams.h"
 #include "moc_waveformrenderertextured.cpp"
 #include "track/track.h"
 #include "waveform/renderers/waveformwidgetrenderer.h"
@@ -20,108 +21,9 @@ const QString kPassthroughShaderPath = QStringLiteral(":/shaders/passthrough.ver
 // itself to "oversample" the texture relative to the surface we're drawing on.
 constexpr int kOversamplingFactor = 4;
 
-// Everything below was chosen by comparing frames against Traktor, on the test
-// files where the comparison goes by segment and on music. The reasoning is
-// kept next to each number, because it is the only thing that explains why a
-// different value would be worse.
-
-// Radius of the window the colour of a column is averaged over, in visual bins
-// (441 bins per second), so four bins is about 9 ms - the grid Traktor appears
-// to use. Wider windows score better on every number we could measure (colour
-// jitter between neighbouring columns keeps falling up to about 12 bins, the
-// sharpness of transitions keeps improving) and look worse: averaging over
-// 27 ms mixes neighbouring columns together, invents orange between red and
-// green and washes out the saturation. The numbers measured how fast the
-// colour changes, not which colours appear.
-constexpr float kColorSmoothBins = 4.0f;
-
-// Width of the soft edge. Traktor fades out over 3-4 device pixels, but that
-// was measured on a waveform 174 pixels tall, i.e. about 4% of its half-height,
-// and the proportion is what has to be carried over rather than the pixels: on
-// a deck twice as tall the same three pixels look like a hard cut. The floor in
-// device pixels keeps the fade from disappearing on a small deck.
-constexpr float kSoftEdgeFraction = 0.04f;
-constexpr float kSoftEdgePixels = 2.0f;
-
-// Minimum visible half-height of a column that carries any signal. In Traktor
-// quiet columns stop following the amplitude and sit on a plateau: measured
-// over three loudness buckets below 20% it is 0.214 of the half-height. This
-// value reproduces it - the median height of our own quiet columns comes out
-// at 0.209.
-constexpr float kAmplitudeFloor = 0.19f;
-
-// Compression of the band values before they become a colour. Traktor stores
-// the square root of the band magnitude, so 0.5 would imitate it, but the
-// error against the reference turns out to be flat in this parameter: over
-// nine tracks the spread between 0.40 and 1.00 is 0.2 to 2.8 degrees of hue
-// against a median error of 16, i.e. noise. One operation less.
-constexpr float kColorGamma = 1.0f;
-
-// Level below which the colour of a column is no longer normalized to full
-// brightness. Without it a column that carries almost nothing is divided by
-// its own maximum and comes out fully saturated with a hue decided by noise -
-// a silent intro turned into a solid bright green stripe. This value keeps the
-// brightness of quiet columns relative to loud ones at 1.26 against the 1.23
-// measured in Traktor; the next value we tried, 0.08, gave 0.48, i.e. quiet
-// material twice as dark as loud where it should be slightly brighter.
-constexpr float kColorLevelFloor = 0.01f;
-
-// Balance between the three bands, applied to the colour only, never to the
-// height. The high band is raised by 17 dB, which is what the measurement of
-// Traktor says and what the RMS band magnitudes of the analyzer need: without
-// it the share of blue columns on our material is 0.4%. The mid band is held
-// back to 0.7, which takes the share of yellow-green columns from 6.1% to
-// 1.2% and the columns where green dominates from 11% to 2.7%, against 3.0%
-// and 7.5% measured in Traktor.
-constexpr float kBandColorGainLow = 1.068f;
-constexpr float kBandColorGainMid = 0.7f;
-constexpr float kBandColorGainHigh = 7.111f;
-
-// Vertical shading of a column, see verticalProfile() in the shader. The
-// thinning is a band inside the body: at these positions, measured from the
-// centre of the column in units of its own half height, and this wide. Tonal
-// columns are thinned closer to the centre, percussive ones closer to the rim.
-//
-// The band deliberately reaches neither end of the column. A monotonic profile
-// was tried first and failed twice over: at the centre it opened a hole
-// through which the axis line showed as a white stripe, and at the rim it fell
-// where the soft edge already fades, so it was invisible.
-constexpr float kVerticalStrength = 0.6f;
-constexpr float kDipCenterTonal = 0.35f;
-constexpr float kDipCenterImpulsive = 0.75f;
-constexpr float kDipWidth = 0.25f;
-
-// The crest factor at which a column is drawn flat, and how fast the shading
-// follows it away from there.
-//
-// These two are calibrated on data, not on theory, and the difference matters.
-// A sine has a crest factor of 1.41, so that looked like the natural neutral
-// point - but the crest factor we compute divides the stored peak by the
-// stored bands, and the bands are shaped by the frequency responses of the
-// analyzer, which makes the ratio systematically larger than the acoustic one.
-// Measured over the whole of seven analysed tracks (between 53 000 and 351 000
-// bins each): the median is 2.11 to 2.51 with a mean of 2.24, the fifth
-// percentile 1.28 to 1.56 and the ninety fifth 2.94 to 3.25. Stable enough to
-// take 2.3 as the point where a column is drawn flat, and 1.1 as the scale, so
-// that the extremes of that distribution reach the full profile.
-//
-// If the shading ever looks one sided on other material, this is the number to
-// recompute, and the way to do it is to read the analysis files rather than to
-// reason about waveforms.
-constexpr float kCrestNeutral = 2.3f;
-constexpr float kCrestScale = 1.1f;
-
-// Below this band level the crest factor is a ratio of a few units of one byte
-// each, i.e. noise, and the column is drawn flat instead.
-constexpr float kCrestLevelFloor = 0.02f;
-
-// The knobs of the mixer do not reach this waveform: it draws the file, the
-// way Traktor does, and not the current position of the EQ knobs, their kill
-// switches or the gain knob. The ReplayGain of the track does reach it,
-// because it is a property of the file rather than a knob, and with it the
-// height answers "how loud will this sound" instead of "what is in the file".
-constexpr bool kEqAffectsDrawing = false;
-constexpr bool kReplayGainAffectsHeight = true;
+// The numbers that define how this waveform looks live in spectrumparams.h,
+// so that the shader test can check the very values used here.
+using namespace mixxx::spectrumwaveform;
 
 } // namespace
 
