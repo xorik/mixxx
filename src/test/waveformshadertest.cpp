@@ -33,6 +33,7 @@
 #include <QColor>
 #include <QImage>
 #include <QOffscreenSurface>
+#include <QPainter>
 #include <QOpenGLContext>
 #include <QOpenGLFramebufferObject>
 #include <QOpenGLFunctions>
@@ -187,6 +188,15 @@ class WaveformShaderTest : public testing::Test {
         return image;
     }
 
+    /// Values that the comparison sheet overrides to show what the waveform
+    /// looked like before a change. Empty means "use the shipped constants".
+    struct Overrides {
+        float softEdgeFraction = kSoftEdgeFraction;
+        float softEdgePixels = kSoftEdgePixels;
+        float verticalStrength = kVerticalStrength;
+    };
+    Overrides m_overrides;
+
     void setUniforms(int columns, int width, int height) {
         m_pProgram->setUniformValue("framebufferSize", QVector2D(width, height));
         m_pProgram->setUniformValue("waveformLength", 2 * columns);
@@ -208,14 +218,14 @@ class WaveformShaderTest : public testing::Test {
         m_pProgram->setUniformValue("axesColor", QVector4D(1.0f, 1.0f, 1.0f, 1.0f));
 
         m_pProgram->setUniformValue("colorSmoothBins", kColorSmoothBins);
-        m_pProgram->setUniformValue("softEdgeFraction", kSoftEdgeFraction);
-        m_pProgram->setUniformValue("softEdgePixels", kSoftEdgePixels);
+        m_pProgram->setUniformValue("softEdgeFraction", m_overrides.softEdgeFraction);
+        m_pProgram->setUniformValue("softEdgePixels", m_overrides.softEdgePixels);
         m_pProgram->setUniformValue("amplitudeFloor", kAmplitudeFloor);
         m_pProgram->setUniformValue("colorGamma", kColorGamma);
         m_pProgram->setUniformValue("colorLevelFloor", kColorLevelFloor);
         m_pProgram->setUniformValue("bandColorGain",
                 QVector3D(kBandColorGainLow, kBandColorGainMid, kBandColorGainHigh));
-        m_pProgram->setUniformValue("verticalStrength", kVerticalStrength);
+        m_pProgram->setUniformValue("verticalStrength", m_overrides.verticalStrength);
         m_pProgram->setUniformValue("dipCenterTonal", kDipCenterTonal);
         m_pProgram->setUniformValue("dipCenterImpulsive", kDipCenterImpulsive);
         m_pProgram->setUniformValue("dipWidth", kDipWidth);
@@ -518,4 +528,204 @@ TEST_F(WaveformShaderTest, QuietColumnsAreDimRatherThanSaturated) {
     const QImage loud = render(uniformBins(Bin{200, 200, 100, 100}), 128, 200);
     EXPECT_GT(loud.pixelColor(64, 90).value(), 200)
             << "a loud column came out dim, the level floor is applying too widely";
+}
+
+namespace {
+
+/// Perceived brightness of a pixel once it has been composited over the
+/// background of the skin, on the 0..255 scale.
+///
+/// The shader writes colour and alpha; what the user sees is that blended over
+/// whatever is behind the waveform. Judging the shading by its alpha alone
+/// would be judging a value nobody looks at: the same drop in alpha is obvious
+/// over a light background and invisible over a dark one.
+double brightnessOverBackground(const QColor& pixel, double background) {
+    const double alpha = pixel.alphaF();
+    const double luminance = 0.2126 * pixel.redF() + 0.7152 * pixel.greenF() +
+            0.0722 * pixel.blueF();
+    return 255.0 * (alpha * luminance + (1.0 - alpha) * background);
+}
+
+/// The waveform of the skins we care about sits on a nearly black background;
+/// LateNight uses #1a1a1a, which is this.
+constexpr double kSkinBackground = 0.1;
+
+/// How much the brightness has to change across a column before we are willing
+/// to call the vertical shading visible, on the 0..255 scale.
+///
+/// This number is CHOSEN, not measured. There is no measurement of Traktor
+/// behind it and no experiment on human vision: it is the value that the build
+/// the user accepted clears with a good margin (it produces about 40) while
+/// half the shading strength does not. It exists to catch the failure we hit
+/// twice - an effect that is present in the arithmetic, passes every structural
+/// test and is invisible on screen - and not to define what is visible.
+///
+/// It has to be revisited if the background of the skin changes materially, or
+/// if the colour model changes the brightness of the fill, because both move
+/// the contrast without touching the shading at all.
+constexpr double kVisibleBrightnessStep = 18.0;
+
+} // namespace
+
+TEST_F(WaveformShaderTest, TheVerticalShadingIsVisibleNotJustPresent) {
+    // Every other check here answers "is it doing what we designed". This one
+    // answers "can it be seen", which is the question the user actually asks
+    // and the one we failed twice: the shading was in the arithmetic, and he
+    // reported that no transparency had appeared.
+    struct Case {
+        const char* what;
+        Bin bin;
+    };
+    // Same peak, different band magnitudes, so the two differ in crest factor:
+    // one is tonal, the other is a hit.
+    // Half height, so the tip of the column is inside the image: with a peak of
+    // 255 the column fills the frame and there is no edge to find.
+    constexpr Case kCases[] = {
+            {"tonal", Bin{130, 75, 50, 10}},
+            {"percussive", Bin{130, 20, 12, 3}},
+    };
+
+    for (const Case& c : kCases) {
+        const QImage image = render(uniformBins(c.bin), 128, 200);
+        const int centre = 100;
+        int firstLit = -1;
+        for (int y = 0; y < centre; ++y) {
+            if (image.pixelColor(64, y).alphaF() > 0.5f) {
+                firstLit = y;
+                break;
+            }
+        }
+        ASSERT_GT(firstLit, 0) << c.what << ": nothing was drawn";
+
+        double darkest = 255.0;
+        double brightest = 0.0;
+        for (int y = firstLit + 2; y < centre - 2; ++y) {
+            const double brightness =
+                    brightnessOverBackground(image.pixelColor(64, y), kSkinBackground);
+            darkest = std::min(darkest, brightness);
+            brightest = std::max(brightest, brightness);
+        }
+        EXPECT_GE(brightest - darkest, kVisibleBrightnessStep)
+                << c.what << " column: the brightness varies by only "
+                << (brightest - darkest) << " over its height, which is not visible";
+    }
+}
+
+TEST_F(WaveformShaderTest, TheThinningSitsInsideTheBody) {
+    // Where the shading is matters as much as how strong it is. Both of our
+    // failures were about position rather than amount: on the rim it hid under
+    // the soft edge, and in the centre it opened a hole through which the axis
+    // line showed as a white stripe.
+    for (const Bin& bin : {Bin{130, 75, 50, 10}, Bin{130, 20, 12, 3}}) {
+        const QImage image = render(uniformBins(bin), 128, 200);
+        const int centre = 100;
+        int firstLit = -1;
+        for (int y = 0; y < centre; ++y) {
+            if (image.pixelColor(64, y).alphaF() > 0.5f) {
+                firstLit = y;
+                break;
+            }
+        }
+        ASSERT_GT(firstLit, 0) << "the column filled the frame, its tip is not visible";
+        const double height = centre - firstLit;
+
+        int darkestRow = firstLit;
+        double darkest = 255.0;
+        for (int y = firstLit; y <= centre; ++y) {
+            const double brightness =
+                    brightnessOverBackground(image.pixelColor(64, y), kSkinBackground);
+            if (brightness < darkest) {
+                darkest = brightness;
+                darkestRow = y;
+            }
+        }
+        // 0 at the centre of the waveform, 1 at the tip of the column.
+        const double position = (centre - darkestRow) / height;
+        EXPECT_LT(position, 0.85) << "the thinnest point sits at " << position
+                                  << " of the height, i.e. under the soft edge where it cannot "
+                                     "be seen";
+        EXPECT_GT(position, 0.10) << "the thinnest point sits at " << position
+                                  << " of the height, i.e. over the axis line, which would show "
+                                     "through";
+    }
+}
+
+namespace {
+
+/// A stretch of bins that alternates between tonal and percussive character,
+/// which is what makes the vertical shading readable: it shows up as a
+/// difference between neighbours rather than as a gradient inside one column.
+std::vector<Bin> mixedCharacterBins(int columns) {
+    std::vector<Bin> bins;
+    bins.reserve(columns);
+    for (int i = 0; i < columns; ++i) {
+        // Slow swell of the amplitude, so the sheet also shows the envelope.
+        const double envelope = 0.45 + 0.55 * std::sin(i * 0.055);
+        const int peak = std::max(20, static_cast<int>(230 * envelope));
+        // Alternate the character in blocks of eight columns.
+        const bool tonal = ((i / 8) % 2) == 0;
+        const double bandScale = tonal ? 0.62 : 0.17;
+        const int low = static_cast<int>(peak * bandScale * 1.0);
+        const int mid = static_cast<int>(peak * bandScale * 0.65);
+        const int high = static_cast<int>(peak * bandScale * (tonal ? 0.12 : 0.30));
+        bins.push_back(Bin{peak, low, mid, high});
+    }
+    return bins;
+}
+
+} // namespace
+
+/// Not a check: renders the sheet that shows what the waveform looks like now
+/// against what it looked like before the soft edge became a fraction of the
+/// height and before the vertical shading existed. Disabled, so it only runs
+/// when asked for:
+///
+///   mixxx-test --gtest_also_run_disabled_tests \
+///       --gtest_filter='*ComparisonSheet*'
+///
+/// The file goes to MIXXX_WF_SHEET or to /tmp/wfsheet.png.
+TEST_F(WaveformShaderTest, DISABLED_ComparisonSheet) {
+    constexpr int kWidth = 880;
+    constexpr int kSmall = 120;
+    // The larger panel is the height of a deck on the machine of the user, in
+    // device pixels, which is where the difference in the soft edge lives: at
+    // 120 pixels four percent of the half height is 2.4 pixels, i.e. LESS than
+    // the three fixed pixels it replaced.
+    constexpr int kLarge = 400;
+    constexpr int kGap = 10;
+
+    const auto bins = mixedCharacterBins(220);
+
+    // "Before": the soft edge was a fixed three device pixels with no relation
+    // to the height of the widget, and there was no vertical shading at all.
+    m_overrides = Overrides{0.0f, 3.0f, 0.0f};
+    const QImage beforeSmall = render(bins, kWidth, kSmall);
+    const QImage beforeLarge = render(bins, kWidth, kLarge);
+    m_overrides = Overrides{};
+    const QImage afterSmall = render(bins, kWidth, kSmall);
+    const QImage afterLarge = render(bins, kWidth, kLarge);
+
+    const int height = 2 * kSmall + 2 * kLarge + 5 * kGap;
+    QImage sheet(kWidth, height, QImage::Format_ARGB32);
+    // The background of the skin, so the sheet shows the contrast the user
+    // sees rather than the raw alpha.
+    sheet.fill(QColor(26, 26, 26));
+
+    QPainter painter(&sheet);
+    int y = kGap;
+    const auto place = [&](const QImage& image, const QString& label) {
+        painter.drawImage(0, y, image);
+        painter.setPen(QColor(200, 200, 200));
+        painter.drawText(6, y + 14, label);
+        y += image.height() + kGap;
+    };
+    place(beforeSmall, QStringLiteral("before, 120 px"));
+    place(afterSmall, QStringLiteral("after, 120 px"));
+    place(beforeLarge, QStringLiteral("before, 400 px (deck height of the user)"));
+    place(afterLarge, QStringLiteral("after, 400 px (deck height of the user)"));
+    painter.end();
+
+    const QString path = qEnvironmentVariable("MIXXX_WF_SHEET", QStringLiteral("/tmp/wfsheet.png"));
+    ASSERT_TRUE(sheet.save(path)) << "could not write " << path.toStdString();
+    printf("comparison sheet written to %s (%dx%d)\n", path.toStdString().c_str(), kWidth, height);
 }
