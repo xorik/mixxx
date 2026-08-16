@@ -11,7 +11,7 @@ namespace {
 
 constexpr double kTwoPi = 2.0 * M_PI;
 
-/// Measured Traktor band responses, mixxx-research/traktor/color_afr_final.json,
+/// Measured Traktor band responses, research/traktor/color_afr_final.json,
 /// in dB relative to the peak of each band, interpolated on a log frequency axis
 /// onto a handful of round frequencies. Only a subset of the 1/3 octave grid is
 /// repeated here; it is enough to pin down the shape of all three bands.

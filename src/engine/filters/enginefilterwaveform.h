@@ -7,7 +7,7 @@
 ///
 /// These are not crossover filters: they reproduce the three overlapping
 /// frequency responses that were measured from Traktor Pro 4 and stored in
-/// mixxx-research/traktor/color_afr_final.json. They are built from first order
+/// research/traktor/color_afr_final.json. They are built from first order
 /// shelves, which is what the measured slopes (~6 dB/octave, no floors) call
 /// for. Each band is normalised so that its peak magnitude is 1.0, and the
 /// balance between bands lives in the renderer instead (bandColorGain,
