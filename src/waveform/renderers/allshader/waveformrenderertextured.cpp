@@ -412,10 +412,6 @@ void WaveformRendererTextured::paintGL() {
                         QString::number(kColorLevelFloor),
                 QStringLiteral("colorGamma=") + QString::number(kColorGamma),
                 QStringLiteral("verticalStrength=") + QString::number(kVerticalStrength),
-                QStringLiteral("dipCenterTonal=") + QString::number(kDipCenterTonal),
-                QStringLiteral("dipCenterImpulsive=") + QString::number(kDipCenterImpulsive),
-                QStringLiteral("crestNeutral=") + QString::number(kCrestNeutral),
-                QStringLiteral("crestScale=") + QString::number(kCrestScale),
                 QStringLiteral("bandColorGain=") + QString::number(gain.x()) +
                         QChar(',') + QString::number(gain.y()) + QChar(',') +
                         QString::number(gain.z()),
@@ -475,11 +471,6 @@ void WaveformRendererTextured::paintGL() {
             m_frameShaderProgram->setUniformValue("colorGamma", kColorGamma);
             m_frameShaderProgram->setUniformValue("colorLevelFloor", kColorLevelFloor);
             m_frameShaderProgram->setUniformValue("verticalStrength", kVerticalStrength);
-            m_frameShaderProgram->setUniformValue("dipCenterTonal", kDipCenterTonal);
-            m_frameShaderProgram->setUniformValue("dipCenterImpulsive", kDipCenterImpulsive);
-            m_frameShaderProgram->setUniformValue("dipWidth", kDipWidth);
-            m_frameShaderProgram->setUniformValue("crestNeutral", kCrestNeutral);
-            m_frameShaderProgram->setUniformValue("crestScale", kCrestScale);
             m_frameShaderProgram->setUniformValue("crestLevelFloor", kCrestLevelFloor);
         }
 

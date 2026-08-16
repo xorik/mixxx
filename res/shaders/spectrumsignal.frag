@@ -55,18 +55,6 @@ uniform highp float colorGamma;
 // How strongly the column is shaded from its centre to its edge, in [0, 1].
 // 0 gives the flat fill of the other waveform types.
 uniform highp float verticalStrength;
-// Where the thinning sits inside the column, as a distance from the centre in
-// units of the half height of the column, for tonal and for percussive
-// material, and how wide it is.
-uniform highp float dipCenterTonal;
-uniform highp float dipCenterImpulsive;
-uniform highp float dipWidth;
-// The crest factor (peak over RMS) at which the column is drawn flat. A sine
-// sits at 1.41, impulsive material goes to 3 and beyond, and a square wave
-// approaches 1.
-uniform highp float crestNeutral;
-// How fast the shading follows the crest factor away from that neutral point.
-uniform highp float crestScale;
 // Level below which the crest factor is not trusted and the column is drawn
 // flat: the bands are stored in one byte each, so on quiet columns peak and
 // RMS are a few units and their ratio is noise.
@@ -128,26 +116,43 @@ highp vec3 smoothedBands(highp float visualIndex, highp float stereoOffset) {
     return acc / weightSum;
 }
 
-// Vertical shading of a column, as the alpha of a fragment at distance
-// `inside` from the centre of the column (0 at the centre, 1 at the edge).
+// Complementary error function, Abramowitz and Stegun 7.1.26, for x >= 0.
+// Error below 1.5e-7, far under anything visible in eight bit alpha.
+highp float erfc(highp float x) {
+    highp float t = 1.0 / (1.0 + 0.3275911 * x);
+    highp float poly = t *
+            (0.254829592 +
+                    t *
+                            (-0.284496736 +
+                                    t * (1.421413741 + t * (-1.453152027 + t * 1.061405429))));
+    return poly * exp(-x * x);
+}
+
+// Vertical shading of a column: the alpha at distance `inside` from its centre,
+// where 0 is the centre line and 1 the tip of the envelope.
 //
-// What it imitates: in the data of Traktor the alpha of a column follows the
-// distribution of the amplitude inside it - the share of samples above a given
-// level. A steady tone spends most of its time near its peaks, so its column
-// is dense at the edge and thinner in the middle; percussive material is the
-// other way round. The shape of that distribution is what the crest factor
-// describes, and we have it: `all` is the peak of the bin and the three bands
-// are RMS values, so their ratio says which of the two cases this column is.
+// This is the distribution of the amplitude inside the column - the share of
+// the samples in this bin whose magnitude reaches a given level - which is what
+// the alpha channel of Traktor was measured to follow. A steady tone spends
+// most of its time near its extremes, so the share stays high all the way out;
+// impulsive material sits far below its peak almost always, so it falls away
+// quickly. Which of the two a column is comes from its crest factor, and we
+// have that: `all` is the peak of the bin and the three bands are RMS values.
 //
-// Two things to know before touching this:
-//   * the crest factor here is approximate. The bands are shaped by the
-//     frequency responses of the analyzer, so a kick and a shaker with the
-//     same waveform can end up with a different one. We need the character,
-//     not the number, and the knobs above exist for exactly that;
-//   * it only works because the analyzer scales all four stored values -
-//     peak and the three bands - with the SAME factor. If bands are ever
-//     normalized on their own, the ratio silently stops meaning anything.
-//     There is a warning about this in analyzerwaveform.h as well.
+//   tone         (2/pi) * acos(t)      the arcsine distribution
+//   noise-like   erfc(t * crest / √2)  a Gaussian with that crest factor
+//   between      linear in the crest factor from 1.41 (a sine) to 3.0
+//
+// Two properties come out of the model rather than being arranged: the centre
+// is always fully opaque, so the axis line underneath can never show through,
+// and the shading spreads over the whole height instead of sitting at one end.
+// An earlier version used a band of thinning inside the body, a shape that
+// exists nowhere in a signal, and it read as uniform haze.
+//
+// It only works because the analyzer scales all four stored values - the peak
+// and the three bands - with the SAME factor. If bands are ever normalized on
+// their own, the ratio silently stops meaning anything. There is a warning
+// about this in analyzerwaveform.h as well.
 highp float verticalProfile(highp float inside, highp float peak, highp vec3 bands) {
     if (verticalStrength <= 0.0) {
         return 1.0;
@@ -157,28 +162,11 @@ highp float verticalProfile(highp float inside, highp float peak, highp vec3 ban
         return 1.0;
     }
     highp float crest = peak / rms;
-    highp float shape = clamp((crest - crestNeutral) * crestScale, -1.0, 1.0);
     highp float t = clamp(inside, 0.0, 1.0);
-
-    // The thinning is a band inside the body of the column, and the crest
-    // factor moves it: tonal columns are thinner closer to the centre,
-    // percussive ones closer to the rim.
-    //
-    // It deliberately touches neither end. The first version of this was
-    // monotonic - fully opaque at one end, fully transparent at the other -
-    // and both ends are already spoken for: the centre carries the axis line,
-    // which showed through the hole and gave a white stripe down the middle of
-    // the waveform, and the rim is already fading under the soft edge, where
-    // any extra transparency is invisible. Half of the columns produced an
-    // artefact and the other half produced nothing.
-    //
-    // A band also gives the eye something to compare: neighbouring columns of
-    // different character are thin in different places. A monotonic profile
-    // shades every column the same way and reads as flat.
-    highp float dipCenter = mix(dipCenterTonal, dipCenterImpulsive, 0.5 * (shape + 1.0));
-    highp float dip = exp(-pow((t - dipCenter) / dipWidth, 2.0));
-    highp float depth = verticalStrength * (0.5 + 0.5 * abs(shape));
-    return 1.0 - depth * dip;
+    highp float tone = 0.636619772 * acos(t);
+    highp float noiseLike = erfc(t * crest * 0.707106781);
+    highp float weight = clamp((crest - 1.41) / (3.0 - 1.41), 0.0, 1.0);
+    return mix(1.0, mix(tone, noiseLike, weight), verticalStrength);
 }
 
 // Linearly combine the low, mid, and high colors according to the low, mid,
@@ -216,6 +204,7 @@ void main(void) {
     highp float signalCoverage = 0.0;
     highp float shadowCoverage = 0.0;
     highp float bodyCoverage = 0.0;
+    highp float verticalShading = 1.0;
     highp vec3 signalRgb = vec3(0.0);
     highp vec3 shadowRgb = vec3(0.0);
 
@@ -279,27 +268,43 @@ void main(void) {
         // The profile is measured against the column as drawn, including the
         // amplitude floor: the floor exists to make quiet parts visible, and a
         // visible column that is hollow inside would defeat it.
-        highp float inside = ourDistance / max(signalDistance, 1e-4);
-        highp float shading = verticalProfile(inside, dataUnscaled.w, dataUnscaled.xyz);
         // How much of this fragment the waveform covers geometrically, before
         // the shading makes parts of it translucent. The axis line below hides
         // behind that, not behind the shaded alpha, so that making the body
         // more transparent never brings the axis back out through it.
         bodyCoverage = max(signalCoverage, shadowCoverage);
-        signalCoverage *= shading;
-        shadowCoverage *= shading;
+
+        // The shading belongs to the column, not to the layers it is built
+        // from, so it is applied to the finished composite below rather than to
+        // the signal and the shadow one by one. Shading them separately lets
+        // the shadow, which sits under the signal at 40%, show through wherever
+        // the signal was made translucent: that added up to a tenth of alpha in
+        // the middle of a column and pulled the profile away from the
+        // distribution it is meant to follow.
+        //
+        // The profile is measured against the column as drawn, including the
+        // amplitude floor: the floor exists to make quiet parts visible, and a
+        // visible column that is hollow inside would defeat it.
+        verticalShading = verticalProfile(ourDistance / max(signalDistance, 1e-4),
+                dataUnscaled.w,
+                dataUnscaled.xyz);
 
         signalRgb = bandColor(colorScaled);
         shadowRgb = bandColor(colorUnscaled);
     }
 
-    // The signal is composited over the shadow, the shadow over the axes.
+    // The signal is composited over the shadow, the shadow over the axes. The
+    // colour is mixed with the coverage the two layers have on their own and
+    // only the finished alpha is shaded: dividing the colour by an alpha that
+    // already carries the shading scales it up and clips it, which showed as
+    // hues drifting by up to fourteen degrees in the middle of a column.
     highp float shadowAlpha = 0.4 * shadowCoverage * (1.0 - signalCoverage);
-    highp float waveformAlpha = signalCoverage + shadowAlpha;
+    highp float bodyAlpha = signalCoverage + shadowAlpha;
     highp vec3 waveformRgb = vec3(0.0);
-    if (waveformAlpha > 0.0) {
-        waveformRgb = (signalRgb * signalCoverage + shadowRgb * shadowAlpha) / waveformAlpha;
+    if (bodyAlpha > 0.0) {
+        waveformRgb = (signalRgb * signalCoverage + shadowRgb * shadowAlpha) / bodyAlpha;
     }
+    highp float waveformAlpha = bodyAlpha * verticalShading;
 
     highp vec4 base = vec4(0.0, 0.0, 0.0, 0.0);
     if (bodyCoverage < 1.0 && abs(framebufferSize.y / 2.0 - pixelY) <= 4.0) {

@@ -226,11 +226,6 @@ class WaveformShaderTest : public testing::Test {
         m_pProgram->setUniformValue("bandColorGain",
                 QVector3D(kBandColorGainLow, kBandColorGainMid, kBandColorGainHigh));
         m_pProgram->setUniformValue("verticalStrength", m_overrides.verticalStrength);
-        m_pProgram->setUniformValue("dipCenterTonal", kDipCenterTonal);
-        m_pProgram->setUniformValue("dipCenterImpulsive", kDipCenterImpulsive);
-        m_pProgram->setUniformValue("dipWidth", kDipWidth);
-        m_pProgram->setUniformValue("crestNeutral", kCrestNeutral);
-        m_pProgram->setUniformValue("crestScale", kCrestScale);
         m_pProgram->setUniformValue("crestLevelFloor", kCrestLevelFloor);
     }
 
@@ -324,7 +319,11 @@ TEST_F(WaveformShaderTest, SoftEdgeKeepsItsProportionAtEverySize) {
     // tenth to nine tenths of the value just inside the column. Counting every
     // partly transparent row instead would measure the vertical shading too,
     // which thins most of the body on purpose.
+    // The vertical shading is switched off for this measurement. It varies the
+    // alpha over the whole height of the column by design, so with it on there
+    // is no way to tell where the fade at the rim ends and the profile begins.
     const auto bins = uniformBins(Bin{120, 90, 20, 5});
+    m_overrides.verticalStrength = 0.0f;
     std::vector<int> fades;
     for (const int height : {120, 400}) {
         const QImage image = render(bins, 128, height);
@@ -370,46 +369,40 @@ TEST_F(WaveformShaderTest, SoftEdgeKeepsItsProportionAtEverySize) {
     // roughly three times as many rows. This is the part that a fade of a
     // fixed number of pixels cannot satisfy, whatever the tolerances above
     // happen to allow.
+    m_overrides = Overrides{};
     ASSERT_EQ(fades.size(), 2u);
     EXPECT_GE(fades[1], 2 * fades[0])
             << "the fade did not grow with the widget: " << fades[0] << " rows at 120 and "
             << fades[1] << " at 400, so it is a fixed number of pixels rather than a fraction";
 }
 
-TEST_F(WaveformShaderTest, TheBodyNeverBecomesTransparent) {
-    // The axis line is drawn underneath the waveform. When the vertical shading
-    // took the alpha of the body to zero, the axis showed through the middle of
-    // every tonal column as a white stripe. Nothing inside the body may be
-    // transparent enough to let it out.
+TEST_F(WaveformShaderTest, TheCentreOfAColumnIsOpaque) {
+    // The axis line is drawn underneath the waveform. When the shading took the
+    // alpha near the centre below one, the axis showed through the middle of
+    // every column as a white stripe.
+    //
+    // With the amplitude distribution this is a property of the model rather
+    // than something arranged: the share of samples reaching zero is one, for
+    // every kind of material. The outer part of the column is meant to be
+    // translucent, so only the centre is checked here.
     for (const Bin& bin : {Bin{255, 200, 40, 10}, Bin{255, 60, 60, 60}, Bin{120, 100, 90, 80}}) {
         const QImage image = render(uniformBins(bin), 128, 200);
         const int centre = 100;
-        // Over the axis line itself the body has to stay nearly opaque, or the
-        // white line underneath shows through as a stripe. That is the shape
-        // this test was written for.
+        // On the centre line itself the distribution is one for every kind of
+        // material: every sample reaches level zero. This is the property that
+        // makes a hole in the middle impossible.
+        EXPECT_GT(image.pixelColor(64, centre).alphaF(), 0.98)
+                << "the centre line of the column is not opaque";
+        // Away from it the alpha falls smoothly, as it should, so over the rest
+        // of the four pixels the axis occupies the question is only whether it
+        // can be read through the fill. Under a fifth of white showing through
+        // is not a stripe; the companion test checks the colour directly.
         double overTheAxis = 1.0;
-        for (int y = centre - 5; y <= centre + 5; ++y) {
+        for (int y = centre - 4; y <= centre + 4; ++y) {
             overTheAxis = std::min(overTheAxis, static_cast<double>(image.pixelColor(64, y).alphaF()));
         }
-        EXPECT_GT(overTheAxis, 0.8) << "over the axis line the body dropped to alpha "
-                                    << overTheAxis << ", the axis would show through";
-        // And nowhere in the body may the fill become see-through enough for
-        // the background to read through it.
-        // And nowhere inside the body may the fill become see-through enough
-        // for the background to read through it. The range is the part of the
-        // column that is safely inside it, away from the fading rim.
-        int firstLit = 0;
-        for (int y = 0; y < centre; ++y) {
-            if (image.pixelColor(64, y).alphaF() > 0.5f) {
-                firstLit = y;
-                break;
-            }
-        }
-        double anywhere = 1.0;
-        for (int y = firstLit + 4; y <= centre; ++y) {
-            anywhere = std::min(anywhere, static_cast<double>(image.pixelColor(64, y).alphaF()));
-        }
-        EXPECT_GT(anywhere, 0.3) << "the body dropped to alpha " << anywhere;
+        EXPECT_GT(overTheAxis, 0.85) << "over the axis line the body dropped to alpha "
+                                     << overTheAxis << ", the axis would show through";
     }
 }
 
@@ -567,6 +560,63 @@ constexpr double kVisibleBrightnessStep = 18.0;
 
 } // namespace
 
+TEST_F(WaveformShaderTest, TheVerticalProfileMatchesTheAmplitudeDistribution) {
+    // THE REFERENCE HERE COMES FROM OUTSIDE THE SHADER. These numbers were not
+    // read off this renderer: they are the model the user approved before any
+    // of it was written, the distribution of the amplitude inside a column -
+    // the share of samples whose magnitude reaches a given level - for material
+    // of a given crest factor.
+    //
+    //   tone         (2/pi) * acos(t)
+    //   noise-like   erfc(t * crest / sqrt(2))
+    //   between      linear in the crest factor from 1.41 to 3.0
+    //
+    // That distinction matters more than it sounds. The first version of this
+    // test compared the shader against a table computed FROM the shader, which
+    // guards the implementation against accidental edits but cannot notice that
+    // the model itself has drifted - and that is exactly what had happened: the
+    // shading had become a band inside the column, a shape that exists nowhere
+    // in a signal, and the test was green throughout.
+    //
+    // If the shader ever misses these numbers, that is a finding. Widening the
+    // tolerance to make it pass would restore precisely the situation this test
+    // exists to prevent.
+    struct Row {
+        double crest;
+        double alpha[11];
+    };
+    constexpr double kSamples[11] = {
+            0.00, 0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 0.95};
+    constexpr Row kGolden[] = {
+            {1.41, {1.000, 0.936, 0.872, 0.806, 0.738, 0.667, 0.590, 0.506, 0.410, 0.287, 0.202}},
+            {1.80, {1.000, 0.917, 0.835, 0.753, 0.673, 0.594, 0.515, 0.434, 0.346, 0.243, 0.174}},
+            {2.30, {1.000, 0.870, 0.745, 0.630, 0.526, 0.434, 0.354, 0.284, 0.218, 0.148, 0.105}},
+            {2.80, {1.000, 0.799, 0.613, 0.452, 0.323, 0.225, 0.156, 0.108, 0.074, 0.046, 0.032}},
+            {3.50, {1.000, 0.726, 0.484, 0.294, 0.162, 0.080, 0.036, 0.014, 0.005, 0.002, 0.001}},
+            {5.00, {1.000, 0.617, 0.317, 0.134, 0.046, 0.012, 0.003, 0.000, 0.000, 0.000, 0.000}},
+    };
+    constexpr double kTolerance = 0.05;
+    constexpr int kHeight = 400;
+
+    for (const Row& row : kGolden) {
+        // A column at full height, so that its own half height is the half
+        // height of the image and the sample positions are exact. The crest
+        // factor is the stored peak over the length of the band vector, so a
+        // single band of 255 / crest gives the value we want.
+        const int band = static_cast<int>(std::lround(255.0 / row.crest));
+        const QImage image = render(uniformBins(Bin{255, band, 0, 0}), 128, kHeight);
+        const int centre = kHeight / 2;
+
+        for (int i = 0; i < 11; ++i) {
+            const int y = centre - static_cast<int>(std::lround(kSamples[i] * centre));
+            const double alpha = image.pixelColor(64, y).alphaF();
+            EXPECT_NEAR(alpha, row.alpha[i], kTolerance)
+                    << "crest " << row.crest << " at t=" << kSamples[i] << ": the shader gives "
+                    << alpha << " where the amplitude distribution gives " << row.alpha[i];
+        }
+    }
+}
+
 TEST_F(WaveformShaderTest, TheVerticalShadingIsVisibleNotJustPresent) {
     // Every other check here answers "is it doing what we designed". This one
     // answers "can it be seen", which is the question the user actually asks
@@ -588,9 +638,12 @@ TEST_F(WaveformShaderTest, TheVerticalShadingIsVisibleNotJustPresent) {
     for (const Case& c : kCases) {
         const QImage image = render(uniformBins(c.bin), 128, 200);
         const int centre = 100;
+        // The tip of the column, not the point where it becomes solid: on
+        // percussive material the alpha is already well under a half a tenth of
+        // the way in, and that faint part is most of what the eye compares.
         int firstLit = -1;
         for (int y = 0; y < centre; ++y) {
-            if (image.pixelColor(64, y).alphaF() > 0.5f) {
+            if (image.pixelColor(64, y).alphaF() > 0.02f) {
                 firstLit = y;
                 break;
             }
@@ -608,45 +661,6 @@ TEST_F(WaveformShaderTest, TheVerticalShadingIsVisibleNotJustPresent) {
         EXPECT_GE(brightest - darkest, kVisibleBrightnessStep)
                 << c.what << " column: the brightness varies by only "
                 << (brightest - darkest) << " over its height, which is not visible";
-    }
-}
-
-TEST_F(WaveformShaderTest, TheThinningSitsInsideTheBody) {
-    // Where the shading is matters as much as how strong it is. Both of our
-    // failures were about position rather than amount: on the rim it hid under
-    // the soft edge, and in the centre it opened a hole through which the axis
-    // line showed as a white stripe.
-    for (const Bin& bin : {Bin{130, 75, 50, 10}, Bin{130, 20, 12, 3}}) {
-        const QImage image = render(uniformBins(bin), 128, 200);
-        const int centre = 100;
-        int firstLit = -1;
-        for (int y = 0; y < centre; ++y) {
-            if (image.pixelColor(64, y).alphaF() > 0.5f) {
-                firstLit = y;
-                break;
-            }
-        }
-        ASSERT_GT(firstLit, 0) << "the column filled the frame, its tip is not visible";
-        const double height = centre - firstLit;
-
-        int darkestRow = firstLit;
-        double darkest = 255.0;
-        for (int y = firstLit; y <= centre; ++y) {
-            const double brightness =
-                    brightnessOverBackground(image.pixelColor(64, y), kSkinBackground);
-            if (brightness < darkest) {
-                darkest = brightness;
-                darkestRow = y;
-            }
-        }
-        // 0 at the centre of the waveform, 1 at the tip of the column.
-        const double position = (centre - darkestRow) / height;
-        EXPECT_LT(position, 0.85) << "the thinnest point sits at " << position
-                                  << " of the height, i.e. under the soft edge where it cannot "
-                                     "be seen";
-        EXPECT_GT(position, 0.10) << "the thinnest point sits at " << position
-                                  << " of the height, i.e. over the axis line, which would show "
-                                     "through";
     }
 }
 
