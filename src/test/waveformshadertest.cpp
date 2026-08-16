@@ -376,6 +376,41 @@ TEST_F(WaveformShaderTest, SoftEdgeKeepsItsProportionAtEverySize) {
             << fades[1] << " at 400, so it is a fixed number of pixels rather than a fraction";
 }
 
+TEST_F(WaveformShaderTest, TheSoftEdgeHasAFloorOnASmallDeck) {
+    // The proportion alone gets very small on a short widget - four percent of
+    // a half height of thirty is barely a pixel - so a floor in device pixels
+    // keeps the fade from vanishing there. Without it the change from an
+    // absolute width to a proportion improves the large end and makes the small
+    // end worse, which is what happened once already.
+    //
+    // A deliberately short widget, because that is where the floor decides the
+    // result: at the sizes of the proportionality test above the two are close
+    // enough that nothing would notice the floor being lowered.
+    constexpr int kHeight = 60;
+    m_overrides.verticalStrength = 0.0f;
+    const QImage image = render(uniformBins(Bin{120, 90, 20, 5}), 128, kHeight);
+    m_overrides = Overrides{};
+
+    const int centre = kHeight / 2;
+    int firstLit = -1;
+    for (int y = 0; y < centre; ++y) {
+        if (image.pixelColor(64, y).alphaF() > 0.02f) {
+            firstLit = y;
+            break;
+        }
+    }
+    ASSERT_GT(firstLit, 0) << "the column reached the top of the image";
+    int partial = 0;
+    for (int y = firstLit; y < centre; ++y) {
+        const double alpha = image.pixelColor(64, y).alphaF();
+        if (alpha > 0.02 && alpha < 0.98) {
+            partial++;
+        }
+    }
+    EXPECT_GE(partial, 3) << "the fade on a short widget is " << partial
+                          << " rows, i.e. the floor under it is not doing its job";
+}
+
 TEST_F(WaveformShaderTest, TheCentreOfAColumnIsOpaque) {
     // The axis line is drawn underneath the waveform. When the shading took the
     // alpha near the centre below one, the axis showed through the middle of
