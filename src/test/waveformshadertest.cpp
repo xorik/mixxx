@@ -315,6 +315,7 @@ TEST_F(WaveformShaderTest, SoftEdgeKeepsItsProportionAtEverySize) {
     // partly transparent row instead would measure the vertical shading too,
     // which thins most of the body on purpose.
     const auto bins = uniformBins(Bin{120, 90, 20, 5});
+    std::vector<int> fades;
     for (const int height : {120, 400}) {
         const QImage image = render(bins, 128, height);
         const int centre = height / 2;
@@ -347,13 +348,22 @@ TEST_F(WaveformShaderTest, SoftEdgeKeepsItsProportionAtEverySize) {
         ASSERT_GE(low, 0);
         ASSERT_GE(high, low);
         const int fade = high - low + 1;
-        EXPECT_GE(fade, std::max(1, static_cast<int>(expected * 0.4)))
+        fades.push_back(fade);
+        EXPECT_GE(fade, std::max(1, static_cast<int>(expected * 0.5)))
                 << "at height " << height << " the fade is " << fade
                 << " rows, expected about " << expected;
         EXPECT_LE(fade, static_cast<int>(expected * 2.5) + 2)
                 << "at height " << height << " the fade is " << fade
                 << " rows, expected about " << expected;
     }
+    // And the proportion itself: a widget three times taller must fade over
+    // roughly three times as many rows. This is the part that a fade of a
+    // fixed number of pixels cannot satisfy, whatever the tolerances above
+    // happen to allow.
+    ASSERT_EQ(fades.size(), 2u);
+    EXPECT_GE(fades[1], 2 * fades[0])
+            << "the fade did not grow with the widget: " << fades[0] << " rows at 120 and "
+            << fades[1] << " at 400, so it is a fixed number of pixels rather than a fraction";
 }
 
 TEST_F(WaveformShaderTest, TheBodyNeverBecomesTransparent) {
@@ -462,8 +472,12 @@ TEST_F(WaveformShaderTest, HeightFollowsTheAmplitude) {
             lit++;
         }
     }
-    EXPECT_GE(lit, static_cast<int>(kAmplitudeFloor * 100.0 * 0.7))
-            << "a barely audible bin was drawn " << lit << " pixels tall, the floor did not apply";
+    // Deliberately not written in terms of kAmplitudeFloor: an expectation
+    // computed from the value under test moves together with it and cannot
+    // fail. Twelve rows out of a hundred is well below the 19 the floor gives
+    // and well above the two or three a bin of this level would get without it.
+    EXPECT_GE(lit, 12) << "a barely audible bin was drawn " << lit
+                       << " pixels tall, the floor did not apply";
 }
 
 TEST_F(WaveformShaderTest, HeightDoesNotDependOnTheColourBalance) {
@@ -485,4 +499,23 @@ TEST_F(WaveformShaderTest, HeightDoesNotDependOnTheColourBalance) {
     EXPECT_LE(std::abs(bass - treble), 2)
             << "the same peak was drawn " << bass << " pixels tall for bass and " << treble
             << " for treble";
+}
+
+TEST_F(WaveformShaderTest, QuietColumnsAreDimRatherThanSaturated) {
+    // Without the level floor the colour of a column is divided by its own
+    // brightest channel, so a column carrying almost nothing comes out at full
+    // saturation with a hue decided by the last bits of the data. That is how
+    // a silent intro once turned into a solid bright green stripe.
+    const QImage quiet = render(uniformBins(Bin{60, 2, 1, 1}), 128, 200);
+    const QColor quietColor = quiet.pixelColor(64, 90);
+    ASSERT_GT(quietColor.alphaF(), 0.5) << "the quiet column was not drawn at all";
+    EXPECT_LT(quietColor.value(), 120)
+            << "a column with almost no signal was drawn at brightness " << quietColor.value()
+            << ", i.e. normalized up to full colour";
+
+    // A loud column of the same shape is normalized as usual, so the test
+    // fails if the floor is applied to everything instead.
+    const QImage loud = render(uniformBins(Bin{200, 200, 100, 100}), 128, 200);
+    EXPECT_GT(loud.pixelColor(64, 90).value(), 200)
+            << "a loud column came out dim, the level floor is applying too widely";
 }

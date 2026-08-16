@@ -190,7 +190,13 @@ highp vec3 bandColor(highp vec3 data) {
     data *= bandColorGain;
     highp vec3 color = lowColor.rgb * data.x + midColor.rgb * data.y + highColor.rgb * data.z;
     highp float maxComponent = max(color.r, max(color.g, color.b));
-    highp float norm = max(maxComponent, colorLevelFloor);
+    // The level floor is expressed in band units, so it has to be compared
+    // against a colour that has already been multiplied by the band gain. The
+    // largest of the three gains is the scale between the two: without it the
+    // floor was measured against a colour up to seven times larger than the
+    // band it came from and practically never engaged.
+    highp float gainScale = max(bandColorGain.x, max(bandColorGain.y, bandColorGain.z));
+    highp float norm = max(maxComponent, colorLevelFloor * gainScale);
     if (norm > 0.0) {
         color /= norm;
     }
