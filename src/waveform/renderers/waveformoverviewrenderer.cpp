@@ -2,6 +2,7 @@
 
 #include <QPainter>
 #include <QStringList>
+#include <algorithm>
 
 #include "util/colorcomponents.h"
 #include "util/math.h"
@@ -31,6 +32,56 @@ struct BandColorGain {
 
 constexpr BandColorGain kSpectrumBandColorGain{1.068f, 0.7f, 7.111f};
 constexpr BandColorGain kNeutralBandColorGain{1.0f, 1.0f, 1.0f};
+
+/// Width of the soft edge of a column, as a fraction of the distance that one
+/// unit of amplitude occupies in this image. The same 4% the deck uses.
+///
+/// WHAT IT IS A FRACTION OF, because we have already got this wrong twice by
+/// carrying over a number without its denominator: not of the height of the
+/// image, and not of the height of the column, but of the distance a full scale
+/// signal reaches from the centre line. In the stereo overview that is half the
+/// image, in the mono one the whole of it, since mono draws from the bottom.
+/// The image is scaled to the widget afterwards, so the proportion survives -
+/// except that the overview also normalizes each track to its own peak, which
+/// stretches the picture by a different amount per track. The fade therefore
+/// does not come out identical to the deck; it only stops the edge from being
+/// a hard step, which is the point.
+constexpr float kSoftEdgeFraction = 0.04f;
+/// However short the column, the fade never shrinks below this many pixels of
+/// the image, or it would disappear on quiet material before the scaling even
+/// happens.
+constexpr float kSoftEdgeMinimumPixels = 2.0f;
+
+/// Draws one column from the centre line outwards, fading over its last pixels.
+/// `direction` is +1 for downwards in the coordinates of the painter and -1 for
+/// upwards; `unitPixels` is what one unit of amplitude measures here.
+void drawColumn(QPainter* pPainter,
+        int x,
+        float height,
+        int direction,
+        const QColor& color,
+        float unitPixels) {
+    const int tip = static_cast<int>(height);
+    if (tip <= 0) {
+        pPainter->setPen(color);
+        pPainter->drawPoint(x, 0);
+        return;
+    }
+    const float fade = std::max(kSoftEdgeFraction * unitPixels, kSoftEdgeMinimumPixels);
+    const int solid = static_cast<int>(std::max(0.0f, height - fade));
+
+    pPainter->setPen(color);
+    if (solid > 0) {
+        pPainter->drawLine(x, 0, x, direction * (solid - 1));
+    }
+    QColor faded = color;
+    for (int y = solid; y <= tip; ++y) {
+        const float remaining = (height - static_cast<float>(y)) / fade;
+        faded.setAlphaF(std::clamp(remaining, 0.0f, 1.0f));
+        pPainter->setPen(faded);
+        pPainter->drawPoint(x, direction * y);
+    }
+}
 
 } // namespace
 
@@ -120,7 +171,8 @@ void drawWaveformPartRGBWithGain(
         int end,
         const WaveformSignalColors& signalColors,
         bool mono,
-        const BandColorGain& gain) {
+        const BandColorGain& gain,
+        bool softEdge) {
     ScopedTimer t(QStringLiteral("waveformOverviewRenderer::drawNextPixmapPartRGB"));
     int startVal = 0;
     if (start) {
@@ -171,8 +223,14 @@ void drawWaveformPartRGBWithGain(
                 color.setRgbF(static_cast<float>(low / max),
                         static_cast<float>(mid / max),
                         static_cast<float>(high / max));
-                pPainter->setPen(color);
-                pPainter->drawLine(x, static_cast<int>(all), x, 0);
+                if (softEdge) {
+                    // Mono draws from the bottom, so a full scale signal
+                    // reaches the whole height of the image.
+                    drawColumn(pPainter, x, all, 1, color, 2.0f * 255.0f);
+                } else {
+                    pPainter->setPen(color);
+                    pPainter->drawLine(x, static_cast<int>(all), x, 0);
+                }
             }
         }
     } else { // stereo
@@ -197,8 +255,12 @@ void drawWaveformPartRGBWithGain(
                 color.setRgbF(static_cast<float>(low / max),
                         static_cast<float>(mid / max),
                         static_cast<float>(high / max));
-                pPainter->setPen(color);
-                pPainter->drawLine(x, static_cast<int>(-all), x, 0);
+                if (softEdge) {
+                    drawColumn(pPainter, x, all, -1, color, 255.0f);
+                } else {
+                    pPainter->setPen(color);
+                    pPainter->drawLine(x, static_cast<int>(-all), x, 0);
+                }
             }
 
             // Right
@@ -221,8 +283,12 @@ void drawWaveformPartRGBWithGain(
                 color.setRgbF(static_cast<float>(low / max),
                         static_cast<float>(mid / max),
                         static_cast<float>(high / max));
-                pPainter->setPen(color);
-                pPainter->drawLine(x, 0, x, static_cast<int>(all));
+                if (softEdge) {
+                    drawColumn(pPainter, x, all, 1, color, 255.0f);
+                } else {
+                    pPainter->setPen(color);
+                    pPainter->drawLine(x, 0, x, static_cast<int>(all));
+                }
             }
         }
     }
@@ -240,7 +306,7 @@ void drawWaveformPartRGB(
         const WaveformSignalColors& signalColors,
         bool mono) {
     drawWaveformPartRGBWithGain(
-            pPainter, pWaveform, start, end, signalColors, mono, kNeutralBandColorGain);
+            pPainter, pWaveform, start, end, signalColors, mono, kNeutralBandColorGain, false);
 }
 
 void drawWaveformPartSpectrum(
@@ -251,7 +317,7 @@ void drawWaveformPartSpectrum(
         const WaveformSignalColors& signalColors,
         bool mono) {
     drawWaveformPartRGBWithGain(
-            pPainter, pWaveform, start, end, signalColors, mono, kSpectrumBandColorGain);
+            pPainter, pWaveform, start, end, signalColors, mono, kSpectrumBandColorGain, true);
 }
 
 void drawWaveformPartLMH(

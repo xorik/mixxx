@@ -3014,6 +3014,7 @@ if(BUILD_TESTING)
       src/test/sampleutiltest.cpp
       src/test/waveform_upgrade_test.cpp
       src/test/waveformshadertest.cpp
+      src/test/waveformoverviewtest.cpp
     )
   endif()
 
