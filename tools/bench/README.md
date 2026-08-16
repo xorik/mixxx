@@ -54,12 +54,77 @@ that starts on a 60 Hz screen stays capped at 60 fps even after the window has
 been parked on the 120 Hz one. Placing it late also flashes the window across
 the user's main display for two seconds at every launch.
 
-**Never reuse remembered coordinates.** The layout changes whenever a monitor is
-plugged or unplugged - it already did once during this work, from three screens
-(built-in at -1512,107 next to a 60 Hz primary) to a single built-in one, which
-moves its origin. Read the current layout from the `BENCHSCREENS` lines of the
-last run (`screens.sh`) and derive the coordinates from those. Stale coordinates
-either push the window off the desktop or let Qt place it wherever it likes.
+**Never reuse remembered coordinates.** The hardware configuration is not a
+constant, it is the state at the moment of a run. During this work the layout
+changed twice within an hour: three screens, then one, then three again. Both
+times the layout was passed on in good faith and both times it was already wrong
+when it arrived - stale numbers do not announce themselves. So derive the
+coordinates from the `BENCHSCREENS` lines of the run you are working with
+(`screens.sh` prints them), never from a note or from an earlier message. Stale
+coordinates either push the window off the desktop or let Qt place it wherever it
+likes, and the run still looks perfectly normal afterwards.
+
+The same rule applies to every remembered fact about the machine - refresh rate,
+which screen is primary, how many screens there are. That is why each run records
+`screenCount`, the full layout and `screens_system` in its own directory: the
+provenance of a measurement has to travel with it.
+
+## The test profile
+
+Every run uses a **separate Mixxx profile**, never the user's own:
+`/tmp/mixxx-perf` by default, overridable with `BENCH_PROFILE`. `run.sh` refuses
+outright to run against a path under `~/Library`, and it restores the profile's
+`mixxx.cfg` after every run, so a run can change settings without leaving traces.
+
+It is not a small thing: **1.7 GB**, a library of **1788 analysed tracks** and
+2953 analysis files. That analysis is what makes runs realistic and repeatable -
+and re-creating it from scratch means hours of CPU on the user's machine.
+
+**It currently lives in `/tmp`, which macOS clears.** Losing it costs the copy
+plus the re-analysis. If it is gone, re-create it as an APFS clone of the user's
+real profile - on APFS `cp -c` shares the blocks, so the clone costs almost no
+extra disk space (a plain copy of 1.7 GB would):
+
+```sh
+src=~/Library/Containers/org.mixxx.mixxx/Data/Library/Application\ Support/Mixxx
+cp -Rc "$src" /tmp/mixxx-perf          # -c = APFS clone, near-instant, no extra space
+```
+
+The user's real Mixxx is sandboxed, which is why its profile sits inside
+`~/Library/Containers/org.mixxx.mixxx` and not in `~/Library/Application Support`.
+The copy is read-only as far as the original is concerned - nothing is ever
+written back.
+
+### Where it should live
+
+`/tmp` is the wrong home for it, and the recommended destination is
+**`~/www/ai/mixxx/bench-profile`** - beside the repository, not inside it. Move
+it there in one go together with the planned repository move; nothing here
+depends on the current path except the default, and `BENCH_PROFILE` overrides
+that meanwhile.
+
+Why that place:
+
+* same APFS volume as the user's real profile, so `cp -Rc` really clones and the
+  1.7 GB cost almost nothing in disk space. That is decisive at 91% disk usage -
+  a copy onto another volume would be a full 1.7 GB;
+* not cleared by the system, unlike `/tmp`;
+* outside the git tree, so it neither clutters `git status` nor risks being
+  committed;
+* unambiguous name - nobody confuses it with the user's own profile;
+* and it needs **no weakening of the safety check**. `run.sh` refuses any profile
+  path under `~/Library`, which is what keeps a stray run away from the user's
+  real library. Putting the test profile in `~/Library/Application Support` would
+  force that check to be narrowed to a list of exact paths, and such a list goes
+  stale while a directory-level rule does not. A worse trade than it looks.
+
+After cloning, **set `[Config] Version` to the version of the binary under test**.
+A profile older than 2.6.0 makes Mixxx run its upgrade path on every start, and
+that path silently replaces a `WaveformType` it does not recognise with plain RGB
+(the user's own profile is `2.5.4` with `WaveformType 17`, which is not a value of
+the enum at all). `run.sh` does this automatically for the run and records
+`cfg_version_before` / `cfg_version_used` in `meta.txt`, but a permanently correct
+profile is one less surprise.
 
 ## Usage
 
