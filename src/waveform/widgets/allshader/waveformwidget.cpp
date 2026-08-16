@@ -249,6 +249,20 @@ void WaveformWidget::grabFrameIfRequested() {
                                       QString::number(screenRect.y()));
             report << QStringLiteral("screenCount=") +
                             QString::number(QGuiApplication::screens().size());
+            // Without the pixel ratio a captured frame cannot be compared with
+            // anything: the same widget is twice as many physical pixels on a
+            // retina screen, and a picture of the wrong scale looks exactly
+            // like a shader that does not antialias.
+            report << QStringLiteral("devicePixelRatio=") +
+                            QString::number(pScreen->devicePixelRatio());
+            report << QStringLiteral("widgetPx=%1x%2")
+                              .arg(QString::number(getWidth()),
+                                      QString::number(getHeight()));
+            GLint viewport[4] = {0, 0, 0, 0};
+            glGetIntegerv(GL_VIEWPORT, viewport);
+            report << QStringLiteral("viewportPx=%1x%2")
+                              .arg(QString::number(viewport[2]),
+                                      QString::number(viewport[3]));
             qDebug().noquote() << report.join(QChar(' '));
         }
     }

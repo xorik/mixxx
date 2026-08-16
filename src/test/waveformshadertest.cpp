@@ -34,7 +34,9 @@
 #include <QImage>
 #include <QFile>
 #include <numeric>
+#include <QGuiApplication>
 #include <QOffscreenSurface>
+#include <QScreen>
 #include <QPainter>
 #include <QOpenGLContext>
 #include <QOpenGLFramebufferObject>
@@ -921,6 +923,22 @@ TEST_F(WaveformShaderTest, TheOversampledPathAgreesWithTheDirectOne) {
             << "the oversampled path and the direct one differ by " << worst * 255.0
             << " of 255 in coverage at " << worstX << ", " << worstY
             << ": the averaging window does not follow the screen pixel";
+}
+
+/// Prints where the screens are in the coordinates Qt uses, which is what
+/// MIXXX_BENCH_GEOMETRY speaks. Disabled; there is no way to know the layout
+/// from the outside and guessing it puts the window on the screen of the user.
+TEST_F(WaveformShaderTest, DISABLED_Screens) {
+    for (const QScreen* pScreen : QGuiApplication::screens()) {
+        const QRect g = pScreen->geometry();
+        printf("screen '%s' at %d,%d size %dx%d ratio %.2f\n",
+                pScreen->name().toStdString().c_str(),
+                g.x(),
+                g.y(),
+                g.width(),
+                g.height(),
+                pScreen->devicePixelRatio());
+    }
 }
 
 TEST_F(WaveformShaderTest, DISABLED_GoldenRender) {

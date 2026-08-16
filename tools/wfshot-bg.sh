@@ -131,7 +131,11 @@ for _ in $(seq 1 12); do
     # What counts is the state we ended up in, not who put us there: when the
     # bundle is marked LSUIElement the process is accessory before the hook
     # runs, so "alreadyAccessory" is a success and only "FAILED" is not.
-    if grep -qE "accessoryPolicy=(applied|alreadyAccessory)" "$LOG" 2>/dev/null &&
+    # Two spellings, because the shared hook patch has carried both: hers
+    # ("accessoryPolicy=applied|alreadyAccessory") and the one that reports the
+    # state it ended up in ("policyNow=accessory"). Matching only one of them
+    # killed a run that had already done its work.
+    if grep -qE "accessoryPolicy=(applied|alreadyAccessory)|policyNow=accessory" "$LOG" 2>/dev/null &&
             grep -q "BENCHHIT MIXXX_BENCH_NO_AUDIO=1" "$LOG" 2>/dev/null; then
         hooks_ok=1
         break
