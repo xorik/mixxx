@@ -48,7 +48,7 @@ class allshader::WaveformWidget final : public ::WGLWidget,
         ::WaveformRendererSignalBase::Options options = ::WaveformRendererSignalBase::Option::None;
         switch (type) {
         case WaveformWidgetType::Type::RGB:
-        case WaveformWidgetType::Type::Traktor:
+        case WaveformWidgetType::Type::Spectrum:
             options = ::WaveformRendererSignalBase::Option::AllOptionsCombined;
             break;
         case WaveformWidgetType::Type::Filtered:

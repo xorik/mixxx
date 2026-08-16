@@ -1169,7 +1169,7 @@ WaveformWidgetAbstract* WaveformWidgetFactory::createSpectrumWaveformWidget(
     WaveformWidgetBackend backend = getBackendFromConfig();
     switch (backend) {
     case WaveformWidgetBackend::AllShader:
-        return createAllshaderWaveformWidget(WaveformWidgetType::Type::Traktor, viewer, options);
+        return createAllshaderWaveformWidget(WaveformWidgetType::Type::Spectrum, viewer, options);
 #endif
     default:
         return new EmptyWaveformWidget(viewer->getGroup(), viewer);
