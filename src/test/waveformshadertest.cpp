@@ -33,6 +33,7 @@
 #include <QColor>
 #include <QImage>
 #include <QFile>
+#include <numeric>
 #include <QOffscreenSurface>
 #include <QPainter>
 #include <QOpenGLContext>
@@ -748,6 +749,180 @@ std::vector<Bin> mixedCharacterBins(int columns) {
 ///   mixxx-test --gtest_also_run_disabled_tests --gtest_filter='*GoldenRender*'
 /// MIXXX_WF_BINS points at the bins (low, mid, high, all as bytes per bin) and
 /// MIXXX_WF_OUT at the file to write.
+TEST_F(WaveformShaderTest, TheRenderMatchesTheApprovedPicture) {
+    // The reference is a picture the user looked at and approved, drawn from
+    // the same bytes the shader is given here. Both live next to this file.
+    //
+    // THE CRITERION IS A CEILING, NOT A SHARE, and that is the whole point. We
+    // first agreed on "fewer than five percent of the pixels differ by more
+    // than thirteen", and the user saw through it: nearly half of this picture
+    // is background that matches for free, so five percent of all pixels is a
+    // quarter of the waveform - which could be wrong everywhere while the test
+    // stayed green. A test that passes for a reason unrelated to its subject is
+    // worse than no test.
+    //
+    // So no pixel of the waveform may differ by more than a tenth of the range
+    // on any channel, and the background has to match exactly. The distribution
+    // is printed either way, because passing with a mean of ten and passing
+    // with a mean of one are not the same thing.
+    constexpr int kCeiling = 26;    // a tenth of 255
+    constexpr int kBackground = 26; // the colour of the skin, #1a1a1a
+
+    QImage reference(QStringLiteral(WAVEFORM_GOLDEN_DIR "/spectrum_303x130.png"));
+    ASSERT_FALSE(reference.isNull()) << "the reference picture is missing";
+    reference = reference.convertToFormat(QImage::Format_RGB32);
+
+    QFile binsFile(QStringLiteral(WAVEFORM_GOLDEN_DIR "/spectrum_303x130_bins.bin"));
+    ASSERT_TRUE(binsFile.open(QIODevice::ReadOnly)) << "the reference data is missing";
+    const QByteArray raw = binsFile.readAll();
+    ASSERT_EQ(raw.size() % 4, 0);
+    std::vector<Bin> bins;
+    bins.reserve(raw.size() / 4);
+    for (int i = 0; i < raw.size() / 4; ++i) {
+        const unsigned char* p = reinterpret_cast<const unsigned char*>(raw.constData()) + 4 * i;
+        bins.push_back(Bin{p[3], p[0], p[1], p[2]});
+    }
+
+    // The axis line belongs to the skin rather than to the waveform, and the
+    // reference does not contain it, so it is switched off here instead of
+    // being subtracted from the comparison afterwards. Under a ceiling metric
+    // that matters: the axis is white on a dark background and would be the
+    // worst pixel in the picture by a wide margin, hiding everything else.
+    m_overrides.axis = false;
+    const QImage rendered = render(bins, reference.width(), reference.height());
+    m_overrides = Overrides{};
+
+    QImage ours(reference.size(), QImage::Format_RGB32);
+    ours.fill(QColor(kBackground, kBackground, kBackground));
+    QPainter painter(&ours);
+    painter.drawImage(0, 0, rendered);
+    painter.end();
+
+    const auto isBackground = [](const QColor& c) {
+        return std::abs(c.red() - kBackground) <= 1 && std::abs(c.green() - kBackground) <= 1 &&
+                std::abs(c.blue() - kBackground) <= 1;
+    };
+
+    int worst = 0;
+    int worstX = -1;
+    int worstY = -1;
+    int backgroundWorst = 0;
+    std::vector<int> onWaveform;
+    for (int y = 0; y < reference.height(); ++y) {
+        for (int x = 0; x < reference.width(); ++x) {
+            const QColor a = reference.pixelColor(x, y);
+            const QColor b = ours.pixelColor(x, y);
+            const int difference = std::max({std::abs(a.red() - b.red()),
+                    std::abs(a.green() - b.green()),
+                    std::abs(a.blue() - b.blue())});
+            if (isBackground(a) && isBackground(b)) {
+                backgroundWorst = std::max(backgroundWorst, difference);
+                continue;
+            }
+            onWaveform.push_back(difference);
+            if (difference > worst) {
+                worst = difference;
+                worstX = x;
+                worstY = y;
+            }
+        }
+    }
+    ASSERT_FALSE(onWaveform.empty()) << "no waveform was drawn, there is nothing to compare";
+
+    std::sort(onWaveform.begin(), onWaveform.end());
+    const int p99 = onWaveform[onWaveform.size() * 99 / 100];
+    const double mean =
+            std::accumulate(onWaveform.begin(), onWaveform.end(), 0.0) / onWaveform.size();
+
+    printf("against the approved picture: worst %d, p99 %d, mean %.2f, over %zu waveform pixels\n",
+            worst,
+            p99,
+            mean,
+            onWaveform.size());
+    EXPECT_LE(backgroundWorst, 1) << "the background does not match the reference";
+    EXPECT_LE(worst, kCeiling)
+            << "the worst waveform pixel differs by " << worst << " of 255 at column " << worstX
+            << ", row " << worstY << "; over " << onWaveform.size()
+            << " waveform pixels the 99th percentile is " << p99 << " and the mean is " << mean;
+}
+
+TEST_F(WaveformShaderTest, TheOversampledPathAgreesWithTheDirectOne) {
+    // The renderer does not draw into the picture: it draws into a buffer four
+    // times denser and lets that be filtered down. The two have to arrive at
+    // the same coverage, and for a while they did not - the averaging window
+    // was the width of a BUFFER pixel, so at the zoom the user works at it held
+    // less than one bin, every sub column inside it read the same bin, and the
+    // averaging did nothing.
+    //
+    // The bench never noticed because it renders at the size of the picture,
+    // where a buffer pixel and a screen pixel are the same thing: the one
+    // density at which this mistake cannot appear. So the density here is
+    // deliberately three bins per screen pixel, which is 0.75 per buffer pixel
+    // and is what the user has.
+    //
+    // The comparison is on ALPHA rather than on colour. Colour was tried first
+    // and was too forgiving: with the fault put back deliberately the worst
+    // colour difference was 11 of 255, under any sane ceiling, while the worst
+    // difference in coverage was 32. Coverage is what this is about, so
+    // coverage is what is measured.
+    constexpr int kOversampling = 4;
+    constexpr int kWidth = 128;
+    constexpr int kHeight = 64;
+    constexpr int kBinsPerPixel = 3;
+    // Not the ten percent the comparison against the picture uses. These two
+    // are supposed to COMPUTE THE SAME THING, so they have to agree, not merely
+    // resemble each other: with the window right the worst difference is 1 of
+    // 255, and with the fault deliberately put back it is 10 on this material
+    // and 32 on the reference material. Three percent sits clear of the first
+    // and well under the second.
+    constexpr double kCeiling = 8.0 / 255.0;
+
+    // Detail inside every pixel, or there would be nothing for the averaging to
+    // do and the two paths would agree by accident.
+    std::vector<Bin> bins;
+    bins.reserve(kWidth * kBinsPerPixel);
+    for (int i = 0; i < kWidth * kBinsPerPixel; ++i) {
+        const double envelope = 0.5 + 0.45 * std::sin(i * 0.021);
+        const int peak = std::max(10, static_cast<int>(240 * envelope * ((i % 3) ? 1.0 : 0.55)));
+        bins.push_back(Bin{peak, peak * 2 / 3, peak / 3, peak / 8});
+    }
+
+    m_overrides.axis = false;
+    const QImage direct = render(bins, kWidth, kHeight);
+    m_overrides.axis = false;
+    m_overrides.pixelsPerScreenPixel = kOversampling;
+    const QImage oversampled = render(bins, kWidth * kOversampling, kHeight * kOversampling);
+    m_overrides = Overrides{};
+
+    double worst = 0.0;
+    int worstX = -1;
+    int worstY = -1;
+    for (int y = 0; y < kHeight; ++y) {
+        for (int x = 0; x < kWidth; ++x) {
+            double sum = 0.0;
+            for (int dy = 0; dy < kOversampling; ++dy) {
+                for (int dx = 0; dx < kOversampling; ++dx) {
+                    sum += oversampled.pixelColor(x * kOversampling + dx,
+                                                y * kOversampling + dy)
+                                   .alphaF();
+                }
+            }
+            const double difference = std::fabs(sum / (kOversampling * kOversampling) -
+                    direct.pixelColor(x, y).alphaF());
+            if (difference > worst) {
+                worst = difference;
+                worstX = x;
+                worstY = y;
+            }
+        }
+    }
+    printf("oversampled against direct: worst coverage difference %.1f of 255\n", worst * 255.0);
+    EXPECT_LE(worst, kCeiling)
+            << "the oversampled path and the direct one differ by " << worst * 255.0
+            << " of 255 in coverage at " << worstX << ", " << worstY
+            << ": the averaging window does not follow the screen pixel";
+}
+
 TEST_F(WaveformShaderTest, DISABLED_GoldenRender) {
     const QString binsPath = qEnvironmentVariable("MIXXX_WF_BINS");
     QFile file(binsPath);
@@ -765,6 +940,13 @@ TEST_F(WaveformShaderTest, DISABLED_GoldenRender) {
 
     const int width = qEnvironmentVariableIntValue("MIXXX_WF_WIDTH");
     const int height = qEnvironmentVariableIntValue("MIXXX_WF_HEIGHT");
+    if (qEnvironmentVariableIntValue("MIXXX_WF_PPSP") > 0) {
+        m_overrides.pixelsPerScreenPixel =
+                static_cast<float>(qEnvironmentVariableIntValue("MIXXX_WF_PPSP"));
+    }
+    if (qEnvironmentVariableIntValue("MIXXX_WF_NOAXIS") > 0) {
+        m_overrides.axis = false;
+    }
     // The reference is drawn on the background of the skin rather than on
     // nothing, so the picture has to be composited over it before comparing.
     const QImage rendered = render(bins, width, height);
@@ -775,7 +957,10 @@ TEST_F(WaveformShaderTest, DISABLED_GoldenRender) {
     painter.end();
 
     const QString out = qEnvironmentVariable("MIXXX_WF_OUT");
-    ASSERT_TRUE(over.save(out)) << "cannot write " << out.toStdString();
+    // MIXXX_WF_RAW keeps the alpha instead of compositing over the skin, so
+    // that coverage can be measured rather than guessed from the colour.
+    const bool keepAlpha = qEnvironmentVariableIntValue("MIXXX_WF_RAW") > 0;
+    ASSERT_TRUE((keepAlpha ? rendered : over).save(out)) << "cannot write " << out.toStdString();
     printf("rendered %d bins into %s (%dx%d)\n", count, out.toStdString().c_str(), width, height);
 }
 

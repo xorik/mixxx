@@ -1,0 +1,26 @@
+{
+ "track": "Future Engineers - Organism",
+ "t0": 201.4,
+ "seconds": 2.8235,
+ "bpm": 85.0,
+ "beats": 4,
+ "width": 303,
+ "height": 130,
+ "bins": 1245,
+ "bins_per_pixel": 4.109,
+ "band_gain": [
+  1.068,
+  0.7,
+  7.111
+ ],
+ "color_smooth_bins": 4,
+ "amplitude_floor": 0.0,
+ "soft_edge_px": 1,
+ "subcolumns": 8,
+ "background": [
+  26,
+  26,
+  26
+ ],
+ "note": "данные в формате анализатора Mixxx: all=пик, полосы=RMS, uint8"
+}
