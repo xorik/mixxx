@@ -241,9 +241,24 @@ this cost us four times:
 
 So: wherever an empty result is supposed to mean "all good", print something
 positive instead - a count, an explicit `OK`, the value that was checked. Silence
-must never be the success signal. `summarize.py` and `series_report.py` follow
-this: they print the numbers they judged and name every check that failed, and a
-run with no telemetry is an explicit failure rather than an empty report.
+must never be the success signal. `run.sh`, `summarize.py` and `series_report.py`
+follow this: the preflight prints what it verified (binary, profile and its track
+count, geometry, frontmost application), the summary prints the numbers it judged
+and names every check that failed, and a run with no telemetry is an explicit
+failure rather than an empty report.
+
+**The worse variant of the same failure is a check that answers plausibly and
+wrongly.** A grep whose escape sequences did not mean what they looked like
+reported Cyrillic inside headings such as "Measure the phase error every second"
+- a confident, specific, false answer, which is harder to doubt than an empty
+one. When a check does find something, look at what it found before acting on
+it: the finding is evidence about the checker as much as about the subject.
+
+Language rule for everything in this repository - code, comments, documentation,
+scripts, commit messages: **English only.** The single exception is
+`reference-runs/`, which contains a saved log of an actual run: a historical
+record is not translated and not rewritten, for the same reason its now-stale
+`/tmp` paths are left alone.
 
 ## Checking a patch without building it
 
