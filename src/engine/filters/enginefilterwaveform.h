@@ -5,152 +5,127 @@
 
 /// Band splitting filters used by AnalyzerWaveform to colour the waveform.
 ///
-/// These are not crossover filters: they reproduce the three overlapping
-/// frequency responses that were measured from Traktor Pro 4 and stored in
-/// research/traktor/color_afr_final.json. They are built from first order
-/// shelves, which is what the measured slopes (~6 dB/octave, no floors) call
-/// for. Each band is normalised so that its peak magnitude is 1.0, and the
-/// balance between bands lives in the renderer instead (bandColorGain,
-/// low 1.068 / mid 1.000 / high 7.111).
+/// These are not crossover filters. They reproduce the three overlapping
+/// frequency responses measured from Traktor Pro 4.1.1 against synthetic
+/// probes: the measurement is research/traktor/band_response_linear_u1.json,
+/// the model research/stand/IMPLEMENTATION_SPEC.md.
 ///
-/// Fit error against the measured target, 100 Hz .. 20 kHz, in dB RMS:
-/// low 0.37, mid 0.38, high 0.99. For comparison, the Bessel crossovers that
-/// were used before missed the same target by 28-29 dB.
+/// Each band is a cascade of two first order sections, and each section is a
+/// plain exponential smoother rather than a filter designed from an analogue
+/// prototype:
+///
+///     a  = 1 - exp(-2*pi*fc / sampleRate)
+///     LP: y[n] = y[n-1] + a * (x[n] - y[n-1])
+///     HP: x[n] - LP(x)[n]
+///
+/// That is what Traktor appears to use, and matching the form rather than
+/// approximating it removes most of the residual: fitted against the measured
+/// sweep, as rms of the log magnitude with one gain per band and measured
+/// points below 3e-4 dropped as noise floor, this scores 0.018 / 0.008 / 0.020
+/// per band and 0.016 overall, against 0.032 for the closest analogue model.
+/// The mid band improves by a factor of five, and the limit we thought we had
+/// hit was the prototype, not the measurement.
+///
+/// A lowpass of this form has NO zero at Nyquist, which is the property that
+/// gave the analogue approximation its trouble; a highpass, being one minus a
+/// lowpass, has an exact zero at DC, which is what keeps the subsonic content
+/// of a track out of the high band.
+///
+/// Note what this buys and what it does not. It buys a filter that is right and
+/// short. It does NOT move the colour: measured over nine tracks, the hue error
+/// against Traktor is 21.0 degrees for either form. The fit is already finer
+/// than the hue metric can resolve, and what is left sits in the alignment and
+/// in the fold into a pixel, not in the filters.
 namespace mixxx {
 namespace waveformfilter {
 
-/// Low band: one high frequency shelf, corner 115 Hz, shelf -37 dB.
-constexpr double kLowCornerHz = 115.0;
-constexpr double kLowShelfDb = -37.0;
+/// The three cascades, as corner frequencies of the smoothers.
+constexpr double kLowLp1Hz = 178.2;
+constexpr double kLowLp2Hz = 130.4;
+constexpr double kMidHpHz = 517.5;
+constexpr double kMidLpHz = 978.9;
+constexpr double kHighHp1Hz = 1790.4;
+constexpr double kHighHp2Hz = 11843.0;
 
-/// Mid band: a low frequency shelf plus a gentle high frequency one. The second
-/// section is not decoration: the measured mid band droops by 2.4-2.7 dB above
-/// 5 kHz and a single one pole shelf is flat there. Since mid is usually the
-/// largest of the three bands, and the colour is formed by normalising to the
-/// largest, an error in it moves both of the other ratios. Measured on 13
-/// tracks, adding this section cuts the hue error contributed by the filter
-/// shapes from a median of 9.5 to 5.7 degrees.
-constexpr double kMidLowShelfCornerHz = 225.0;
-constexpr double kMidLowShelfDb = -15.0;
-constexpr double kMidHighShelfCornerHz = 1750.0;
-constexpr double kMidHighShelfDb = -3.0;
-
-/// High band: a first order highpass with the corner far above the audible
-/// band, i.e. a differentiator, followed by a first order roll-off.
+/// Balance between the bands, applied to the output of each cascade. These are
+/// the measured gains; only their ratios matter, because the renderer
+/// normalises a column to its largest channel.
 ///
-/// The highpass corner has to stay above 20 kHz: with any shape that has a
-/// finite low frequency shelf the whole subsonic content of a track leaks into
-/// the high band and inflates it tenfold (median hue error 52 degrees instead
-/// of 17). A first order highpass has an exact zero at DC, so that failure mode
-/// is impossible by construction.
-constexpr double kHighCornerHz = 50000.0;
-/// The roll-off is not in color_afr_final.json, and the reason is worth
-/// recording. That file was measured from a frequency sweep, and a sweep is
-/// least accurate at the top, where the frequency moves fastest across a column
-/// that stays the same width. Traktor's high band does not in fact keep rising
-/// to the limit of hearing. Measured against real Traktor stripes, a plain
-/// highpass scores 18.3 degrees of median hue error and adding this pole scores
-/// 15.2; the optimum is broad, 15.2-15.6 anywhere between 18 and 32 kHz, so it
-/// is a real effect and not a fit to noise.
-constexpr double kHighRolloffHz = 32000.0;
-/// Frequency at which the high band is normalised to unit gain, and the top of
-/// the measured 1/3 octave grid. The band still rises slightly past it, so this
-/// is an anchor rather than a peak; anchoring at Nyquist instead would make the
-/// whole response depend on the sample rate, which is a much worse trade.
-constexpr double kHighNormalizationHz = 20000.0;
+/// Do not read them as loudness. A cascade does not reach 1.0 inside itself -
+/// the high band peaks at 0.273, because a highpass built as one minus a
+/// lowpass never quite gets there - so the gains look larger than they are.
+/// The quantity that is physical, and the one to check an implementation
+/// against, is the peak of gain times cascade: 1.000 : 0.807 : 3.783.
+constexpr double kLowGain = 0.2637;
+constexpr double kMidGain = 0.3372;
+constexpr double kHighGain = 3.6545;
+
+/// Range over which a band is scanned when its peak is needed.
+constexpr double kScanLowHz = 20.0;
+constexpr double kScanHighHz = 20000.0;
 
 } // namespace waveformfilter
 } // namespace mixxx
 
-/// A bare first order section with directly assigned coefficients, used where
-/// the corner frequency lies above Nyquist and no standard design applies.
-///
-/// Like the shelves below, it processes in a single pass that is safe to run in
-/// place and skips the crossfade EngineFilterIIR does on coefficient changes.
-template<enum IIRPass PASS>
-class EngineFilterOnePoleRaw : public EngineFilterIIR<1, PASS> {
+/// One exponential smoother, as a lowpass or as its complement.
+class EngineFilterWaveformSection {
   public:
-    /// `poleCoef` is the denominator coefficient, so the pole sits at -poleCoef.
-    EngineFilterOnePoleRaw(double gain, double poleCoef, double sampleRate);
-
-    void process(const CSAMPLE* pIn, CSAMPLE* pOutput, std::size_t bufferSize) override;
-
-    /// Replaces the overall gain, leaving the pole where it is.
-    void setGain(double gain);
-
-    double magnitudeAt(double frequencyHz) const;
-
-  private:
-    double m_sampleRate;
-};
-
-/// A first order shelf: the dry signal mixed with a one pole section. The dry
-/// path is what makes the shelf finite; a bare one pole section would keep
-/// falling forever.
-///
-/// These sections override process() with a single pass that is safe to run in
-/// place, and they deliberately skip the crossfade that EngineFilterIIR does
-/// when coefficients change. Nothing here ever changes coefficients: the
-/// analyzer builds the filters once per track and settles them immediately.
-template<enum IIRPass PASS>
-class EngineFilterOnePoleShelf : public EngineFilterIIR<1, PASS> {
-  public:
-    /// `cornerHz` and `shelfDb` describe the shelf; `outputGain` scales the
-    /// whole section and exists so a cascade can be normalised without an extra
-    /// pass over the buffer.
-    EngineFilterOnePoleShelf(double cornerHz,
-            double shelfDb,
+    EngineFilterWaveformSection(bool highpass,
+            double cornerHz,
             mixxx::audio::SampleRate sampleRate,
-            double outputGain = 1.0);
+            double outputGain);
 
-    void process(const CSAMPLE* pIn, CSAMPLE* pOutput, std::size_t bufferSize) override;
-
-    /// Replaces the output gain while keeping the shelf itself unchanged.
-    void setOutputGain(double outputGain);
-
-    /// Magnitude of this section at `frequencyHz`, used to normalise cascades.
+    void process(const CSAMPLE* pIn, CSAMPLE* pOutput, std::size_t bufferSize);
+    void assumeSettled();
     double magnitudeAt(double frequencyHz) const;
 
   private:
+    bool m_highpass;
+    double m_alpha;
+    double m_gain;
     double m_sampleRate;
-    double m_dryGain;
-    double m_wetGain;
+    double m_state[2];
 };
 
-/// Flat below the corner, `shelfDb` down above it.
-using EngineFilterHighShelf1 = EngineFilterOnePoleShelf<IIR_LPMO>;
-/// `shelfDb` down below the corner, flat above it.
-using EngineFilterLowShelf1 = EngineFilterOnePoleShelf<IIR_HPMO>;
+/// A band: two sections in cascade, with the measured gain of the band on the
+/// first of them. In a linear cascade it makes no difference where a gain is
+/// applied, and one place is easier to find than two.
+class EngineFilterWaveformBand : public EngineFilterIIRBase {
+  public:
+    EngineFilterWaveformBand(bool firstHighpass,
+            double firstHz,
+            bool secondHighpass,
+            double secondHz,
+            double gain,
+            mixxx::audio::SampleRate sampleRate);
 
-/// Low band. Peaks at exactly 1.0 at DC, where the dry and the filtered path
-/// are in phase and add up to the full signal.
-class EngineFilterWaveformLow : public EngineFilterHighShelf1 {
+    void process(const CSAMPLE* pIn, CSAMPLE* pOutput, std::size_t bufferSize) override;
+    void assumeSettled() override;
+
+    /// Magnitude of the whole band, its gain included.
+    double magnitudeAt(double frequencyHz) const;
+    /// Largest magnitude over the audible range.
+    double peakMagnitude() const;
+
+  private:
+    EngineFilterWaveformSection m_first;
+    EngineFilterWaveformSection m_second;
+};
+
+/// Low band: lowpasses at 178 and 130 Hz.
+class EngineFilterWaveformLow : public EngineFilterWaveformBand {
   public:
     explicit EngineFilterWaveformLow(mixxx::audio::SampleRate sampleRate);
 };
 
-/// Mid band: two shelves in cascade, normalised to unit peak.
-class EngineFilterWaveformMid : public EngineFilterIIRBase {
+/// Mid band: a highpass at 518 Hz and a lowpass at 979 Hz.
+class EngineFilterWaveformMid : public EngineFilterWaveformBand {
   public:
     explicit EngineFilterWaveformMid(mixxx::audio::SampleRate sampleRate);
-
-    void process(const CSAMPLE* pIn, CSAMPLE* pOutput, std::size_t bufferSize) override;
-    void assumeSettled() override;
-
-  private:
-    EngineFilterLowShelf1 m_lowShelf;
-    EngineFilterHighShelf1 m_highShelf;
 };
 
-/// High band: a differentiator followed by a roll-off, anchored at 20 kHz.
-class EngineFilterWaveformHigh : public EngineFilterIIRBase {
+/// High band: highpasses at 1790 and 11843 Hz.
+class EngineFilterWaveformHigh : public EngineFilterWaveformBand {
   public:
     explicit EngineFilterWaveformHigh(mixxx::audio::SampleRate sampleRate);
-
-    void process(const CSAMPLE* pIn, CSAMPLE* pOutput, std::size_t bufferSize) override;
-    void assumeSettled() override;
-
-  private:
-    EngineFilterOnePoleRaw<IIR_HPMO> m_differentiator;
-    EngineFilterOnePoleRaw<IIR_P1> m_rolloff;
 };

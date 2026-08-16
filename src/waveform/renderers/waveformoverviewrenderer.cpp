@@ -11,26 +11,24 @@
 
 namespace {
 
-/// Balance between the three bands, applied to the colour only, never to the
-/// height. The Spectrum overview uses the same numbers as the Spectrum
-/// waveform of the deck, because the formula that turns the three bands into a
-/// colour is the same: the high band raised by 17 dB as measured in Traktor,
-/// the mid band held back to 0.7 to keep the share of yellow-green columns
-/// near the measured one. The RGB overview keeps a neutral gain and is exactly
-/// what it always was.
+/// Balance between the three bands. ONE for both overview types now, and it is
+/// neutral: the measured balance moved into the band filters of the analyser,
+/// where it is a property of how a band is measured rather than of how it is
+/// drawn.
 ///
-/// The colour smoothing of the deck is deliberately NOT carried over. One
-/// column of the overview is about 190 ms of audio (the summary is stored at
-/// about 5.3 columns per second against 441 in the deck), so it is an average
-/// already; the four bin window of the deck would be 760 ms here and would
-/// turn the picture into porridge.
+/// It used to sit here as 1.068 / 0.700 / 7.111, and when it moved the deck was
+/// updated and this file was not - so the library preview coloured data that
+/// the filters had already balanced with the old balance applied a second time,
+/// and the same track was one colour in the deck and another in the list. If a
+/// band ever looks mis-weighted, the place to look is enginefilterwaveform.h,
+/// and there must be exactly one such place.
 struct BandColorGain {
     float low;
     float mid;
     float high;
 };
 
-constexpr BandColorGain kSpectrumBandColorGain{1.068f, 0.7f, 7.111f};
+constexpr BandColorGain kSpectrumBandColorGain{1.0f, 1.0f, 1.0f};
 constexpr BandColorGain kNeutralBandColorGain{1.0f, 1.0f, 1.0f};
 
 /// Width of the soft edge of a column, as a fraction of the distance that one

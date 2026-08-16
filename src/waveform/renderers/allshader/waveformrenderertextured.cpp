@@ -398,8 +398,7 @@ void WaveformRendererTextured::paintGL() {
         // line is how both were caught.
         const QVector3D gain(kBandColorGainLow, kBandColorGainMid, kBandColorGainHigh);
         const QStringList applied = {
-                QStringLiteral("BENCHHIT colorSmoothBins=") +
-                        QString::number(kColorSmoothBins),
+                QStringLiteral("BENCHHIT"),
                 QStringLiteral("type=") + QString::number(static_cast<int>(m_type)),
                 QStringLiteral("options=") +
                         QString::number(static_cast<int>(
@@ -459,7 +458,6 @@ void WaveformRendererTextured::paintGL() {
         }
 
         if (m_type == ::WaveformWidgetType::Spectrum) {
-            m_frameShaderProgram->setUniformValue("colorSmoothBins", kColorSmoothBins);
             // The shader works in frame buffer pixels, the tunable is in
             // device pixels.
             m_frameShaderProgram->setUniformValue("subColumnSamples", kSubColumnSamples);
@@ -473,6 +471,7 @@ void WaveformRendererTextured::paintGL() {
                     QVector3D(kBandColorGainLow, kBandColorGainMid, kBandColorGainHigh));
             m_frameShaderProgram->setUniformValue("colorGamma", kColorGamma);
             m_frameShaderProgram->setUniformValue("colorLevelFloor", kColorLevelFloor);
+            m_frameShaderProgram->setUniformValue("rimBrightness", kRimBrightness);
         }
 
         m_frameShaderProgram->setUniformValue("axesColor",

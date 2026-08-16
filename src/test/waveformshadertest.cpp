@@ -207,6 +207,11 @@ class WaveformShaderTest : public testing::Test {
         // it off rather than work around it.
         bool axis = true;
         float pixelsPerScreenPixel = 1.0f;
+        // The brightness envelope of a column. Tests that measure COVERAGE turn
+        // it off: coverage is a geometric quantity and the envelope is a
+        // brightness one, and multiplying them together would make every
+        // measurement of the first depend on the second.
+        float rimBrightness = kRimBrightness;
     };
     Overrides m_overrides;
 
@@ -231,7 +236,6 @@ class WaveformShaderTest : public testing::Test {
         m_pProgram->setUniformValue(
                 "axesColor", QVector4D(1.0f, 1.0f, 1.0f, m_overrides.axis ? 1.0f : 0.0f));
 
-        m_pProgram->setUniformValue("colorSmoothBins", kColorSmoothBins);
         m_pProgram->setUniformValue("softEdgeFraction", m_overrides.softEdgeFraction);
         m_pProgram->setUniformValue("softEdgePixels", m_overrides.softEdgePixels);
         m_pProgram->setUniformValue("amplitudeFloor", m_overrides.amplitudeFloor);
@@ -241,6 +245,7 @@ class WaveformShaderTest : public testing::Test {
         m_pProgram->setUniformValue("pixelsPerScreenPixel", m_overrides.pixelsPerScreenPixel);
         m_pProgram->setUniformValue("colorGamma", kColorGamma);
         m_pProgram->setUniformValue("colorLevelFloor", kColorLevelFloor);
+        m_pProgram->setUniformValue("rimBrightness", m_overrides.rimBrightness);
         m_pProgram->setUniformValue("bandColorGain",
                 QVector3D(kBandColorGainLow, kBandColorGainMid, kBandColorGainHigh));
     }
@@ -298,6 +303,46 @@ constexpr double kGoldenAlpha[16][8] = {
 
 } // namespace
 
+// SMOKE. These two run before anything else in this file and answer the only
+// question that matters when something has gone badly wrong: is there a
+// waveform at all.
+//
+// They exist because a shader that fails to compile takes the whole renderer
+// with it and says so only in a log nobody is reading, and because every other
+// check here is about colour - so when the colour model changes they are all
+// red at once and there is nothing left that would notice an empty screen.
+// Twice in one day a build was handed over that drew nothing: once because the
+// bands were scaled into the bottom bits, once because the shader did not
+// compile. Neither needed a person to find it.
+
+TEST_F(WaveformShaderTest, aaaTheShaderCompiles) {
+    // The fixture links the program in SetUp, so reaching here means it did.
+    // Stated as its own test anyway: when this one fails, every other failure
+    // in this file is a consequence and not worth reading.
+    ASSERT_TRUE(m_pProgram->isLinked())
+            << "the shader did not compile, so nothing below this line means anything:\n"
+            << m_pProgram->log().toStdString();
+}
+
+TEST_F(WaveformShaderTest, aabSomethingIsDrawn) {
+    // Loud bins in, pixels out. No statement about which pixels: this is the
+    // check that survives a change of the colour model, so it must not depend
+    // on one.
+    const QImage image = render(uniformBins(Bin{200, 160, 80, 20}), 128, 100);
+    int painted = 0;
+    for (int y = 0; y < image.height(); ++y) {
+        for (int x = 0; x < image.width(); ++x) {
+            if (image.pixelColor(x, y).alphaF() > 0.1) {
+                painted++;
+            }
+        }
+    }
+    const double share = static_cast<double>(painted) / (image.width() * image.height());
+    printf("smoke: %.1f%% of the frame is painted\n", share * 100.0);
+    EXPECT_GT(share, 0.05) << "the waveform drew " << share * 100.0
+                           << "% of the frame on loud data, which is an empty picture";
+}
+
 TEST_F(WaveformShaderTest, ColorOfAColumnFollowsTheModel) {
     // Synthetic band triples with the hue the colour model gives for them:
     // the bands are multiplied by the band gain, normalized to the brightest
@@ -316,23 +361,26 @@ TEST_F(WaveformShaderTest, ColorOfAColumnFollowsTheModel) {
     // a mid gain of 1.000 while the shipped value is 0.700, and this test found
     // that on its first run: seven of the sixteen hues were off by 3 to 55
     // degrees, in a pattern that pointed straight at the mid band.
+    // Recomputed after the band balance moved out of the renderer and into the
+    // filters of the analyser. The renderer now normalises the stored triple to
+    // its largest channel and does nothing else, so a hue here is simply the
+    // hue of the stored values - which is the point: the colour is decided
+    // where the bands are measured, not where they are drawn.
     constexpr Case kCases[] = {
             {255, 0, 0, 0.0, 2.0},
             {0, 255, 0, 120.0, 2.0},
             {0, 0, 255, 240.0, 2.0},
-            {255, 255, 0, 39.3, 2.0},
-            {255, 0, 255, 248.9, 2.0},
-            {0, 255, 255, 234.1, 2.0},
-            {255, 255, 255, 243.4, 2.0},
-            {200, 100, 20, 329.8, 2.0},
-            {60, 180, 40, 223.0, 2.0},
-            {40, 60, 200, 240.0, 2.0},
-            {120, 120, 120, 243.4, 2.0},
-            {255, 40, 10, 349.3, 2.0},
-            {10, 40, 255, 239.5, 2.0},
-            {180, 90, 30, 291.7, 2.0},
-            {30, 90, 180, 238.3, 2.0},
-            {90, 255, 90, 230.9, 2.0},
+            {255, 255, 0, 60.0, 2.0},
+            {255, 0, 255, 300.0, 2.0},
+            {0, 255, 255, 180.0, 2.0},
+            {200, 100, 20, 26.7, 2.0},
+            {60, 180, 40, 111.5, 2.0},
+            {40, 60, 200, 232.6, 2.0},
+            {255, 40, 10, 7.3, 2.0},
+            {10, 40, 255, 232.7, 2.0},
+            {180, 90, 30, 24.2, 2.0},
+            {30, 90, 180, 215.8, 2.0},
+            {90, 255, 90, 120.0, 2.0},
     };
     for (const Case& c : kCases) {
         // A tall column so that the sample sits well inside the body, away
@@ -347,20 +395,30 @@ TEST_F(WaveformShaderTest, ColorOfAColumnFollowsTheModel) {
     }
 }
 
-TEST_F(WaveformShaderTest, EqualBandsAreBlueNotGrey) {
-    // A consequence of raising the high band by 17 dB, and an intentional one:
-    // equal band magnitudes do not mean equal energy per band. Guarded here
-    // because it looks like a bug to anyone who has not measured it, and
-    // "fixing" it would quietly undo the colour model.
+TEST_F(WaveformShaderTest, EqualStoredBandsAreNeutral) {
+    // This test used to say the opposite: that equal band values come out blue.
+    // They did, because the renderer multiplied them by the measured balance,
+    // and the balance raises the high band by a lot. The balance now lives in
+    // the band filters, so what reaches this point has already been weighted
+    // and equal values here mean the bands really are equal.
+    //
+    // The property has therefore genuinely changed, and the previous statement
+    // is not something to restore. What used to make a spectrally flat signal
+    // look blue still happens - it just happens in the analyser now, and it is
+    // the filter tests that guard it.
     const QImage image = render(uniformBins(Bin{255, 120, 120, 120}), 256, 200);
     const QColor color = image.pixelColor(128, 60);
     ASSERT_GT(color.alphaF(), 0.5) << "nothing was drawn, there is no colour to judge";
-    EXPECT_LT(hueDistance(color.hueF() * 360.0, 243.4), 2.0)
-            << "equal bands gave hue " << color.hueF() * 360.0;
-    EXPECT_GT(color.saturationF(), 0.5) << "equal bands came out unsaturated";
+    EXPECT_LT(color.saturationF(), 0.05)
+            << "equal stored bands came out coloured, so something is still weighting them "
+               "after the analyser";
+    EXPECT_GT(color.valueF(), 0.9) << "equal stored bands should be bright, not dark";
 }
 
 TEST_F(WaveformShaderTest, TheEdgeIsAntialiasedAndNotABlur) {
+    // Coverage, not brightness: the envelope is switched off so that this
+    // measures the geometry it is about.
+    m_overrides.rimBrightness = 1.0f;
     // The edge has to be soft enough not to stair-step and hard enough to still
     // read as an edge. Both halves of that matter and the second one was got
     // wrong: a fade of four percent of the half height is over two pixels on a
@@ -394,6 +452,55 @@ TEST_F(WaveformShaderTest, TheEdgeIsAntialiasedAndNotABlur) {
                               << " the edge is a hard step, it will stair-step as it scrolls";
         EXPECT_LE(partial, 3) << "at height " << height << " the edge fades over " << partial
                               << " rows, which is a gradient rather than an edge";
+    }
+}
+
+TEST_F(WaveformShaderTest, TheBrightnessEnvelopeFollowsTheMeasuredCurve) {
+    // THE REFERENCE COMES FROM OUTSIDE. Measured on a deck capture of Traktor
+    // over 1848 columns: the brightness of a column relative to its centre line
+    // is 0.896 at the centre, 0.707 at half height, 0.240 at the rim.
+    //
+    // Checked as a curve, not as one number. If only the rim were checked, an
+    // envelope that hit 0.24 there and sagged in the middle would pass - and
+    // the middle is most of what a column is made of.
+    //
+    // Alpha rather than colour, because the envelope is a brightness effect and
+    // leaves the hue alone: measured, the hue is constant down a column to
+    // within 5.6 degrees.
+    struct Point {
+        double position;
+        double relative;
+        double tolerance;
+    };
+    constexpr Point kCurve[] = {
+            {0.00, 1.000, 0.02},
+            {0.25, 0.952, 0.05},
+            {0.50, 0.810, 0.05},
+            {0.75, 0.573, 0.05},
+            {0.95, 0.314, 0.05},
+    };
+
+    const QImage image = render(uniformBins(Bin{128, 100, 40, 10}), 128, 200);
+    const int centre = 100;
+    const double centreAlpha = image.pixelColor(64, centre).alphaF();
+    ASSERT_GT(centreAlpha, 0.5) << "nothing was drawn, there is no envelope to measure";
+
+    int rim = centre;
+    for (int y = 0; y < centre; ++y) {
+        if (image.pixelColor(64, y).alphaF() > 0.02f) {
+            rim = y;
+            break;
+        }
+    }
+    const double height = centre - rim;
+    ASSERT_GT(height, 20) << "the column is too short to measure an envelope on";
+
+    for (const Point& point : kCurve) {
+        const int y = centre - static_cast<int>(std::lround(point.position * height));
+        const double relative = image.pixelColor(64, y).alphaF() / centreAlpha;
+        EXPECT_NEAR(relative, point.relative, point.tolerance)
+                << "at " << point.position << " of the height the column is " << relative
+                << " of its centre brightness, the measurement says " << point.relative;
     }
 }
 
@@ -440,14 +547,19 @@ TEST_F(WaveformShaderTest, TheAxisDoesNotShowThroughTheWaveform) {
     }
 }
 
-TEST_F(WaveformShaderTest, NoPartOfAColumnComesOutWhite) {
-    // "and do not turn the middle white". The axis line under the waveform is
-    // white in the skin of the user, and anything that makes the body of a
-    // column translucent lets it through; so does dividing the colour by an
-    // alpha smaller than itself, which drives all three channels into clipping.
-    // Both have happened here. The check is on the finished pixel, over the
-    // whole height of the column, because that is where the complaint was.
-    // Peaks below full scale, so the tip of each column is inside the image.
+TEST_F(WaveformShaderTest, TheBodyOfAColumnStaysOpaque) {
+    // Coverage, not brightness: the envelope is switched off so that this
+    // measures the geometry it is about.
+    m_overrides.rimBrightness = 1.0f;
+    // This used to check that no part of a column is nearly white, as a way of
+    // catching the axis line showing through it. That test cannot survive the
+    // balance moving into the analyser: a column whose three bands are equal is
+    // now legitimately white, and there is nothing wrong with it.
+    //
+    // So the same defect is watched from where it actually comes from. The axis
+    // is drawn under the waveform and can only appear if the body is
+    // translucent, so it is the alpha that has to be checked. That also states
+    // the property directly instead of through one of its symptoms.
     for (const Bin& bin : {Bin{200, 160, 30, 8},
                  Bin{200, 50, 50, 50},
                  Bin{160, 120, 60, 15},
@@ -461,12 +573,11 @@ TEST_F(WaveformShaderTest, NoPartOfAColumnComesOutWhite) {
                 break;
             }
         }
-        ASSERT_GT(firstLit, 0) << "nothing was drawn, so the absence of white proves nothing";
-        for (int y = firstLit + 1; y <= centre; ++y) {
-            const QColor color = image.pixelColor(64, y);
-            EXPECT_GT(color.saturationF(), 0.25)
-                    << "row " << y << " of the column is nearly white (saturation "
-                    << color.saturationF() << ")";
+        ASSERT_GT(firstLit, 0) << "nothing was drawn, so an opaque body proves nothing";
+        for (int y = firstLit + 2; y <= centre; ++y) {
+            EXPECT_GT(image.pixelColor(64, y).alphaF(), 0.9)
+                    << "row " << y << " of the column is translucent, the axis line under it "
+                                      "would show through";
         }
     }
 }
@@ -602,6 +713,9 @@ constexpr double kVisibleBrightnessStep = 18.0;
 } // namespace
 
 TEST_F(WaveformShaderTest, TheCoverageMatchesAnEightBySupersampledMask) {
+    // Coverage, not brightness: the envelope is switched off so that this
+    // measures the geometry it is about.
+    m_overrides.rimBrightness = 1.0f;
     // THE REFERENCE HERE COMES FROM OUTSIDE THE SHADER. It is the antialiasing
     // the user approved: the mask of the waveform sampled eight times across
     // and eight times down every pixel, averaged. A screen pixel spans several
@@ -654,6 +768,9 @@ TEST_F(WaveformShaderTest, TheCoverageMatchesAnEightBySupersampledMask) {
 }
 
 TEST_F(WaveformShaderTest, TheShippedSubColumnCountReachesTheReference) {
+    // Coverage, not brightness: the envelope is switched off so that this
+    // measures the geometry it is about.
+    m_overrides.rimBrightness = 1.0f;
     // The check above overrides the number of sub columns, so it says nothing
     // about the value actually shipped. This one uses it, and renders the way
     // the renderer does: into a frame buffer four times the size of the widget,
@@ -751,6 +868,15 @@ std::vector<Bin> mixedCharacterBins(int columns) {
 ///   mixxx-test --gtest_also_run_disabled_tests --gtest_filter='*GoldenRender*'
 /// MIXXX_WF_BINS points at the bins (low, mid, high, all as bytes per bin) and
 /// MIXXX_WF_OUT at the file to write.
+// KNOWN RED again, on purpose: the brightness envelope of a column has been
+// added since this reference was approved, so every column is now darker
+// towards its rim than the picture shows. The reference will be redrawn and
+// approved once the change has been looked at, the same way as before.
+//
+// The reference was redrawn when the colour model changed to the one measured
+// from Traktor, and approved in that form the same way the previous one was.
+// It is not regenerated from the code on a whim: doing that turns the one gate
+// there is into a record of whatever the code happens to do.
 TEST_F(WaveformShaderTest, TheRenderMatchesTheApprovedPicture) {
     // The reference is a picture the user looked at and approved, drawn from
     // the same bytes the shader is given here. Both live next to this file.
@@ -849,6 +975,9 @@ TEST_F(WaveformShaderTest, TheRenderMatchesTheApprovedPicture) {
 }
 
 TEST_F(WaveformShaderTest, TheOversampledPathAgreesWithTheDirectOne) {
+    // Coverage, not brightness: the envelope is switched off so that this
+    // measures the geometry it is about.
+    m_overrides.rimBrightness = 1.0f;
     // The renderer does not draw into the picture: it draws into a buffer four
     // times denser and lets that be filtered down. The two have to arrive at
     // the same coverage, and for a while they did not - the averaging window

@@ -1,6 +1,13 @@
 #include <gtest/gtest.h>
 
+#include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <array>
 #include <cmath>
+#include <functional>
+#include <limits>
 #include <cstddef>
 #include <vector>
 
@@ -9,218 +16,210 @@
 
 namespace {
 
-constexpr double kTwoPi = 2.0 * M_PI;
-
-/// Measured Traktor band responses, research/traktor/color_afr_final.json,
-/// in dB relative to the peak of each band, interpolated on a log frequency axis
-/// onto a handful of round frequencies. Only a subset of the 1/3 octave grid is
-/// repeated here; it is enough to pin down the shape of all three bands.
-struct ResponsePoint {
+/// One point of the measured sweep: the frequency and the three band values
+/// Traktor drew there.
+struct MeasuredPoint {
     double frequencyHz;
-    double lowDb;
-    double midDb;
-    double highDb;
+    double raw[3];
 };
 
-constexpr ResponsePoint kTarget[] = {
-        {20.0, -1.16, -14.53, -59.08},
-        {50.0, -0.76, -10.21, -53.55},
-        {100.0, -1.98, -6.76, -47.04},
-        {200.0, -4.94, -3.64, -40.00},
-        {500.0, -11.86, -0.48, -30.94},
-        {1000.0, -18.00, -0.13, -24.08},
-        {2000.0, -24.23, -1.20, -17.84},
-        {5000.0, -30.57, -2.40, -9.79},
-        {10000.0, -34.18, -2.71, -4.45},
-        {16000.0, -35.57, -2.26, -1.22},
-};
+/// Reads the measured sweep. Kept as data rather than as a table in the source
+/// because it is 973 points and because the same file is the reference for the
+/// stand.
+std::vector<MeasuredPoint> loadMeasuredSweep() {
+    QFile file(QStringLiteral(WAVEFORM_GOLDEN_DIR "/band_response_linear_u1.json"));
+    if (!file.open(QIODevice::ReadOnly)) {
+        return {};
+    }
+    const QJsonArray array = QJsonDocument::fromJson(file.readAll()).array();
+    std::vector<MeasuredPoint> points;
+    points.reserve(array.size());
+    for (const QJsonValue& value : array) {
+        const QJsonObject object = value.toObject();
+        const QJsonArray raw = object.value(QStringLiteral("raw")).toArray();
+        if (raw.size() != 3) {
+            continue;
+        }
+        points.push_back({object.value(QStringLiteral("hz")).toDouble(),
+                {raw.at(0).toDouble(), raw.at(1).toDouble(), raw.at(2).toDouble()}});
+    }
+    return points;
+}
 
-/// The overall level of a band is set by bandColorGain in the renderer, not by
-/// the filter, so what these tests check is the shape: the response with its
-/// mean offset removed. That is also how the shapes were fitted.
+/// Rms of log(model) - log(measured) for one band, with the best common gain
+/// divided out, over the points where the measurement is above the noise floor.
 ///
-/// The high band gets the widest bound on purpose. It deliberately departs from
-/// color_afr_final.json above a couple of kHz, because that file was measured
-/// with a sweep and a sweep is least accurate at the top; measured against real
-/// Traktor stripes the departure is worth 18.3 -> 15.2 degrees of median hue
-/// error. For scale, the Bessel crossovers used before missed these targets by
-/// 28-29 dB.
-constexpr double kLowToleranceDb = 2.0;
-constexpr double kMidToleranceDb = 1.5;
-constexpr double kHighToleranceDb = 3.0;
+/// THE SELECTION RULE IS PART OF THE CRITERION, not a detail. With every point
+/// included the same model scores 0.082 and would fail; the difference is
+/// entirely the far skirts, where a 24 bit probe reads about 1e-5 and the
+/// logarithm turns its noise into a large error. The threshold was established
+/// on this rule and is flat across two decades of it: 1e-4 gives 0.035,
+/// 3e-4 gives 0.032, 1e-3 gives 0.030.
+constexpr double kNoiseFloor = 3e-4;
 
-/// Feeds a sine at `frequencyHz` through `filter` and returns the RMS gain,
-/// discarding the first half of the buffer so the filter state has settled.
-double measureGain(EngineFilterIIRBase* pFilter, double frequencyHz, int sampleRate) {
-    constexpr int kFrames = 1 << 16;
-    std::vector<CSAMPLE> in(kFrames * 2);
-    std::vector<CSAMPLE> out(kFrames * 2);
-    for (int i = 0; i < kFrames; ++i) {
-        const auto value = static_cast<CSAMPLE>(
-                std::sin(kTwoPi * frequencyHz * i / sampleRate));
-        in[i * 2] = value;
-        in[i * 2 + 1] = value;
-    }
-    pFilter->assumeSettled();
-    pFilter->process(in.data(), out.data(), in.size());
-
-    double sumIn = 0.0;
-    double sumOut = 0.0;
-    for (int i = kFrames; i < kFrames * 2; i += 2) {
-        sumIn += static_cast<double>(in[i]) * in[i];
-        sumOut += static_cast<double>(out[i]) * out[i];
-    }
-    return std::sqrt(sumOut / sumIn);
-}
-
-double toDb(double gain) {
-    return 20.0 * std::log10(gain);
-}
-
-/// Deviation of a band from its target at every point of kTarget, with the mean
-/// deviation removed so that only the shape is compared.
-template<typename Filter>
-std::vector<double> shapeDeviation(double ResponsePoint::*targetField) {
-    std::vector<double> deviation;
+double logRmsAgainstMeasured(const std::vector<MeasuredPoint>& points,
+        int band,
+        const std::function<double(double)>& model) {
     double sum = 0.0;
-    for (const auto& point : kTarget) {
-        Filter filter{mixxx::audio::SampleRate(44100)};
-        const double d = toDb(measureGain(&filter, point.frequencyHz, 44100)) -
-                point.*targetField;
-        deviation.push_back(d);
-        sum += d;
+    int count = 0;
+    for (const MeasuredPoint& point : points) {
+        if (point.raw[band] <= kNoiseFloor) {
+            continue;
+        }
+        const double value = model(point.frequencyHz);
+        if (value <= 0.0) {
+            continue;
+        }
+        sum += std::log(point.raw[band]) - std::log(value);
+        count++;
     }
-    const double mean = sum / static_cast<double>(deviation.size());
-    for (double& d : deviation) {
-        d -= mean;
+    EXPECT_GT(count, 100) << "band " << band << " kept too few points to judge";
+    if (count == 0) {
+        return std::numeric_limits<double>::max();
     }
-    return deviation;
+    const double gain = std::exp(sum / count);
+    double error = 0.0;
+    for (const MeasuredPoint& point : points) {
+        if (point.raw[band] <= kNoiseFloor) {
+            continue;
+        }
+        const double value = gain * model(point.frequencyHz);
+        if (value <= 0.0) {
+            continue;
+        }
+        const double difference = std::log(value) - std::log(point.raw[band]);
+        error += difference * difference;
+    }
+    return std::sqrt(error / count);
 }
 
 class EngineFilterWaveformTest : public testing::Test {};
 
-TEST_F(EngineFilterWaveformTest, lowBandMatchesMeasuredResponse) {
-    const auto deviation = shapeDeviation<EngineFilterWaveformLow>(&ResponsePoint::lowDb);
-    for (std::size_t i = 0; i < deviation.size(); ++i) {
-        EXPECT_LT(std::abs(deviation[i]), kLowToleranceDb)
-                << "at " << kTarget[i].frequencyHz << " Hz";
-    }
-}
+TEST_F(EngineFilterWaveformTest, theBandsMatchTheMeasuredSweep) {
+    // The acceptance criterion is two sided on purpose. A single overall number
+    // can hide a bad band behind two good ones, and the mid band is the one at
+    // risk: its points are never dropped by the noise floor, so its 0.047 is
+    // the honest remainder of the model rather than an artefact of selection.
+    // Tightened when the sections became exponential smoothers rather than
+    // approximations of an analogue prototype: the old limits, 0.05 and 0.06,
+    // were set by how well an analogue model could be made to fit and would now
+    // let that weaker model back in.
+    constexpr double kOverallLimit = 0.035;
+    constexpr double kBandLimit = 0.045;
 
-TEST_F(EngineFilterWaveformTest, midBandMatchesMeasuredResponse) {
-    const auto deviation = shapeDeviation<EngineFilterWaveformMid>(&ResponsePoint::midDb);
-    for (std::size_t i = 0; i < deviation.size(); ++i) {
-        EXPECT_LT(std::abs(deviation[i]), kMidToleranceDb)
-                << "at " << kTarget[i].frequencyHz << " Hz";
-    }
-}
+    const std::vector<MeasuredPoint> points = loadMeasuredSweep();
+    ASSERT_FALSE(points.empty()) << "the measured sweep is missing";
 
-TEST_F(EngineFilterWaveformTest, highBandMatchesMeasuredResponse) {
-    const auto deviation = shapeDeviation<EngineFilterWaveformHigh>(&ResponsePoint::highDb);
-    for (std::size_t i = 0; i < deviation.size(); ++i) {
-        EXPECT_LT(std::abs(deviation[i]), kHighToleranceDb)
-                << "at " << kTarget[i].frequencyHz << " Hz";
-    }
-}
-
-/// The roll-off above the audible band is the whole point of the second section
-/// in the high band, so pin it down directly rather than only through the shape
-/// test, whose target does not contain it.
-TEST_F(EngineFilterWaveformTest, highBandRollsOffAtTheTop) {
-    EngineFilterWaveformHigh high{mixxx::audio::SampleRate(44100)};
-    EngineFilterWaveformHigh reference{mixxx::audio::SampleRate(44100)};
-    // Without the roll-off the band would rise at a steady 6 dB per octave, so
-    // the last octave and a bit up to 20 kHz would gain 20*log10(20/10) = 6.02
-    // dB. The 32 kHz pole takes about 1 dB off that.
-    const double gained = toDb(measureGain(&high, 20000.0, 44100)) -
-            toDb(measureGain(&reference, 10000.0, 44100));
-    EXPECT_LT(gained, 5.2);
-    EXPECT_GT(gained, 4.0);
-}
-
-/// Every band is normalised to unit peak gain so a single byte scale can be
-/// shared by all three; the balance between bands lives in the renderer.
-/// Low peaks at DC and high at 20 kHz, both by construction. Mid is a cascade
-/// and peaks in the middle, near 780 Hz, which the constructor has to find.
-TEST_F(EngineFilterWaveformTest, bandsPeakAtUnitGain) {
     EngineFilterWaveformLow low{mixxx::audio::SampleRate(44100)};
-    EXPECT_NEAR(measureGain(&low, 20.0, 44100), 0.985, 0.01);
     EngineFilterWaveformMid mid{mixxx::audio::SampleRate(44100)};
-    EXPECT_NEAR(measureGain(&mid, 780.0, 44100), 1.0, 0.01);
     EngineFilterWaveformHigh high{mixxx::audio::SampleRate(44100)};
-    EXPECT_NEAR(measureGain(&high, 20000.0, 44100), 1.0, 0.01);
+    const std::array<EngineFilterWaveformBand*, 3> bands{&low, &mid, &high};
+    const std::array<const char*, 3> names{"low", "mid", "high"};
 
-    // Nothing may exceed the peak inside the measured range, or the byte scale
-    // shared by the three bands would clip one of them.
-    for (double f = 20.0; f <= mixxx::waveformfilter::kHighNormalizationHz; f *= 1.1) {
-        EngineFilterWaveformLow l{mixxx::audio::SampleRate(44100)};
-        EngineFilterWaveformMid m{mixxx::audio::SampleRate(44100)};
-        EngineFilterWaveformHigh h{mixxx::audio::SampleRate(44100)};
-        EXPECT_LE(measureGain(&l, f, 44100), 1.001) << "low at " << f << " Hz";
-        EXPECT_LE(measureGain(&m, f, 44100), 1.001) << "mid at " << f << " Hz";
-        EXPECT_LE(measureGain(&h, f, 44100), 1.001) << "high at " << f << " Hz";
+    double sumOfSquares = 0.0;
+    int total = 0;
+    for (int band = 0; band < 3; ++band) {
+        const double rms = logRmsAgainstMeasured(points, band, [&](double f) {
+            return bands[band]->magnitudeAt(f);
+        });
+        printf("%-5s digital rms %.4f\n", names[band], rms);
+        EXPECT_LE(rms, kBandLimit) << names[band] << " band is " << rms
+                                   << " from the measured response";
+        sumOfSquares += rms * rms;
+        total++;
     }
+    const double overall = std::sqrt(sumOfSquares / total);
+    printf("overall %.4f (limit %.2f)\n", overall, kOverallLimit);
+    EXPECT_LE(overall, kOverallLimit);
 }
 
-/// Between 20 kHz and Nyquist the high band keeps rising, because it is
-/// anchored at 20 kHz rather than at Nyquist. Anchoring at Nyquist instead
-/// would make the response depend on the sample rate, which is a far worse
-/// trade; the overshoot is bounded and tiny, and this test says by how much.
-/// Only a full scale tone above 20 kHz could reach the top of the byte range
-/// through it, which no real material contains.
-TEST_F(EngineFilterWaveformTest, highBandOvershootAboveTheMeasuredRangeIsNegligible) {
+TEST_F(EngineFilterWaveformTest, theBandBalanceIsTheMeasuredOne) {
+    // The renderer no longer holds a per band gain, so the balance has to be
+    // here and nowhere else. Doubling it in both places is exactly how this
+    // would go wrong silently, so the ratios are checked against the measured
+    // numbers rather than against themselves.
+    EngineFilterWaveformLow low{mixxx::audio::SampleRate(44100)};
+    EngineFilterWaveformMid mid{mixxx::audio::SampleRate(44100)};
     EngineFilterWaveformHigh high{mixxx::audio::SampleRate(44100)};
-    const double atNyquist = measureGain(&high, 22000.0, 44100);
-    EXPECT_GT(atNyquist, 1.0);
-    EXPECT_LT(toDb(atNyquist), 0.2);
+
+    const double lowPeak = low.peakMagnitude();
+    const double midPeak = mid.peakMagnitude();
+    const double highPeak = high.peakMagnitude();
+
+    // The physical quantity, and the one to check against: the peak of gain
+    // times cascade, relative to the low band. Measured 1.000 : 0.807 : 3.783.
+    // The gains themselves are not comparable across bands - a highpass built
+    // as one minus a lowpass peaks at 0.273 - so reading them directly is how
+    // an implementation ends up looking wrong while being right.
+    EXPECT_NEAR(midPeak / lowPeak, 0.807, 0.03);
+    EXPECT_NEAR(highPeak / lowPeak, 3.783, 0.15);
+
+    // And the loudest band fills the byte it is stored in without going
+    // through it: the balance leaves the high band peaking just under one, so
+    // no extra headroom factor is needed.
+    EXPECT_NEAR(highPeak, 1.0, 0.05) << "the high band does not fill the byte it is stored in";
 }
 
-/// The high band must have an exact zero at DC. Any shape with a finite low
-/// frequency shelf lets the subsonic content of a track leak into the high band
-/// and inflates it tenfold (median hue error 52 degrees instead of 17).
-TEST_F(EngineFilterWaveformTest, highBandRejectsDc) {
-    EngineFilterWaveformHigh filter{mixxx::audio::SampleRate(44100)};
-    constexpr int kFrames = 4096;
-    std::vector<CSAMPLE> in(kFrames * 2, 1.0f);
-    std::vector<CSAMPLE> out(kFrames * 2, 0.0f);
-    filter.assumeSettled();
-    filter.process(in.data(), out.data(), in.size());
-    // Only the initial step survives, the steady state is exactly zero.
-    for (int i = kFrames; i < kFrames * 2; ++i) {
-        EXPECT_NEAR(out[i], 0.0f, 1e-6f);
-    }
+TEST_F(EngineFilterWaveformTest, theHighBandRejectsDc) {
+    // A first order highpass has an exact zero at DC, which is what keeps the
+    // subsonic content of a track out of the high band. With any shape that has
+    // a finite low frequency shelf it leaks in and inflates the band tenfold.
+    EngineFilterWaveformHigh high{mixxx::audio::SampleRate(44100)};
+    EXPECT_LT(high.magnitudeAt(0.0), 1e-9);
+    EXPECT_LT(high.magnitudeAt(1.0), 1e-4);
 }
 
-/// The response has to be the same at every sample rate, otherwise the same
-/// track would get different colours depending on the file it was decoded from.
-/// This is the reason the high band pole is placed by matching the analogue
-/// prototype rather than by simply differencing consecutive samples.
-TEST_F(EngineFilterWaveformTest, responseIsSampleRateIndependent) {
-    for (const auto& point : kTarget) {
-        EngineFilterWaveformLow low44{mixxx::audio::SampleRate(44100)};
-        EngineFilterWaveformLow low96{mixxx::audio::SampleRate(96000)};
-        // The low band tolerance is the wider one because the zero that the
-        // bilinear transform puts on Nyquist sits at a different audio
-        // frequency for each sample rate. It only matters at 16 kHz, where the
-        // band is 35 dB down anyway.
-        EXPECT_NEAR(toDb(measureGain(&low44, point.frequencyHz, 44100)),
-                toDb(measureGain(&low96, point.frequencyHz, 96000)),
-                1.0)
-                << "low at " << point.frequencyHz << " Hz";
+TEST_F(EngineFilterWaveformTest, theResponseBarelyDependsOnTheSampleRate) {
+    // Two copies of the same music analysed at different sample rates should
+    // come out the same colour. With an exponential smoother that is nearly,
+    // but not exactly, true: the coefficient is exp(-2*pi*fc/sampleRate), which
+    // fixes the shape at low frequencies and lets it differ near Nyquist, where
+    // the two rates are simply not the same distance away.
+    //
+    // So the coefficient is not taken from the formula at the running rate: the
+    // 44.1 kHz response is the target and the coefficient is fitted to it, 44.1
+    // being the only rate the model was measured at. Without that fit the high
+    // band moves by 91 % at 96 kHz and the hue of a pure tone by 31.5 degrees,
+    // which is a different colour for the same music.
+    //
+    // What is left is measured here rather than assumed, and it is not zero:
+    // one coefficient cannot reproduce at 96 kHz a shape recorded at 44.1.
+    EngineFilterWaveformLow referenceLow{mixxx::audio::SampleRate(44100)};
+    EngineFilterWaveformMid referenceMid{mixxx::audio::SampleRate(44100)};
+    EngineFilterWaveformHigh referenceHigh{mixxx::audio::SampleRate(44100)};
 
-        EngineFilterWaveformMid mid44{mixxx::audio::SampleRate(44100)};
-        EngineFilterWaveformMid mid96{mixxx::audio::SampleRate(96000)};
-        EXPECT_NEAR(toDb(measureGain(&mid44, point.frequencyHz, 44100)),
-                toDb(measureGain(&mid96, point.frequencyHz, 96000)),
-                0.5)
-                << "mid at " << point.frequencyHz << " Hz";
+    for (const int sampleRate : {48000, 96000}) {
+        EngineFilterWaveformLow low{mixxx::audio::SampleRate(sampleRate)};
+        EngineFilterWaveformMid mid{mixxx::audio::SampleRate(sampleRate)};
+        EngineFilterWaveformHigh high{mixxx::audio::SampleRate(sampleRate)};
 
-        EngineFilterWaveformHigh high44{mixxx::audio::SampleRate(44100)};
-        EngineFilterWaveformHigh high96{mixxx::audio::SampleRate(96000)};
-        EXPECT_NEAR(toDb(measureGain(&high44, point.frequencyHz, 44100)),
-                toDb(measureGain(&high96, point.frequencyHz, 96000)),
-                0.5)
-                << "high at " << point.frequencyHz << " Hz";
+        double worstLowMid = 0.0;
+        double worstHigh = 0.0;
+        for (double f = 40.0; f <= 16000.0; f *= 1.1) {
+            const auto relative = [f](const EngineFilterWaveformBand& a,
+                                          const EngineFilterWaveformBand& b) {
+                const double reference = b.magnitudeAt(f);
+                return reference > 1e-6 ? std::abs(a.magnitudeAt(f) - reference) / reference : 0.0;
+            };
+            worstLowMid = std::max({worstLowMid, relative(low, referenceLow), relative(mid, referenceMid)});
+            worstHigh = std::max(worstHigh, relative(high, referenceHigh));
+        }
+        // The limits are what the fit achieves with one coefficient per
+        // section, and they are stated in magnitude because that is what this
+        // test can see. What they cost in COLOUR, which is the thing that
+        // matters, was measured separately on a pure tone against the 44.1 kHz
+        // response: 0.6 degrees of hue at 48 kHz and 3.1 at 96 kHz, worst case,
+        // against 5.5 and 31.5 without the fit. Three degrees is below what the
+        // eye separates on a waveform, so the remaining magnitude error is
+        // accepted rather than chased with a second coefficient.
+        EXPECT_LT(worstLowMid, 0.25) << "low or mid band moved by " << worstLowMid
+                                     << " between 44100 and " << sampleRate;
+        EXPECT_LT(worstHigh, 0.35) << "high band moved by " << worstHigh << " between 44100 and "
+                                   << sampleRate;
+        printf("sample rate %d: low/mid within %.3f, high within %.3f of 44100\n",
+                sampleRate,
+                worstLowMid,
+                worstHigh);
     }
 }
 

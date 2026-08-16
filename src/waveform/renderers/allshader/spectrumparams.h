@@ -11,12 +11,12 @@
 namespace mixxx {
 namespace spectrumwaveform {
 
-/// Radius of the window the colour of a column is averaged over, in visual bins
-/// (441 bins per second), so four bins is about 9 ms - the grid Traktor appears
-/// to use. Wider windows score better on every number we could measure and look
-/// worse: averaging over 27 ms mixes neighbouring columns together, invents
-/// orange between red and green and washes out the saturation.
-constexpr float kColorSmoothBins = 4.0f;
+/// Colour is no longer averaged over neighbouring bins. Averaging finished RGB
+/// invents hues that are in none of the bins it averages - that is where the
+/// oranges came from - and it oversmooths: our neighbour hue jump was 1.5 to
+/// 3.8 degrees where Traktor sits at 17.1. What replaces it is interpolating
+/// the BAND VALUES between analysis bins, in the shader, before they become a
+/// colour.
 
 /// How many sub columns are sampled inside one SCREEN pixel to work out how
 /// much of it the column covers. Eight is the density the approved reference
@@ -62,21 +62,43 @@ constexpr float kAmplitudeFloor = 0.0f;
 /// against a median error of 16), so we do not compress at all.
 constexpr float kColorGamma = 1.0f;
 
+/// Brightness of a column at its rim, as a fraction of the centre line.
+///
+/// Measured on a deck capture of Traktor over 1848 columns: 0.896 at the
+/// centre, 0.707 at half height, 0.240 at the rim, hue constant to within 5.6
+/// degrees down the column - a brightness envelope, not a colour effect. The
+/// shader fits a quadratic through those three points.
+///
+/// This is what a waveform needs to read as a shape rather than as a bar: a
+/// snare drawn flat to its own height looks like a block, and the same snare
+/// with its edges falling away looks like the spike it is. The user described
+/// exactly that difference before this was measured.
+constexpr float kRimBrightness = 0.240f;
+
 /// Level below which the colour of a column is no longer normalized to full
 /// brightness. Without it a column that carries almost nothing is divided by
-/// its own maximum and comes out fully saturated with a hue decided by noise.
-constexpr float kColorLevelFloor = 0.01f;
-
-/// Balance between the three bands, applied to the colour only, never to the
-/// height. The high band is raised by 17 dB as measured in Traktor and as the
-/// RMS band magnitudes of the analyzer need; the mid band is held back to 0.7,
-/// which brings the share of yellow-green columns from 6.1% to 1.2%.
+/// its own largest channel and comes out fully saturated with a hue decided by
+/// noise - a silent intro became a solid bright green stripe.
 ///
-/// Note the consequence, it is deliberate: with equal bands the result is blue,
-/// not grey.
-constexpr float kBandColorGainLow = 1.068f;
-constexpr float kBandColorGainMid = 0.7f;
-constexpr float kBandColorGainHigh = 7.111f;
+/// Rescaled when the band balance moved into the analyser. The number is in
+/// band units, and the shader used to multiply it by the largest renderer gain,
+/// which was 7.111, so the effective floor was 0.071; with the renderer gain
+/// now 1.0 the same 0.01 would be seven times lower and would stop working.
+/// 0.05 keeps it at the same fraction of what a loud band reaches on the new
+/// scale, which is the quantity that matters.
+constexpr float kColorLevelFloor = 0.05f;
+
+/// Balance between the three bands. ONE, DELIBERATELY: the balance is the one
+/// measured from Traktor and it now lives in the analyser, folded into the band
+/// filters themselves, where it belongs - it is a property of how a band is
+/// measured, not of how it is drawn.
+///
+/// Carrying it in both places is how this goes wrong silently, and the numbers
+/// would multiply rather than replace one another. If a band ever looks
+/// mis-weighted, the place to look is enginefilterwaveform.h.
+constexpr float kBandColorGainLow = 1.0f;
+constexpr float kBandColorGainMid = 1.0f;
+constexpr float kBandColorGainHigh = 1.0f;
 
 /// The knobs of the mixer do not reach this waveform: it draws the file, the
 /// way Traktor does. The ReplayGain of the track does, because it is a property

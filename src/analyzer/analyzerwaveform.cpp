@@ -78,7 +78,8 @@ bool AnalyzerWaveform::initialize(const AnalyzerTrack& track,
 
     m_stride = WaveformStride(m_waveform->getAudioVisualRatio(),
             m_waveformSummary->getAudioVisualRatio(),
-            stemCount);
+            stemCount,
+            sampleRate);
 
     m_currentStride = 0;
     m_currentSummaryStride = 0;
@@ -312,6 +313,31 @@ void AnalyzerWaveform::cleanup() {
 }
 
 void AnalyzerWaveform::storeResults(TrackPointer pTrack) {
+    // Same idea for the height: with the headroom a normal track lands in the
+    // upper half of the range, so a quarter of it means either very quiet
+    // material or a scale that no longer matches.
+    constexpr unsigned char kExpectedLoudestHeight = 64;
+    if (m_stride.loudestHeightByte() < kExpectedLoudestHeight) {
+        qWarning() << "AnalyzerWaveform: the tallest column of" << pTrack->getLocation()
+                   << "reached only" << static_cast<int>(m_stride.loudestHeightByte())
+                   << "of 255. Either the track is very quiet, or the height headroom no longer "
+                      "matches the material.";
+    }
+
+    // A track whose loudest band never reaches half the byte it is stored in is
+    // not a quiet track, it is a mis-scaled one: the colour then lives in the
+    // bottom bits and its quiet half disappears under the level floor of the
+    // renderer. That is how an empty looking waveform is produced without a
+    // single error anywhere, so it is said out loud.
+    constexpr unsigned char kExpectedLoudestBand = 128;
+    if (m_stride.loudestBandByte() < kExpectedLoudestBand) {
+        qWarning() << "AnalyzerWaveform: the loudest colour band of"
+                   << pTrack->getLocation() << "reached only"
+                   << static_cast<int>(m_stride.loudestBandByte())
+                   << "of 255. The colour is being stored in the bottom bits, which usually "
+                      "means the band scale no longer matches the band filters.";
+    }
+
     // Force completion to waveform size
     if (m_waveform) {
         m_waveform->setSaveState(Waveform::SaveState::SavePending);

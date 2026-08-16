@@ -11,6 +11,8 @@
 #include <QColor>
 #include <QImage>
 #include <QPainter>
+#include <algorithm>
+#include <cmath>
 #include <memory>
 
 #include "waveform/renderers/waveformoverviewrenderer.h"
@@ -24,14 +26,14 @@ namespace {
 
 /// A waveform of identical bins, loud enough that its column reaches well into
 /// the image and leaves room above it to look at.
-WaveformPointer makeWaveform(int bins, unsigned char all) {
+WaveformPointer makeWaveform(int bins, unsigned char all, int low = 120, int mid = 60, int high = 20) {
     auto pWaveform = WaveformPointer(new Waveform(44100, 44100 * bins, 441, 2 * bins, 0));
     WaveformData* pData = pWaveform->data();
     for (int i = 0; i < 2 * bins; ++i) {
         pData[i].filtered.all = all;
-        pData[i].filtered.low = 120;
-        pData[i].filtered.mid = 60;
-        pData[i].filtered.high = 20;
+        pData[i].filtered.low = static_cast<unsigned char>(low);
+        pData[i].filtered.mid = static_cast<unsigned char>(mid);
+        pData[i].filtered.high = static_cast<unsigned char>(high);
     }
     pWaveform->setCompletion(2 * bins);
     return pWaveform;
@@ -55,9 +57,13 @@ int countPartialRows(const QImage& image, int x, int centre, int direction) {
 class WaveformOverviewTest : public testing::Test {
   protected:
     QImage draw(mixxx::OverviewType type) {
+        return drawBands(type, 120, 60, 20);
+    }
+
+    QImage drawBands(mixxx::OverviewType type, int low, int mid, int high) {
         constexpr int kBins = 64;
         constexpr unsigned char kAmplitude = 150;
-        WaveformPointer pWaveform = makeWaveform(kBins, kAmplitude);
+        WaveformPointer pWaveform = makeWaveform(kBins, kAmplitude, low, mid, high);
 
         // The colours come from the skin, and without them every column is
         // black and nothing is drawn - which would leave both tests passing
@@ -122,6 +128,57 @@ TEST_F(WaveformOverviewTest, TheSpectrumOverviewHasASoftEdge) {
     // step. Both halves, because they are drawn by separate branches.
     EXPECT_GE(countPartialRows(image, 32, centre, -1), 4) << "the upper edge is a hard step";
     EXPECT_GE(countPartialRows(image, 32, centre, 1), 4) << "the lower edge is a hard step";
+}
+
+TEST_F(WaveformOverviewTest, TheOverviewAndTheDeckAgreeOnColour) {
+    // The two are drawn by different code - the deck by a shader, the overview
+    // by QPainter - and they have already drifted apart once: the measured band
+    // balance moved into the analyser, the deck was updated and this file was
+    // not, so the preview applied the old balance a second time on data that
+    // already carried it. The same track was one colour in the deck and another
+    // in the list.
+    //
+    // Rather than compare pictures, which differ in every other way, this
+    // compares the arithmetic they share: given the same three band values, the
+    // hue has to come out the same. That is what a viewer notices and it is
+    // what a stray gain breaks.
+    constexpr double kToleranceDegrees = 3.0;
+
+    struct Case {
+        int low;
+        int mid;
+        int high;
+    };
+    constexpr Case kCases[] = {
+            {200, 40, 10}, {40, 200, 20}, {20, 40, 200}, {120, 120, 120}, {180, 90, 30}};
+
+    for (const Case& c : kCases) {
+        // The overview, through the code the library and the deck overview use.
+        const QImage overview = drawBands(mixxx::OverviewType::Spectrum, c.low, c.mid, c.high);
+        const int centre = overview.height() / 2;
+        const QColor drawn = overview.pixelColor(32, centre - 20);
+        ASSERT_GT(drawn.alpha(), 200) << "nothing was drawn for " << c.low << ", " << c.mid << ", "
+                                      << c.high;
+
+        // The deck: the same formula the shader applies, with the same colours.
+        const double bands[3] = {c.low / 255.0, c.mid / 255.0, c.high / 255.0};
+        double rgb[3] = {bands[0], bands[1], bands[2]};
+        const double largest = std::max({rgb[0], rgb[1], rgb[2]});
+        ASSERT_GT(largest, 0.0);
+        QColor expected;
+        expected.setRgbF(static_cast<float>(rgb[0] / largest),
+                static_cast<float>(rgb[1] / largest),
+                static_cast<float>(rgb[2] / largest));
+
+        double difference = std::abs(drawn.hueF() * 360.0 - expected.hueF() * 360.0);
+        if (difference > 180.0) {
+            difference = 360.0 - difference;
+        }
+        EXPECT_LT(difference, kToleranceDegrees)
+                << "bands " << c.low << ", " << c.mid << ", " << c.high << ": the overview draws "
+                << drawn.hueF() * 360.0 << " degrees where the deck draws "
+                << expected.hueF() * 360.0;
+    }
 }
 
 TEST_F(WaveformOverviewTest, TheRgbOverviewIsUnchanged) {

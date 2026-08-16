@@ -31,23 +31,12 @@ uniform highp float highGain;
 uniform highp float firstVisualIndex;
 uniform highp float lastVisualIndex;
 
-// Radius (in visual bins) of the window the color is averaged over. 0.0
-// disables the smoothing, which gives the color grid of the stock RGB
-// waveform.
-uniform highp float colorSmoothBins;
 // How many sub columns are sampled inside one SCREEN pixel, and how many
 // framebuffer pixels one screen pixel is made of. Within a single screen pixel
-// the signal has time to rise and fall, so its alpha is the share of it the
-// waveform covers, not a yes or no about its centre.
+// the signal rises and falls, so its alpha is the share of it the waveform
+// covers rather than a yes or no about its centre.
 uniform highp float subColumnSamples;
 uniform highp float pixelsPerScreenPixel;
-// Width over which the edge of a column fades, as a fraction of the half height
-// of the widget. With the coverage supersampled across the pixel the edge is
-// already antialiased from the data, so this is now only a floor under that: it
-// exists so a column drawn on a tall deck does not end in a single hard row of
-// pixels, and it is deliberately small. It used to be four percent, which on a
-// tall deck is eight pixels of deliberate blur on top of the antialiasing - a
-// gradient rather than an edge.
 uniform highp float softEdgeFraction;
 // Lower bound for that width, in framebuffer pixels (the caller multiplies the
 // wanted amount of device pixels by the oversampling factor), so the fade does
@@ -70,18 +59,15 @@ uniform highp float colorGamma;
 // color decided by noise. With it, quiet columns simply get dark, which is
 // also what Traktor does. 0.0 restores the plain normalization.
 uniform highp float colorLevelFloor;
+// Brightness of a column at its rim, as a fraction of its brightness at the
+// centre line. See verticalProfile().
+uniform highp float rimBrightness;
 
 uniform sampler2D waveformDataTexture;
 
-// The color window never uses more taps than this on each side, whatever
-// colorSmoothBins says. GLSL 1.20 requires a constant loop bound. Every tap
-// beyond the radius is skipped, so the cost follows colorSmoothBins, not this
-// number.
-const int kColorMaxTaps = 20;
-
-// Upper bound for the sub columns sampled inside one pixel; GLSL 1.20 needs a
-// constant loop bound. Sampling stops at subColumnSamples, so the cost follows
-// that and not this number.
+// The sub columns never use more taps than this, whatever subColumnSamples
+// says: GLSL 1.20 needs a constant loop bound. Sampling stops at
+// subColumnSamples, so the cost follows that and not this number.
 const int kMaxSubColumns = 8;
 
 highp vec4 getWaveformData(highp float index) {
@@ -133,25 +119,49 @@ highp vec2 binDistances(highp float visualIndex, highp float stereoOffset) {
     return vec2(signalDistance, shadowDistance);
 }
 
-// The color is averaged over a window of neighbouring bins with triangular
-// weights. The window is anchored to the track (it is centered on the bin, not
-// on the screen column), so the color does not crawl while scrolling and the
-// smoothing has no visible grid of its own.
-highp vec3 smoothedBands(highp float visualIndex, highp float stereoOffset) {
-    highp vec3 acc = getBands(visualIndex, stereoOffset);
-    highp float weightSum = 1.0;
-    for (int i = 1; i <= kColorMaxTaps; i++) {
-        highp float tap = float(i);
-        if (tap > colorSmoothBins) {
-            break;
-        }
-        highp float weight = 1.0 - tap / (colorSmoothBins + 1.0);
-        acc += weight *
-                (getBands(visualIndex - tap, stereoOffset) +
-                        getBands(visualIndex + tap, stereoOffset));
-        weightSum += 2.0 * weight;
-    }
-    return acc / weightSum;
+// Band values at a fractional position between analysis bins, interpolated.
+//
+// A drawn column usually falls between two analysis bins, and something has to
+// be done about that. Interpolating the BAND VALUES is what this does;
+// interpolating the finished colour instead invents hues that are in neither
+// bin, which is the same defect as averaging colour over a neighbourhood and
+// is what used to put orange between a red bin and a green one.
+//
+// Measured against Traktor over twenty seconds, with the same model and only
+// the fold from bins to pixels differing: interpolating gives 21.0 degrees of
+// hue error, taking the maximum 23.8, holding the nearer bin 28.0.
+//
+// It is not mimicry. Traktor appears to HOLD its colour across an analysis
+// block - on a deep zoom capture 0.876 of neighbouring logical columns are
+// unchanged, against 0.917 predicted by holding and about 0 by interpolating.
+// Interpolation wins because it absorbs the misalignment between its analysis
+// grid and ours, and because it removes blockiness at high zoom, not because
+// Traktor does it.
+highp vec3 interpolatedBands(highp float visualIndex, highp float stereoOffset) {
+    highp float base = floor(visualIndex);
+    highp float fraction = visualIndex - base;
+    return mix(getBands(base, stereoOffset), getBands(base + 1.0, stereoOffset), fraction);
+}
+
+// Brightness across the height of a column: full at the centre line, falling
+// towards the rim.
+//
+// Measured on Traktor, over 1848 columns of a deck capture: 0.896 at the
+// centre, 0.707 at half height, 0.240 at the rim, with the hue constant to
+// within 5.6 degrees down the column. So it is a brightness envelope and
+// nothing else - it does not touch the colour, only how bright it is.
+//
+// A quadratic through those three points fits them to better than 0.01, and a
+// quadratic is what this is: 1 at the centre, rimBrightness at the rim.
+//
+// Applied to the FINISHED alpha rather than inside the coverage, so that it
+// multiplies the column instead of competing with the soft edge. The two would
+// otherwise darken the same pixels twice: the measured 0.240 already contains
+// whatever Traktor does at its own edge, so gasing our edge again would give a
+// rim darker than the reference rather than equal to it.
+highp float verticalProfile(highp float inside) {
+    highp float t = clamp(inside, 0.0, 1.0);
+    return mix(1.0, rimBrightness, t * t);
 }
 
 // Linearly combine the low, mid, and high colors according to the low, mid,
@@ -189,6 +199,13 @@ void main(void) {
     highp float signalCoverage = 0.0;
     highp float shadowCoverage = 0.0;
     highp float bodyCoverage = 0.0;
+    // Half height of the column at this fragment, kept for the brightness
+    // envelope below.
+    highp float bodyDistance = 1.0;
+    // Distance of this fragment from the centre line, 0 at the centre and 1 at
+    // the top of the widget. Declared here because the brightness envelope
+    // below needs it after the block that fills it.
+    highp float ourDistance = abs(uv.y - 0.5) * 2.0;
     highp vec3 signalRgb = vec3(0.0);
     highp vec3 shadowRgb = vec3(0.0);
 
@@ -211,16 +228,13 @@ void main(void) {
         dataUnscaled *= allGain;
         highp vec3 data = dataUnscaled.xyz * gains;
 
-        // The color is read from the smoothed grid, the height below from the
-        // single bin under this fragment. Note that neither the smoothed
-        // values nor bandColorGain may leak into the height, or the height
-        // would become frequency dependent.
-        highp vec3 colorUnscaled = smoothedBands(visualIndex, stereoOffset) * allGain;
+        // The colour is read at the exact position of this column, between the
+        // two analysis bins around it; the height below comes from the single
+        // bin under it. Neither the interpolated values nor bandColorGain may
+        // leak into the height, or the height would become frequency dependent.
+        highp vec3 colorUnscaled =
+                interpolatedBands(firstVisualIndex + uv.x * indexRange, stereoOffset) * allGain;
         highp vec3 colorScaled = colorUnscaled * gains;
-
-        // ourDistance represents the [0, 1] distance of this pixel from the
-        // center line.
-        highp float ourDistance = abs(uv.y - 0.5) * 2.0;
 
         // Coverage of this pixel by the column, supersampled across it.
         //
@@ -282,6 +296,8 @@ void main(void) {
         }
         signalCoverage = signalSum / samples;
         shadowCoverage = shadowSum / samples;
+        // Half height of the column here, for the brightness envelope below.
+        bodyDistance = max(binDistances(floor(centreIndex), stereoOffset).x, 1e-4);
 
         // How much of this fragment the waveform covers geometrically, before
         // the shading makes parts of it translucent. The axis line below hides
@@ -305,7 +321,11 @@ void main(void) {
     if (bodyAlpha > 0.0) {
         waveformRgb = (signalRgb * signalCoverage + shadowRgb * shadowAlpha) / bodyAlpha;
     }
-    highp float waveformAlpha = bodyAlpha;
+    // The brightness envelope of the column, by geometric position inside it.
+    // signalDistance is where the column ends, ourDistance where this fragment
+    // is, so their ratio is the position: 0 on the centre line, 1 at the rim.
+    highp float waveformAlpha = bodyAlpha *
+            verticalProfile(ourDistance / max(bodyDistance, 1e-4));
 
     highp vec4 base = vec4(0.0, 0.0, 0.0, 0.0);
     if (bodyCoverage < 1.0 && abs(framebufferSize.y / 2.0 - pixelY) <= 4.0) {

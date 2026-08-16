@@ -99,6 +99,24 @@ class AnalyzerWaveformTest : public MixxxTest {
     std::vector<CSAMPLE> m_canaryBigBuf;
 };
 
+// A canary, and it is worth being clear about what that means.
+//
+// WHAT IT IS: a check that the output of the analyser has not changed. It feeds
+// a constant, compares the stored bytes with a recorded reference, and goes red
+// whenever anything about the analysis moves. That is genuinely useful - it
+// caught a change of the band filters that had been made deliberately and
+// recorded nowhere.
+//
+// WHAT IT IS NOT: a check that the analysis is correct. The input is a constant
+// with no spectrum, so all three colour bands saturate at 255 and any error
+// inside a band is invisible to it. A green run here says the output is the
+// same as last time, not that it is right.
+//
+// What does check correctness is EngineFilterWaveformTest, which compares the
+// band responses against the sweep measured from Traktor. If this file ever
+// needs to test the analysis rather than guard it, the input has to be a signal
+// with a spectrum.
+//
 // Basic test to make sure we don't alter the input buffer and don't step out of bounds.
 TEST_F(AnalyzerWaveformTest, canary) {
     m_aw.initialize(AnalyzerTrack(m_pTrack),
