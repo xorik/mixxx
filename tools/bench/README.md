@@ -202,6 +202,25 @@ from the interval of the screen the window is on by more than 5%. Applied to the
 earlier acceptance run, this check catches it: locked to 16667 us on a 120 Hz
 screen.
 
+## A check that says nothing has not passed
+
+An empty output is indistinguishable from a check that never ran. Over two days
+this cost us four times:
+
+* screenshots that "worked" and were black - `screencapture` without the Screen
+  Recording permission returns an all-black image instead of an error;
+* `accessoryPolicyApplied=false` reported for a process that was *already*
+  accessory - a correct configuration looking like a failure;
+* telemetry fields carrying `-1` because the build predated them, read as data;
+* `git status | grep ...` printing nothing and being taken as "tree is clean",
+  while sixteen files were modified.
+
+So: wherever an empty result is supposed to mean "all good", print something
+positive instead - a count, an explicit `OK`, the value that was checked. Silence
+must never be the success signal. `summarize.py` and `series_report.py` follow
+this: they print the numbers they judged and name every check that failed, and a
+run with no telemetry is an explicit failure rather than an empty report.
+
 ## Checking a patch without building it
 
 A patch can be checked for syntax with the *real* compiler flags, taken from the
