@@ -1702,6 +1702,7 @@ add_library(
   src/util/workerthread.cpp
   src/util/workerthreadscheduler.cpp
   src/util/xml.cpp
+  src/waveform/displaylinkframedriver.cpp
   src/waveform/guitick.cpp
   src/waveform/overviewtype.cpp
   src/waveform/renderers/glwaveformrenderbackground.cpp
@@ -2109,7 +2110,14 @@ if(APPLE)
       target_compile_definitions(mixxx-lib PUBLIC __IOS_ITUNES_LIBRARY__)
     endif()
   else()
-    target_sources(mixxx-lib PRIVATE src/util/darkappearance.mm)
+    target_sources(
+      mixxx-lib
+      PRIVATE src/util/benchmac.mm src/util/darkappearance.mm
+              src/waveform/macdisplaylink.mm
+    )
+    # CADisplayLink (macOS 14+), used to obtain the presentation timestamp of
+    # the next frame in VSyncThread::ST_DISPLAY_LINK mode.
+    target_link_libraries(mixxx-lib PRIVATE "-weak_framework QuartzCore")
 
     option(
       MACOS_ITUNES_LIBRARY

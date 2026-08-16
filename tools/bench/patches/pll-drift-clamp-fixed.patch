@@ -1,0 +1,197 @@
+# pll-drift-clamp-fixed.patch  (RECOMMENDED over pll-drift-clamp.patch)
+#
+# STATUS: implemented, compiles, NOT yet confirmed by an A/B measurement. The
+# defect it corrects was reproduced by measurement; the benefit of the clamp
+# itself was not. One part is CURRENTLY UNTESTABLE: the re-lock on screen change
+# needs two monitors, and the machine has one at the moment.
+#
+# Same idea as pll-drift-clamp.patch - anchor the estimated period to the
+# interval the display reports, +/-1% - with three differences:
+#
+#  1. The reference rate comes from the screen the render window is ACTUALLY on
+#     (VSyncThread::setDisplayRefreshRate, fed by WaveformWidgetFactory), not
+#     from the primary screen. The as-built version pins the period to the wrong
+#     screen on a multi-monitor setup: a window on a 120 Hz panel next to a
+#     60 Hz primary was measured running at 60 fps because of it.
+#  2. It follows the window: QWindow::screenChanged re-reports the rate, and a
+#     change RE-LOCKS the loop from scratch. Merely re-clamping would leave a
+#     period from the new screen with a phase from the old one. (Untested - no
+#     second monitor available right now.)
+#  3. When the rate is unknown (QScreen::refreshRate() returns 0 on some
+#     platforms), the plausibility check and the clamp are both disabled instead
+#     of running against a garbage value; the median initialisation is
+#     self-sufficient.
+#
+# NOT COMBINABLE with display-link.patch (same regions, neither order applies).
+#
+# Requires: pll-init-fix-fixed.patch applied first - it provides the rejection
+# timeout this builds on. Mutually exclusive with pll-drift-clamp.patch.
+diff --git a/src/waveform/vsyncthread.cpp b/src/waveform/vsyncthread.cpp
+index e66ae7f004..5c2c743246 100644
+--- a/src/waveform/vsyncthread.cpp
++++ b/src/waveform/vsyncthread.cpp
+@@ -16,14 +16,21 @@ constexpr int kNumStableDeltasRequired = 20;
+ /// cross-checking against the display and locks on the median alone.
+ constexpr double kPllCrossCheckTimeoutMicros = 2e6;
+ 
+-/// Frame interval of the display, in microseconds, or 0 if unknown. Used to
+-/// tell a plausible frame interval from a startup artefact.
+-double displayFrameIntervalMicros() {
+-    const QScreen* pScreen = QGuiApplication::primaryScreen();
+-    if (!pScreen) {
+-        return 0.0;
++/// Frame interval, in microseconds, of the screen the render window is on, or 0
++/// when that is not known. It must NOT be guessed from the primary screen: on a
++/// laptop with a 120 Hz panel and a 60 Hz external monitor as the primary one,
++/// every check based on it rejects the true interval of the other screen. The
++/// primary screen is used only when there is exactly one screen, where the
++/// answer is unambiguous.
++double displayFrameIntervalMicros(double reportedHz) {
++    double hz = reportedHz;
++    if (hz <= 1.0) {
++        const QList<QScreen*> screens = QGuiApplication::screens();
++        if (screens.size() != 1) {
++            return 0.0;
++        }
++        hz = screens.first()->refreshRate();
+     }
+-    const double hz = pScreen->refreshRate();
+     return hz > 1.0 ? 1e6 / hz : 0.0;
+ }
+ 
+@@ -53,6 +60,7 @@ VSyncThread::VSyncThread(QObject* pParent, VSyncThread::VSyncMode vSyncMode)
+           m_pllPhaseOut(0.0),
+           m_pllDeltaOut(16666.6),
+           m_pllLogging(0.0),
++          m_pllDisplayHz(0.0),
+           m_pllRejectedSinceMicros(0.0),
+           m_pllRejectedCount(0),
+           m_pllCrossCheckOff(false) {
+@@ -315,6 +323,28 @@ bool VSyncThread::pllInitializing() const {
+     return m_pllInitCnt < kNumStableDeltasRequired;
+ }
+ 
++void VSyncThread::setDisplayRefreshRate(double hz) {
++    const double newHz = hz > 1.0 ? hz : 0.0;
++    std::scoped_lock lock(m_pllMutex);
++    if (newHz == m_pllDisplayHz) {
++        return;
++    }
++    qDebug() << "VSyncThread: render window is on a" << newHz
++             << "Hz screen (was" << m_pllDisplayHz << "Hz), re-locking the PLL";
++    m_pllDisplayHz = newHz;
++    // Start the lock over: keeping the accumulated samples would mix intervals
++    // of two different screens, and keeping the phase would leave the loop with
++    // a period from the new screen and a phase from the old one.
++    m_pllInitDeltas.clear();
++    m_pllInitCnt = 0;
++    m_pllInitSum = 0.0;
++    m_pllRejectedSinceMicros = 0.0;
++    m_pllRejectedCount = 0;
++    m_pllCrossCheckOff = false;
++    m_pllPhaseOut = m_pllTimer.elapsed().toDoubleMicros();
++    m_pllPendingUpdate = true;
++}
++
+ void VSyncThread::updatePLL() {
+     std::scoped_lock lock(m_pllMutex);
+ 
+@@ -345,7 +375,9 @@ void VSyncThread::updatePLL() {
+         const double delta = pllPhaseIn - m_pllPhaseOut;
+         m_pllPhaseOut = pllPhaseIn;
+ 
+-        const double expected = m_pllCrossCheckOff ? 0.0 : displayFrameIntervalMicros();
++        const double expected = m_pllCrossCheckOff
++                ? 0.0
++                : displayFrameIntervalMicros(m_pllDisplayHz);
+         if (expected > 0.0 && std::abs(delta - expected) > expected * 0.25) {
+             // Not a plausible frame interval for this display; ignore it rather
+             // than letting it contribute to the estimate. Two safeguards, both
+@@ -421,6 +453,21 @@ void VSyncThread::updatePLL() {
+     m_pllPhaseOut += alpha * pllPhaseError; // adjust phase
+     m_pllDeltaOut += beta * pllPhaseError;  // adjust delta
+ 
++    // Keep the estimated period near the interval the screen this window is on
++    // actually reports. The loop filter has no anchor, so a persistent
++    // one-sided phase error slowly walks the period away from the truth:
++    // measured on a 60 Hz panel it drifted 16667 -> 16558us with the phase
++    // error growing to -7561us (nearly half a frame), costing ~5 fps and
++    // several dropped frames per second. Clamping to +/-1% keeps the loop free
++    // to track jitter while preventing it from settling on a period the display
++    // does not have.
++    const double expectedInterval = displayFrameIntervalMicros(m_pllDisplayHz);
++    if (expectedInterval > 0.0) {
++        const double lo = expectedInterval * 0.99;
++        const double hi = expectedInterval * 1.01;
++        m_pllDeltaOut = std::clamp(m_pllDeltaOut, lo, hi);
++    }
++
+     if (pllPhaseIn > m_pllLogging) {
+         if (m_pllLogging == 0) {
+             m_pllLogging = pllPhaseIn;
+diff --git a/src/waveform/vsyncthread.h b/src/waveform/vsyncthread.h
+index 462ca19073..70e63ff569 100644
+--- a/src/waveform/vsyncthread.h
++++ b/src/waveform/vsyncthread.h
+@@ -48,6 +48,14 @@ class VSyncThread : public QThread, public VSyncTimeProvider {
+     }
+     void updatePLL();
+     bool pllInitializing() const;
++
++    /// Refresh rate, in Hz, of the screen the render window is really on.
++    /// Pass 0 when it is unknown: the PLL then relies on its median
++    /// initialisation alone, instead of sanity-checking and clamping against a
++    /// rate that does not belong to this window. Changing the rate re-locks the
++    /// loop from scratch, because a period pulled to a new rate while the phase
++    /// still belongs to the old one is just the old bug in new clothes.
++    void setDisplayRefreshRate(double hz);
+     VSyncMode vsyncMode() const {
+         return m_vSyncMode;
+     }
+@@ -82,6 +90,8 @@ class VSyncThread : public QThread, public VSyncTimeProvider {
+     double m_pllPhaseOut;
+     double m_pllDeltaOut;
+     double m_pllLogging;
++    /// 0 = unknown, see setDisplayRefreshRate().
++    double m_pllDisplayHz;
+     /// Timestamp of the first of the current run of rejected deltas, 0 if the
+     /// last delta was accepted. See the cross-check timeout in updatePLL().
+     double m_pllRejectedSinceMicros;
+diff --git a/src/waveform/waveformwidgetfactory.cpp b/src/waveform/waveformwidgetfactory.cpp
+index 482da86c76..eb5897befc 100644
+--- a/src/waveform/waveformwidgetfactory.cpp
++++ b/src/waveform/waveformwidgetfactory.cpp
+@@ -17,6 +17,7 @@
+ 
+ #include <QOpenGLFunctions>
+ #include <QRegularExpression>
++#include <QScreen>
+ #include <QStringList>
+ #include <QWidget>
+ #include <QWindow>
+@@ -1272,12 +1273,24 @@ void WaveformWidgetFactory::startVSync(
+     if (m_vsyncThread->vsyncMode() == VSyncThread::ST_PLL) {
+         WGLWidget* widget = SharedGLContext::getWidget();
+         if (widget) {
+-            connect(widget->getOpenGLWindow(),
++            QOpenGLWindow* pWindow = widget->getOpenGLWindow();
++            connect(pWindow,
+                     &QOpenGLWindow::frameSwapped,
+                     this,
+                     &WaveformWidgetFactory::slotFrameSwapped,
+                     Qt::DirectConnection);
+             widget->show();
++            // The PLL must check itself against the screen this window is
++            // really on, not against the primary screen: with a 120 Hz panel
++            // next to a 60 Hz primary monitor, every true interval of the other
++            // screen looks implausible. Windows also move between monitors
++            // while Mixxx runs, so follow that too.
++            auto reportScreen = [this, pWindow]() {
++                const QScreen* pScreen = pWindow->screen();
++                m_vsyncThread->setDisplayRefreshRate(pScreen ? pScreen->refreshRate() : 0.0);
++            };
++            connect(pWindow, &QWindow::screenChanged, this, reportScreen);
++            reportScreen();
+         }
+     }
+ #endif

@@ -1,0 +1,65 @@
+# pll-symmetric-wrap.patch
+#
+# STATUS: HYPOTHESIS, NOT CONFIRMED BY MEASUREMENT. Off by default: the switch
+# MIXXX_BENCH_PLL_WRAP=sym|asym selects the behaviour at run time and asym -
+# today's upstream behaviour - is what you get unless you ask otherwise. The
+# patch therefore changes nothing until it is deliberately enabled, which is
+# what makes it usable as one arm of an A/B measurement inside a single binary.
+#
+# The idea: updatePLL() folds the phase error back to the nearest frame only
+# when the error is POSITIVE. A negative error of any size is never folded and
+# reaches the loop filter in full, and the filter moves the period with it
+# (m_pllDeltaOut += beta * error). The user's log shows large negative phase
+# errors (-3760, -7561, -4975 us) alongside a period drifting downwards
+# (16682 -> 16558 us against a true 16667 us), which is consistent with this.
+#
+# It is NOT proof. The sign of the phase error also depends on accumulated phase
+# offset, not only on the period, so the correlation may have another cause.
+#
+# WHY IT MATTERS: if the hypothesis holds, clamping the period to the display
+# interval (pll-drift-clamp*.patch) only treats the symptom, and the root fix is
+# this single condition. Do not consider the drift question closed by the clamp.
+#
+# Every run logs which arm it used:
+#   BENCHHIT MIXXX_BENCH_PLL_WRAP=sym phaseErrorWrapped=both signs
+#
+# Independent of the other PLL patches; applies to clean main 9e670c1120 on its
+# own (it touches the loop-filter section, not the initialisation).
+diff --git a/src/waveform/vsyncthread.cpp b/src/waveform/vsyncthread.cpp
+index 175435a261..1b2729ed18 100644
+--- a/src/waveform/vsyncthread.cpp
++++ b/src/waveform/vsyncthread.cpp
+@@ -333,8 +333,31 @@ void VSyncThread::updatePLL() {
+ 
+     double pllPhaseError = pllPhaseIn - m_pllPhaseOut;
+ 
+-    if (pllPhaseError > 0) {
+-        // when advanced more than a frame, jump to the nearest frame
++    // TEMPORARY BENCHMARK HOOK: MIXXX_BENCH_PLL_WRAP=sym|asym.
++    //
++    // HYPOTHESIS, NOT CONFIRMED BY MEASUREMENT. Upstream folds the phase error
++    // back to the nearest frame only when it is POSITIVE. A negative error of
++    // any size is never folded and reaches the loop filter in full, and the
++    // filter moves the period with it (m_pllDeltaOut += beta * error). The
++    // user's log shows large negative phase errors (-3760, -7561, -4975 us)
++    // together with a period drifting downwards (16682 -> 16558 us against a
++    // true 16667), which is consistent with that - but not proof: the sign of
++    // the error also depends on accumulated phase offset, not only on the
++    // period. If the hypothesis holds, clamping the period only treats the
++    // symptom and the real fix is this one line.
++    //
++    // asym (default) = upstream behaviour. sym = fold both signs.
++    static const bool symmetricWrap = qgetenv("MIXXX_BENCH_PLL_WRAP") == "sym";
++    static bool wrapAnnounced = false;
++    if (!wrapAnnounced) {
++        wrapAnnounced = true;
++        qDebug().nospace() << "BENCHHIT MIXXX_BENCH_PLL_WRAP="
++                           << (symmetricWrap ? "sym" : "asym")
++                           << " phaseErrorWrapped="
++                           << (symmetricWrap ? "both signs" : "positive only");
++    }
++    if (symmetricWrap ? (pllPhaseError != 0.0) : (pllPhaseError > 0)) {
++        // when off by more than a frame, jump to the nearest frame
+         m_pllPhaseOut += std::round(pllPhaseError / m_pllDeltaOut) * m_pllDeltaOut;
+         pllPhaseError = pllPhaseIn - m_pllPhaseOut;
+     }

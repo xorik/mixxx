@@ -20,6 +20,7 @@ class WVuMeterBase;
 class WWaveformViewer;
 class WaveformWidgetAbstract;
 class VSyncThread;
+class DisplayLinkFrameDriver;
 class GuiTick;
 class VisualsManager;
 class ControlObject;
@@ -292,6 +293,10 @@ class WaveformWidgetFactory : public QObject,
     void swap();
     void swapAndRender();
     void slotFrameSwapped();
+    /// Called by the DisplayLinkFrameDriver for every frame in
+    /// VSyncThread::ST_DISPLAY_LINK mode (GUI thread).
+    void slotDisplayLinkFrame();
+    void tryReattachDisplayLink(int attemptsLeft);
 
   private:
     void renderSelf();
@@ -354,6 +359,9 @@ class WaveformWidgetFactory : public QObject,
     int m_beatGridAlpha;
 
     VSyncThread* m_vsyncThread;
+    /// Only created in VSyncThread::ST_DISPLAY_LINK mode, owned via QObject
+    /// parenting.
+    DisplayLinkFrameDriver* m_pDisplayLinkFrameDriver;
     GuiTick* m_pGuiTick;  // not owned
     VisualsManager* m_pVisualsManager;  // not owned
 

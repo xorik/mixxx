@@ -1,6 +1,7 @@
 #include <QApplication>
 #include <QDir>
 #include <QPixmapCache>
+#include <QProcessEnvironment>
 #include <QString>
 #include <QStringList>
 #include <QStyle>
@@ -31,6 +32,9 @@
 #include "skin/skin.h"
 #include "skin/skinloader.h"
 #include "sources/soundsourceproxy.h"
+#ifdef __APPLE__
+#include "util/benchmac.h"
+#endif
 #include "util/cmdlineargs.h"
 #include "util/console.h"
 #include "util/logging.h"
@@ -58,11 +62,36 @@ const QString kNotifyMaxDbgTimeKey = QStringLiteral("notify_max_dbg_time");
 // An indicator that the QPixmapCache was too small.
 constexpr int kPixmapCacheLimitAt100PercentZoom = 32 * 1024; // 32 MByte
 
+// TEMPORARY BENCHMARK HOOK: log every MIXXX_BENCH_* switch this process was
+// started with, so the harness can prove which build/configuration produced a
+// measurement. See tools/bench/run.sh.
+void logBenchFlags() {
+    const QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    const QStringList keys = env.keys();
+    for (const QString& key : keys) {
+        if (key.startsWith(QLatin1String("MIXXX_BENCH_"))) {
+            qDebug().nospace() << "BENCHFLAG " << key << "=" << env.value(key);
+        }
+    }
+}
+
 int runMixxx(MixxxApplication* pApp, const CmdlineArgs& args) {
     CmdlineArgs::Instance().parseForUserFeedback();
 
     int exitCode;
     auto pCoreServices = std::make_shared<mixxx::CoreServices>(args, pApp);
+
+    // TEMPORARY BENCHMARK HOOKS - remove before any product change.
+    // CoreServices has just initialized logging, so this is the first point at
+    // which the benchmark harness can be told, in the log file it later parses,
+    // which experimental switches this process was actually asked to apply.
+    // Each switch additionally logs a BENCHHIT line when its code path really
+    // runs, so a run measuring a change that never executed can be rejected.
+    logBenchFlags();
+#ifdef __APPLE__
+    // Must happen before the first window is shown.
+    mixxx::benchApplyMacActivationPolicy();
+#endif
 #ifdef MIXXX_USE_QML
     QString mainQmlFilePath;
     bool loadQml = args.isQml();

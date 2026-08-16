@@ -1,0 +1,1107 @@
+# display-link.patch
+#
+# STATUS: BROKEN. Do not enable it expecting it to work. It is included only so
+# the mode can be reproduced and debugged: after the first few frames the update
+# requests stop arriving and the waveform freezes on screen. The cause is not
+# understood yet.
+#
+# It is inert unless explicitly selected: the mode is only used when the config
+# key [Waveform] VSync is set to 7. With any other value none of this code runs.
+#
+# What it is: an alternative frame source that takes the cadence from the
+# platform (QWindow::requestUpdate(), backed by a CVDisplayLink in the Cocoa
+# plugin) instead of measuring it with a PLL. Architecturally this is the right
+# successor to the PLL - it cannot drift, and it follows the window from monitor
+# to monitor by construction - which is why the unfinished work is kept rather
+# than deleted.
+#
+# Contains: DisplayLinkFrameDriver, the macOS CADisplayLink wrapper, the
+# ST_DISPLAY_LINK mode in VSyncThread (the thread is not started in this mode,
+# it only serves as the time provider), the UpdateRequest hook in OpenGLWindow,
+# and the reattach logic that moves the driver from the 3x3 shared-context
+# helper window onto a real waveform window (without which nothing is drawn
+# outside full screen).
+#
+# Independent of the PLL patches and of telemetry.patch; touches
+# waveformwidgetfactory.cpp in different places than telemetry.patch does.
+#
+# NOT COMBINABLE with pll-drift-clamp-fixed.patch: both edit the same regions
+# of vsyncthread.cpp/.h and of the ST_PLL branch in waveformwidgetfactory.cpp,
+# and neither order applies (verified in both directions). With the as-built
+# pll-drift-clamp.patch the stack does apply: display-link, then pll-init-fix,
+# then pll-drift-clamp.
+#
+# Applies to: clean main 9e670c1120.
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 0d81e2ff82..e03c0a3af4 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1702,6 +1702,7 @@ add_library(
+   src/util/workerthread.cpp
+   src/util/workerthreadscheduler.cpp
+   src/util/xml.cpp
++  src/waveform/displaylinkframedriver.cpp
+   src/waveform/guitick.cpp
+   src/waveform/overviewtype.cpp
+   src/waveform/renderers/glwaveformrenderbackground.cpp
+@@ -2109,7 +2110,13 @@ if(APPLE)
+       target_compile_definitions(mixxx-lib PUBLIC __IOS_ITUNES_LIBRARY__)
+     endif()
+   else()
+-    target_sources(mixxx-lib PRIVATE src/util/darkappearance.mm)
++    target_sources(
++      mixxx-lib
++      PRIVATE src/util/darkappearance.mm src/waveform/macdisplaylink.mm
++    )
++    # CADisplayLink (macOS 14+), used to obtain the presentation timestamp of
++    # the next frame in VSyncThread::ST_DISPLAY_LINK mode.
++    target_link_libraries(mixxx-lib PRIVATE "-weak_framework QuartzCore")
+ 
+     option(
+       MACOS_ITUNES_LIBRARY
+diff --git a/src/waveform/displaylinkframedriver.cpp b/src/waveform/displaylinkframedriver.cpp
+new file mode 100644
+index 0000000000..664a1ea94e
+--- /dev/null
++++ b/src/waveform/displaylinkframedriver.cpp
+@@ -0,0 +1,321 @@
++#include "waveform/displaylinkframedriver.h"
++
++#include <QDebug>
++#include <QScreen>
++#include <algorithm>
++#include <cmath>
++
++#include "moc_displaylinkframedriver.cpp"
++#include "util/assert.h"
++#include "waveform/vsyncthread.h"
++
++#ifdef MIXXX_HAS_MAC_DISPLAY_LINK
++#include "waveform/macdisplaylink.h"
++#endif
++
++#ifdef MIXXX_USE_QOPENGL
++#include "widget/openglwindow.h"
++#endif
++
++namespace {
++
++constexpr int kDefaultRefreshIntervalMicros = 16667; // 60 Hz
++// If no update request is delivered for this long we assume that the platform
++// stopped serving them (e.g. because the window got occluded or the display
++// link was stopped) and drive a frame ourselves, so that the GUI tick, the VU
++// meters and the spinnies keep running.
++constexpr int kWatchdogIntervalMs = 100;
++
++} // anonymous namespace
++
++DisplayLinkFrameDriver::DisplayLinkFrameDriver(
++        QWindow* pWindow, VSyncThread* pVSyncThread, QObject* pParent)
++        : QObject(pParent),
++          m_pWindow(pWindow),
++          m_pVSyncThread(pVSyncThread),
++          m_running(false),
++          m_updateRequestSeen(false),
++          m_hasDrivenFrame(false),
++          m_frameRate(60),
++          m_refreshIntervalMicros(kDefaultRefreshIntervalMicros),
++          m_divisor(1),
++          m_skipCounter(0) {
++    VERIFY_OR_DEBUG_ASSERT(pWindow) {
++        return;
++    }
++
++#ifdef MIXXX_HAS_MAC_DISPLAY_LINK
++    auto pMacDisplayLink = std::make_unique<mixxx::MacDisplayLink>(pWindow);
++    if (pMacDisplayLink->isValid()) {
++        m_pMacDisplayLink = std::move(pMacDisplayLink);
++    }
++#endif
++
++    connect(pWindow,
++            &QWindow::screenChanged,
++            this,
++            &DisplayLinkFrameDriver::slotScreenChanged);
++
++    m_watchdogTimer.setTimerType(Qt::CoarseTimer);
++    m_watchdogTimer.setInterval(kWatchdogIntervalMs);
++    connect(&m_watchdogTimer,
++            &QTimer::timeout,
++            this,
++            &DisplayLinkFrameDriver::slotWatchdog);
++
++    updateRefreshInterval();
++    attachToWindow();
++}
++
++DisplayLinkFrameDriver::~DisplayLinkFrameDriver() {
++    stop();
++    detachFromWindow();
++}
++
++void DisplayLinkFrameDriver::attachToWindow() {
++#ifdef MIXXX_USE_QOPENGL
++    auto* pOpenGLWindow = qobject_cast<OpenGLWindow*>(m_pWindow.data());
++    VERIFY_OR_DEBUG_ASSERT(pOpenGLWindow) {
++        // Without this the update requests are never forwarded to us and only
++        // the watchdog would drive frames.
++        qWarning() << "DisplayLinkFrameDriver: window is not an OpenGLWindow";
++        return;
++    }
++    pOpenGLWindow->setFrameDriver(this);
++#endif
++}
++
++void DisplayLinkFrameDriver::detachFromWindow() {
++#ifdef MIXXX_USE_QOPENGL
++    // m_pWindow is a QPointer, so this is a no-op if the window is gone.
++    auto* pOpenGLWindow = qobject_cast<OpenGLWindow*>(m_pWindow.data());
++    if (pOpenGLWindow) {
++        pOpenGLWindow->setFrameDriver(nullptr);
++    }
++#endif
++}
++
++void DisplayLinkFrameDriver::reattachTo(QWindow* pWindow) {
++    VERIFY_OR_DEBUG_ASSERT(pWindow) {
++        return;
++    }
++    if (m_pWindow.data() == pWindow) {
++        return;
++    }
++    detachFromWindow();
++    if (m_pWindow) {
++        disconnect(m_pWindow.data(), nullptr, this, nullptr);
++    }
++    m_pWindow = pWindow;
++
++#ifdef MIXXX_HAS_MAC_DISPLAY_LINK
++    m_pMacDisplayLink.reset();
++    auto pMacDisplayLink = std::make_unique<mixxx::MacDisplayLink>(pWindow);
++    if (pMacDisplayLink->isValid()) {
++        m_pMacDisplayLink = std::move(pMacDisplayLink);
++    }
++#endif
++
++    connect(pWindow,
++            &QWindow::screenChanged,
++            this,
++            &DisplayLinkFrameDriver::slotScreenChanged);
++
++    updateRefreshInterval();
++    attachToWindow();
++    qDebug() << "DisplayLinkFrameDriver: re-attached to a visible window, "
++                "refresh interval"
++             << m_refreshIntervalMicros << "us";
++    if (m_running) {
++        m_updateRequestSeen = false;
++        pWindow->requestUpdate();
++    }
++}
++
++void DisplayLinkFrameDriver::start() {
++    if (m_running) {
++        return;
++    }
++    m_running = true;
++    m_skipCounter = 0;
++    m_updateRequestSeen = false;
++    m_hasDrivenFrame = false;
++    updateRefreshInterval();
++    qDebug() << "DisplayLinkFrameDriver: starting with a refresh interval of"
++             << m_refreshIntervalMicros << "us, rendering every" << m_divisor
++             << "update request(s) for a configured frame rate of" << m_frameRate << "Hz";
++    m_watchdogTimer.start();
++    requestNextUpdate();
++}
++
++void DisplayLinkFrameDriver::stop() {
++    m_running = false;
++    m_watchdogTimer.stop();
++}
++
++void DisplayLinkFrameDriver::setFrameRate(int frameRate) {
++    m_frameRate = std::max(1, frameRate);
++    updateDivisor();
++}
++
++void DisplayLinkFrameDriver::slotScreenChanged(QScreen* pScreen) {
++    Q_UNUSED(pScreen);
++    // The window has been moved to another display, which may have a different
++    // refresh rate. Note that the macOS CADisplayLink created from the NSView
++    // follows the view to the new display by itself.
++    updateRefreshInterval();
++    qDebug() << "DisplayLinkFrameDriver: window changed screen, refresh interval is now"
++             << m_refreshIntervalMicros << "us, divisor" << m_divisor;
++}
++
++void DisplayLinkFrameDriver::updateRefreshInterval() {
++    double refreshRate = 0.0;
++    if (m_pWindow && m_pWindow->screen()) {
++        // Deliberately the screen of the window, not the primary screen: with
++        // multiple displays with different refresh rates only the screen the
++        // window is actually on is relevant.
++        refreshRate = m_pWindow->screen()->refreshRate();
++    }
++    if (refreshRate >= 1.0) {
++        m_refreshIntervalMicros = static_cast<int>(std::lround(1e6 / refreshRate));
++    } else {
++        m_refreshIntervalMicros = kDefaultRefreshIntervalMicros;
++    }
++
++#ifdef MIXXX_HAS_MAC_DISPLAY_LINK
++    if (m_pMacDisplayLink) {
++        // Prefer the interval reported by the display link, it is the actual
++        // one (ProMotion displays change it at runtime and QScreen only
++        // reports the mode's nominal rate).
++        const auto interval = m_pMacDisplayLink->refreshInterval();
++        if (interval && interval->count() > 0) {
++            m_refreshIntervalMicros = static_cast<int>(interval->count());
++        }
++    }
++#endif
++
++    updateDivisor();
++}
++
++void DisplayLinkFrameDriver::updateDivisor() {
++    DEBUG_ASSERT(m_refreshIntervalMicros > 0);
++    const int configuredIntervalMicros = static_cast<int>(1e6 / m_frameRate);
++    // Nearest integer number of display frames per rendered frame. This is the
++    // same rounding the PLL mode applies, so that the configured frame rate is
++    // interpreted identically in both modes.
++    // Note that for a configured rate that is not an integer divisor of the
++    // display rate this renders at the nearest divisor, which may be *above*
++    // the configured rate (e.g. 100 Hz configured on a 120 Hz display results
++    // in 120 Hz, because 120/1 is closer to 100 than 120/2 = 60).
++    m_divisor = std::max(1,
++            (configuredIntervalMicros + m_refreshIntervalMicros / 2) /
++                    m_refreshIntervalMicros);
++}
++
++void DisplayLinkFrameDriver::requestNextUpdate() {
++    if (m_pWindow) {
++        // Note: this only sets a flag in the platform window, the actual
++        // QEvent::UpdateRequest is delivered by the platform's display link
++        // (CVDisplayLink via QCocoaScreen on macOS).
++        m_pWindow->requestUpdate();
++    }
++}
++
++void DisplayLinkFrameDriver::handleUpdateRequest() {
++    if (!m_running) {
++        return;
++    }
++    m_updateRequestSeen = true;
++
++    // Request the next update *before* doing the work: requestUpdate() only
++    // raises a flag that the platform display link callback looks at, so
++    // requesting it up front means that a frame that overruns its deadline
++    // does not additionally lose the following display link callback.
++    requestNextUpdate();
++
++    if (++m_skipCounter < m_divisor) {
++        // Frame rate limiting: the display is faster than the configured
++        // frame rate, skip this update request.
++        return;
++    }
++    m_skipCounter = 0;
++
++    driveFrame();
++}
++
++void DisplayLinkFrameDriver::slotWatchdog() {
++    if (!m_running) {
++        return;
++    }
++    if (m_updateRequestSeen) {
++        m_updateRequestSeen = false;
++        return;
++    }
++    // No update request has been delivered during the last watchdog interval.
++    // Keep the machinery alive: the same callback also drives the GUI tick,
++    // the VU meters and the spinnies.
++    qDebug() << "DisplayLinkFrameDriver: no update request received for"
++             << kWatchdogIntervalMs << "ms, driving a frame from the watchdog";
++    requestNextUpdate();
++    m_skipCounter = 0;
++    driveFrame();
++}
++
++void DisplayLinkFrameDriver::driveFrame() {
++    // Time from now until the content rendered during this frame becomes
++    // visible, i.e. the value fromTimerToNextSync() has to return for this
++    // frame.
++    //
++    // This deliberately reproduces the contract of the ST_PLL mode: there the
++    // reference point is the estimated vsync the vsync thread woke up for and
++    // the value is one frame interval; here the reference point is the
++    // delivery of the update request and the value is the time until the
++    // presentation deadline the system reports for it, which is the same point
++    // in time, only without the jitter of the estimation. Keeping this
++    // identical to ST_PLL is what makes the A/B comparison meaningful.
++    //
++    // Note that the content rendered in this frame is only swapped in the
++    // following callback, so strictly speaking it becomes visible one interval
++    // after targetTimestamp. If the waveform turns out to be systematically
++    // one frame behind the audio, this (pre-existing, mode independent) offset
++    // is the place to fix it.
++    std::chrono::microseconds untilPresentation(m_refreshIntervalMicros);
++
++#ifdef MIXXX_HAS_MAC_DISPLAY_LINK
++    if (m_pMacDisplayLink) {
++        const auto interval = m_pMacDisplayLink->refreshInterval();
++        if (interval && interval->count() > 0 &&
++                static_cast<int>(interval->count()) != m_refreshIntervalMicros) {
++            // The display changed its refresh rate at runtime (ProMotion).
++            m_refreshIntervalMicros = static_cast<int>(interval->count());
++            updateDivisor();
++        }
++        const auto toPresentation = m_pMacDisplayLink->timeToNextPresentation();
++        if (toPresentation) {
++            untilPresentation = *toPresentation;
++        }
++    }
++#endif
++
++    // If updates are skipped, the frame rendered now is swapped m_divisor
++    // display frames from now instead of on the next one.
++    untilPresentation += std::chrono::microseconds(
++            static_cast<std::chrono::microseconds::rep>(m_refreshIntervalMicros) *
++            (m_divisor - 1));
++
++    if (m_pVSyncThread) {
++        m_pVSyncThread->setDisplayLinkTiming(untilPresentation);
++        const auto sinceLastSwap = m_pVSyncThread->sinceLastSwap().toIntegerMicros();
++        if (m_hasDrivenFrame &&
++                sinceLastSwap >
++                        static_cast<qint64>(m_refreshIntervalMicros) * m_divisor *
++                                3 / 2) {
++            // Too much time has passed since the last frame: consider it dropped.
++            m_pVSyncThread->reportDroppedFrame();
++        }
++    }
++
++    m_hasDrivenFrame = true;
++
++    emit frameDue();
++}
+diff --git a/src/waveform/displaylinkframedriver.h b/src/waveform/displaylinkframedriver.h
+new file mode 100644
+index 0000000000..3b3c1f340f
+--- /dev/null
++++ b/src/waveform/displaylinkframedriver.h
+@@ -0,0 +1,111 @@
++#pragma once
++
++#include <QObject>
++#include <QPointer>
++#include <QTimer>
++#include <QWindow>
++#include <chrono>
++#include <memory>
++
++#if defined(Q_OS_MACOS)
++// CADisplayLink based timing is only available on macOS. Everywhere else the
++// frame interval is derived from QScreen::refreshRate().
++#define MIXXX_HAS_MAC_DISPLAY_LINK
++#endif
++
++class QScreen;
++class VSyncThread;
++
++#ifdef MIXXX_HAS_MAC_DISPLAY_LINK
++namespace mixxx {
++class MacDisplayLink;
++}
++#endif
++
++/// Drives waveform frames from the platform display link instead of from a
++/// dedicated thread with a hand rolled phase locked loop.
++///
++/// The driver is attached to the QWindow of the shared OpenGL context (the
++/// same window WaveformWidgetFactory::swapAndRender() already updates every
++/// frame). It calls QWindow::requestUpdate(), which on macOS is served by the
++/// CVDisplayLink the Cocoa platform plugin runs anyway, and reacts to the
++/// resulting QEvent::UpdateRequest (delivered by OpenGLWindow::event()) by
++/// emitting frameDue() on the GUI thread.
++///
++/// There is no estimation, no sleeping and no cross thread signal involved.
++class DisplayLinkFrameDriver : public QObject {
++    Q_OBJECT
++  public:
++    /// The driver registers itself at the window (OpenGLWindow::setFrameDriver)
++    /// and unregisters in its destructor. It is safe to destroy the window
++    /// first.
++    /// \param pWindow window of the shared GL context, must be an OpenGLWindow
++    /// so that it can forward the update requests.
++    /// \param pVSyncThread the (unstarted) VSyncThread that acts as the
++    /// VSyncTimeProvider for the renderers. May be nullptr in tests.
++    DisplayLinkFrameDriver(QWindow* pWindow, VSyncThread* pVSyncThread, QObject* pParent);
++    ~DisplayLinkFrameDriver() override;
++
++    /// Starts requesting update events.
++    void start();
++    void stop();
++
++    /// Move the driver to another window. The shared GL context lives in a 3x3
++    /// helper widget, and the compositor does not necessarily serve update
++    /// requests for such a window at the display cadence. Re-attaching to a
++    /// real, visible waveform window makes the requests arrive on the vsync
++    /// boundary instead of free running.
++    void reattachTo(QWindow* pWindow);
++
++    /// The frame rate configured by the user ([Waveform] FrameRate). If the
++    /// display refreshes faster, updates are skipped to approximate it.
++    void setFrameRate(int frameRate);
++
++    /// Called by OpenGLWindow::event() when a QEvent::UpdateRequest for the
++    /// shared GL window arrives (GUI thread).
++    void handleUpdateRequest();
++
++    /// The measured/reported refresh interval of the display the window is on.
++    std::chrono::microseconds refreshInterval() const {
++        return std::chrono::microseconds(m_refreshIntervalMicros);
++    }
++    /// Number of update requests per rendered frame (frame rate limiting).
++    int divisor() const {
++        return m_divisor;
++    }
++
++  signals:
++    /// Emitted for every frame that should be swapped and rendered.
++    void frameDue();
++
++  private slots:
++    void slotScreenChanged(QScreen* pScreen);
++    void slotWatchdog();
++
++  private:
++    void attachToWindow();
++    void detachFromWindow();
++    void updateRefreshInterval();
++    void updateDivisor();
++    void requestNextUpdate();
++    void driveFrame();
++
++    QPointer<QWindow> m_pWindow;
++    VSyncThread* m_pVSyncThread;
++#ifdef MIXXX_HAS_MAC_DISPLAY_LINK
++    std::unique_ptr<mixxx::MacDisplayLink> m_pMacDisplayLink;
++#endif
++    QTimer m_watchdogTimer;
++
++    bool m_running;
++    /// Set in handleUpdateRequest(), cleared by the watchdog. Used to detect
++    /// that the platform stopped delivering update requests.
++    bool m_updateRequestSeen;
++    /// False until the first frame has been driven, used to suppress a bogus
++    /// dropped frame report for the very first frame.
++    bool m_hasDrivenFrame;
++    int m_frameRate;
++    int m_refreshIntervalMicros;
++    int m_divisor;
++    int m_skipCounter;
++};
+diff --git a/src/waveform/macdisplaylink.h b/src/waveform/macdisplaylink.h
+new file mode 100644
+index 0000000000..b239a124dc
+--- /dev/null
++++ b/src/waveform/macdisplaylink.h
+@@ -0,0 +1,67 @@
++#pragma once
++
++#include <chrono>
++#include <optional>
++
++class QWindow;
++
++namespace mixxx {
++
++/// Thin C++ wrapper around a `CADisplayLink` attached to the `NSView` that
++/// backs a `QWindow` (macOS 14+, see `-[NSView displayLinkWithTarget:selector:]`).
++///
++/// This class does *not* drive rendering. Rendering is driven by
++/// `QWindow::requestUpdate()`, which the Qt Cocoa platform plugin already
++/// serves from its own `CVDisplayLink`. The only purpose of this class is to
++/// obtain the *system provided* presentation timestamp of the next frame
++/// (`CADisplayLink.targetTimestamp`) and the actual refresh interval
++/// (`CADisplayLink.duration`), so that the renderers do not have to estimate
++/// them.
++///
++/// All methods must be called from the main (GUI) thread; the display link
++/// callback is scheduled on the main run loop.
++///
++/// Only implemented on macOS. On every other platform this class is not
++/// compiled at all (see the `MIXXX_HAS_MAC_DISPLAY_LINK` guard in
++/// displaylinkframedriver.h).
++class MacDisplayLink {
++  public:
++    /// Returns true if the running macOS version provides CADisplayLink for
++    /// AppKit views (macOS 14.0+) and Mixxx was compiled against an SDK that
++    /// knows about it.
++    static bool isAvailable();
++
++    /// Creates and starts a display link for the display `pWindow` is on.
++    /// Check isValid() afterwards; construction fails silently (with a
++    /// warning) if CADisplayLink is unavailable.
++    explicit MacDisplayLink(QWindow* pWindow);
++    ~MacDisplayLink();
++
++    MacDisplayLink(const MacDisplayLink&) = delete;
++    MacDisplayLink& operator=(const MacDisplayLink&) = delete;
++
++    bool isValid() const {
++        return m_pImpl != nullptr;
++    }
++
++    /// Time from now until the next presentation deadline reported by the
++    /// display link (`targetTimestamp`). Returns `std::nullopt` if no
++    /// timestamp has been received yet or if the cached timestamp is
++    /// implausibly old.
++    ///
++    /// The value is derived from the most recent callback and extrapolated by
++    /// whole refresh intervals, so it stays correct even if the CADisplayLink
++    /// callback and Qt's UpdateRequest delivery are ordered differently within
++    /// the same run loop iteration.
++    std::optional<std::chrono::microseconds> timeToNextPresentation() const;
++
++    /// The refresh interval reported by the display link (`duration`).
++    std::optional<std::chrono::microseconds> refreshInterval() const;
++
++  private:
++    /// Strong (bridge-retained) reference to the Objective-C helper object
++    /// that owns the CADisplayLink. void* to keep this header ObjC free.
++    void* m_pImpl;
++};
++
++} // namespace mixxx
+diff --git a/src/waveform/macdisplaylink.mm b/src/waveform/macdisplaylink.mm
+new file mode 100644
+index 0000000000..b2b58f7ff2
+--- /dev/null
++++ b/src/waveform/macdisplaylink.mm
+@@ -0,0 +1,173 @@
++#include "waveform/macdisplaylink.h"
++
++#import <AppKit/AppKit.h>
++#import <QuartzCore/QuartzCore.h>
++
++#include <QDebug>
++#include <QWindow>
++#include <QtGlobal>
++#include <cmath>
++
++// CADisplayLink is available for AppKit views since macOS 14.0. Only compile
++// the implementation if the SDK we build against knows about it; the runtime
++// check below (@available) takes care of older systems.
++#if defined(__MAC_OS_X_VERSION_MAX_ALLOWED) && __MAC_OS_X_VERSION_MAX_ALLOWED >= 140000
++#define MIXXX_CADISPLAYLINK_SDK_AVAILABLE 1
++#endif
++
++#ifdef MIXXX_CADISPLAYLINK_SDK_AVAILABLE
++
++/// Objective-C target of the CADisplayLink. The callback runs on the main run
++/// loop, and the values are only read from the main thread, so plain doubles
++/// (no atomics, no locking) are sufficient.
++API_AVAILABLE(macos(14.0))
++@interface MixxxDisplayLinkTarget : NSObject {
++  @public
++    double m_timestamp;
++    double m_targetTimestamp;
++    double m_duration;
++}
++@property(nonatomic, strong) CADisplayLink* displayLink;
++- (instancetype)initWithView:(NSView*)view;
++- (void)invalidate;
++@end
++
++@implementation MixxxDisplayLinkTarget
++
++- (instancetype)initWithView:(NSView*)view {
++    self = [super init];
++    if (self) {
++        m_timestamp = 0.0;
++        m_targetTimestamp = 0.0;
++        m_duration = 0.0;
++        // The display link created from a view automatically follows the
++        // display the view is shown on, including a changing refresh rate
++        // (ProMotion).
++        _displayLink = [view displayLinkWithTarget:self selector:@selector(onDisplayLink:)];
++        [_displayLink addToRunLoop:[NSRunLoop mainRunLoop] forMode:NSRunLoopCommonModes];
++    }
++    return self;
++}
++
++- (void)onDisplayLink:(CADisplayLink*)sender {
++    m_timestamp = sender.timestamp;
++    m_targetTimestamp = sender.targetTimestamp;
++    m_duration = sender.duration;
++}
++
++- (void)invalidate {
++    [_displayLink invalidate];
++    _displayLink = nil;
++}
++
++@end
++
++#endif // MIXXX_CADISPLAYLINK_SDK_AVAILABLE
++
++namespace mixxx {
++
++// static
++bool MacDisplayLink::isAvailable() {
++#ifdef MIXXX_CADISPLAYLINK_SDK_AVAILABLE
++    if (__builtin_available(macOS 14.0, *)) {
++        return true;
++    }
++#endif
++    return false;
++}
++
++MacDisplayLink::MacDisplayLink(QWindow* pWindow)
++        : m_pImpl(nullptr) {
++#ifdef MIXXX_CADISPLAYLINK_SDK_AVAILABLE
++    if (__builtin_available(macOS 14.0, *)) {
++        if (!pWindow) {
++            return;
++        }
++        // On macOS WId is the NSView* of the window. Note that winId() creates
++        // the native window if it does not exist yet. The bridge cast is
++        // required because this file is compiled with ARC.
++        NSView* view = (__bridge NSView*)reinterpret_cast<void*>(pWindow->winId());
++        if (!view) {
++            qWarning() << "MacDisplayLink: window has no NSView";
++            return;
++        }
++        MixxxDisplayLinkTarget* pTarget =
++                [[MixxxDisplayLinkTarget alloc] initWithView:view];
++        if (!pTarget.displayLink) {
++            qWarning() << "MacDisplayLink: failed to create CADisplayLink";
++            return;
++        }
++        m_pImpl = (__bridge_retained void*)pTarget;
++        return;
++    }
++#endif
++    Q_UNUSED(pWindow);
++    qWarning() << "MacDisplayLink: CADisplayLink requires macOS 14 or later, "
++                  "falling back to the refresh rate reported by QScreen";
++}
++
++MacDisplayLink::~MacDisplayLink() {
++#ifdef MIXXX_CADISPLAYLINK_SDK_AVAILABLE
++    if (m_pImpl) {
++        if (__builtin_available(macOS 14.0, *)) {
++            MixxxDisplayLinkTarget* pTarget =
++                    (__bridge_transfer MixxxDisplayLinkTarget*)m_pImpl;
++            [pTarget invalidate];
++        }
++        m_pImpl = nullptr;
++    }
++#endif
++}
++
++std::optional<std::chrono::microseconds> MacDisplayLink::refreshInterval() const {
++#ifdef MIXXX_CADISPLAYLINK_SDK_AVAILABLE
++    if (m_pImpl) {
++        if (__builtin_available(macOS 14.0, *)) {
++            MixxxDisplayLinkTarget* pTarget = (__bridge MixxxDisplayLinkTarget*)m_pImpl;
++            const double duration = pTarget->m_duration;
++            if (duration > 0.0) {
++                return std::chrono::microseconds(
++                        static_cast<std::chrono::microseconds::rep>(duration * 1e6));
++            }
++        }
++    }
++#endif
++    return std::nullopt;
++}
++
++std::optional<std::chrono::microseconds> MacDisplayLink::timeToNextPresentation() const {
++#ifdef MIXXX_CADISPLAYLINK_SDK_AVAILABLE
++    if (m_pImpl) {
++        if (__builtin_available(macOS 14.0, *)) {
++            MixxxDisplayLinkTarget* pTarget = (__bridge MixxxDisplayLinkTarget*)m_pImpl;
++            const double target = pTarget->m_targetTimestamp;
++            const double duration = pTarget->m_duration;
++            if (target <= 0.0 || duration <= 0.0) {
++                // No callback received yet.
++                return std::nullopt;
++            }
++            // CACurrentMediaTime() is the same time base as the display link
++            // timestamps, so the difference is meaningful without having to
++            // relate the Mach time base to PerformanceTimer's steady_clock.
++            double delta = target - CACurrentMediaTime();
++            if (delta <= 0.0) {
++                // The cached target timestamp already passed. This happens if
++                // the UpdateRequest is delivered before our CADisplayLink
++                // callback of the same vsync, or if the main thread was
++                // blocked. Extrapolate by whole refresh intervals.
++                delta += std::floor(-delta / duration + 1.0) * duration;
++            }
++            if (delta > 4.0 * duration) {
++                // Implausible, e.g. the display link was paused. Let the
++                // caller fall back to the nominal interval.
++                return std::nullopt;
++            }
++            return std::chrono::microseconds(
++                    static_cast<std::chrono::microseconds::rep>(delta * 1e6));
++        }
++    }
++#endif
++    return std::nullopt;
++}
++
++} // namespace mixxx
+diff --git a/src/waveform/vsyncthread.cpp b/src/waveform/vsyncthread.cpp
+index 175435a261..aa5f4655fd 100644
+--- a/src/waveform/vsyncthread.cpp
++++ b/src/waveform/vsyncthread.cpp
+@@ -35,11 +35,18 @@ VSyncThread::VSyncThread(QObject* pParent, VSyncThread::VSyncMode vSyncMode)
+           m_pllDeltaOut(16666.6),
+           m_pllLogging(0.0) {
+     m_pllTimer.start();
++    // In ST_DISPLAY_LINK mode run() is never entered, so start the timer here.
++    // In all other modes run() restarts it anyway.
++    m_timer.start();
+ }
+ 
+ VSyncThread::~VSyncThread() {
+     m_bDoRendering = false;
+-    m_semaVsyncSlot.release(m_vSyncMode == ST_PLL ? 1 : 2); // Two slots, one for PLL
++    if (m_vSyncMode != ST_DISPLAY_LINK) {
++        // In ST_DISPLAY_LINK mode the thread has never been started and
++        // nobody is waiting for the semaphore.
++        m_semaVsyncSlot.release(m_vSyncMode == ST_PLL ? 1 : 2); // Two slots, one for PLL
++    }
+     wait();
+     //delete m_glw;
+ }
+@@ -63,6 +70,11 @@ void VSyncThread::run() {
+     case ST_TIMER:
+         runTimer();
+         break;
++    case ST_DISPLAY_LINK:
++        // Frames are driven by DisplayLinkFrameDriver on the GUI thread.
++        // This thread is not supposed to be started at all in this mode.
++        DEBUG_ASSERT(!"VSyncThread must not be started in ST_DISPLAY_LINK mode");
++        break;
+     default:
+         DEBUG_ASSERT(!"unsupported sync mode");
+         break;
+@@ -242,6 +254,15 @@ std::chrono::microseconds VSyncThread::fromTimerToNextSync(const PerformanceTime
+     return std::chrono::microseconds(toNextSync);
+ }
+ 
++void VSyncThread::setDisplayLinkTiming(std::chrono::microseconds untilPresentation) {
++    DEBUG_ASSERT(m_vSyncMode == ST_DISPLAY_LINK);
++    // Same contract as the other modes: m_timer marks the reference point of
++    // the current frame and m_waitToSwapMicros the time from that reference
++    // point until the content rendered during this frame is presented.
++    m_sinceLastSwap = m_timer.restart();
++    m_waitToSwapMicros = static_cast<int>(untilPresentation.count());
++}
++
+ int VSyncThread::droppedFrames() {
+     return m_droppedFrames;
+ }
+@@ -276,6 +297,9 @@ void VSyncThread::getAvailableVSyncTypes(QList<QPair<int, QString>>* pList) {
+             case VSyncThread::ST_PLL:
+                 name = tr("frameSwapped-signal driven phase locked loop");
+                 break;
++            case VSyncThread::ST_DISPLAY_LINK:
++                name = tr("Platform display link (requestUpdate)");
++                break;
+             default:
+                 break;
+             }
+diff --git a/src/waveform/vsyncthread.h b/src/waveform/vsyncthread.h
+index 7ff44dc5b1..da38aadbb5 100644
+--- a/src/waveform/vsyncthread.h
++++ b/src/waveform/vsyncthread.h
+@@ -21,6 +21,12 @@ class VSyncThread : public QThread, public VSyncTimeProvider {
+         ST_FREE,                          // 4
+         ST_PLL,                           // 5
+         ST_TIMER,                         // 6
++        // Frames are driven by the platform display link via
++        // QWindow::requestUpdate() on the GUI thread. In this mode the
++        // VSyncThread is *not* started at all: it is only kept alive as the
++        // VSyncTimeProvider for the renderers, and is fed by the
++        // DisplayLinkFrameDriver via setDisplayLinkTiming().
++        ST_DISPLAY_LINK,                  // 7
+         ST_COUNT                          // Dummy Type at last, counting possible types
+     };
+ 
+@@ -47,6 +53,17 @@ class VSyncThread : public QThread, public VSyncTimeProvider {
+     }
+     void updatePLL();
+     bool pllInitializing() const;
++
++    /// ST_DISPLAY_LINK only: called on the GUI thread at the begin of every
++    /// frame that is about to be swapped and rendered.
++    /// \param untilPresentation time from now until the content that is
++    /// rendered in this frame becomes visible on screen. This defines the
++    /// value returned by fromTimerToNextSync() for this frame.
++    void setDisplayLinkTiming(std::chrono::microseconds untilPresentation);
++    /// ST_DISPLAY_LINK only: account a frame that was not delivered in time.
++    void reportDroppedFrame() {
++        m_droppedFrames++;
++    }
+     VSyncMode vsyncMode() const {
+         return m_vSyncMode;
+     }
+diff --git a/src/waveform/waveformwidgetfactory.cpp b/src/waveform/waveformwidgetfactory.cpp
+index 482da86c76..f0cd1e71c8 100644
+--- a/src/waveform/waveformwidgetfactory.cpp
++++ b/src/waveform/waveformwidgetfactory.cpp
+@@ -16,6 +16,7 @@
+ #endif
+ 
+ #include <QOpenGLFunctions>
++#include <QTimer>
+ #include <QRegularExpression>
+ #include <QStringList>
+ #include <QWidget>
+@@ -27,6 +28,7 @@
+ #include "util/math.h"
+ #include "util/performancetimer.h"
+ #include "util/timer.h"
++#include "waveform/displaylinkframedriver.h"
+ #include "waveform/guitick.h"
+ #include "waveform/sharedglcontext.h"
+ #include "waveform/visualsmanager.h"
+@@ -144,6 +146,7 @@ WaveformWidgetFactory::WaveformWidgetFactory()
+           m_openGLShaderAvailable(false),
+           m_beatGridAlpha(90),
+           m_vsyncThread(nullptr),
++          m_pDisplayLinkFrameDriver(nullptr),
+           m_pGuiTick(nullptr),
+           m_pVisualsManager(nullptr),
+           m_frameCnt(0),
+@@ -948,6 +951,54 @@ void WaveformWidgetFactory::swapAndRender() {
+     m_vsyncThread->vsyncSlotFinished();
+ }
+ 
++void WaveformWidgetFactory::tryReattachDisplayLink(int attemptsLeft) {
++#ifdef MIXXX_USE_QOPENGL
++    if (!m_pDisplayLinkFrameDriver) {
++        return;
++    }
++    // The driver is created on the 3x3 shared-context helper window. In a
++    // normal window the compositor never serves update requests for it, so no
++    // frame is ever driven and the waveforms stay blank; only in full screen
++    // did it happen to work. Move the driver onto a real, exposed waveform
++    // window as soon as one exists.
++    //
++    // This must NOT be done from the frame callback: without a frame there is
++    // nothing to move it from, and without moving it there is no frame.
++    for (const auto& holder : std::as_const(m_waveformWidgetHolders)) {
++        WaveformWidgetAbstract* pWidget = holder.m_waveformWidget;
++        if (!pWidget) {
++            continue;
++        }
++        WGLWidget* pGlw = pWidget->getGLWidget();
++        if (pGlw && pGlw->getOpenGLWindow() && pGlw->shouldRender()) {
++            m_pDisplayLinkFrameDriver->reattachTo(pGlw->getOpenGLWindow());
++            return;
++        }
++    }
++    if (attemptsLeft > 0) {
++        // Windows are realised lazily in their show event; try again shortly.
++        QTimer::singleShot(100, this, [this, attemptsLeft]() {
++            tryReattachDisplayLink(attemptsLeft - 1);
++        });
++    } else {
++        qWarning() << "DisplayLinkFrameDriver: no exposed waveform window found,"
++                   << "frames stay on the shared-context window";
++    }
++#else
++    Q_UNUSED(attemptsLeft);
++#endif
++}
++
++void WaveformWidgetFactory::slotDisplayLinkFrame() {
++    // Same work as swapAndRender(), but without the cross thread semaphore
++    // handshake and without triggering a repaint of the shared GL window:
++    // the frame pacing comes from the platform display link
++    // (QWindow::requestUpdate()), which the DisplayLinkFrameDriver has already
++    // re-armed for the next frame.
++    swapSelf();
++    renderSelf();
++}
++
+ void WaveformWidgetFactory::slotFrameSwapped() {
+ #ifdef MIXXX_USE_QOPENGL
+     if (m_vsyncThread->pllInitializing()) {
+@@ -1258,10 +1309,34 @@ int WaveformWidgetFactory::findIndexOf(WWaveformViewer* viewer) const {
+ 
+ void WaveformWidgetFactory::startVSync(
+         GuiTick* pGuiTick, VisualsManager* pVisualsManager, bool useQML) {
+-    const auto vSyncMode = useQML
++    auto vSyncMode = useQML
+             ? VSyncThread::ST_TIMER
+             : static_cast<VSyncThread::VSyncMode>(m_config->getValue(kVSyncKey, 0));
+ 
++#ifndef MIXXX_USE_QOPENGL
++    if (vSyncMode == VSyncThread::ST_DISPLAY_LINK) {
++        qWarning() << "VSync mode ST_DISPLAY_LINK requires the QOpenGLWindow "
++                      "based widgets, falling back to the default mode";
++        vSyncMode = VSyncThread::ST_DEFAULT;
++    }
++#else
++    OpenGLWindow* pDisplayLinkWindow = nullptr;
++    if (vSyncMode == VSyncThread::ST_DISPLAY_LINK) {
++        WGLWidget* pWidget = SharedGLContext::getWidget();
++        // Note: the OpenGLWindow of the shared GL widget is created lazily in
++        // its show event, which has already happened at this point (the
++        // initialization continues from WInitialGLWidget::onInitialized).
++        pDisplayLinkWindow = pWidget
++                ? qobject_cast<OpenGLWindow*>(pWidget->getOpenGLWindow())
++                : nullptr;
++        if (!pDisplayLinkWindow) {
++            qWarning() << "VSync mode ST_DISPLAY_LINK requires the shared GL "
++                          "window, falling back to the default mode";
++            vSyncMode = VSyncThread::ST_DEFAULT;
++        }
++    }
++#endif
++
+     m_pGuiTick = pGuiTick;
+     m_pVisualsManager = pVisualsManager;
+     m_vsyncThread = new VSyncThread(this, vSyncMode);
+@@ -1269,6 +1344,28 @@ void WaveformWidgetFactory::startVSync(
+     m_vsyncThread->setSyncIntervalTimeMicros(static_cast<int>(1e6 / m_frameRate));
+ 
+ #ifdef MIXXX_USE_QOPENGL
++    if (m_vsyncThread->vsyncMode() == VSyncThread::ST_DISPLAY_LINK) {
++        DEBUG_ASSERT(pDisplayLinkWindow);
++        WGLWidget* pWidget = SharedGLContext::getWidget();
++        // The window must be visible, otherwise the platform does not deliver
++        // update requests for it.
++        pWidget->show();
++        m_pDisplayLinkFrameDriver = new DisplayLinkFrameDriver(
++                pDisplayLinkWindow, m_vsyncThread, this);
++        m_pDisplayLinkFrameDriver->setFrameRate(m_frameRate);
++        connect(m_pDisplayLinkFrameDriver,
++                &DisplayLinkFrameDriver::frameDue,
++                this,
++                &WaveformWidgetFactory::slotDisplayLinkFrame);
++        m_pDisplayLinkFrameDriver->start();
++        // Move the driver onto a real, exposed waveform window as soon as one
++        // exists; see tryReattachDisplayLink().
++        tryReattachDisplayLink(50);
++        // No VSyncThread is started in this mode: it only serves as the
++        // VSyncTimeProvider, fed by the driver.
++        return;
++    }
++
+     if (m_vsyncThread->vsyncMode() == VSyncThread::ST_PLL) {
+         WGLWidget* widget = SharedGLContext::getWidget();
+         if (widget) {
+diff --git a/src/waveform/waveformwidgetfactory.h b/src/waveform/waveformwidgetfactory.h
+index 94f4a337be..9d31b844ba 100644
+--- a/src/waveform/waveformwidgetfactory.h
++++ b/src/waveform/waveformwidgetfactory.h
+@@ -20,6 +20,7 @@ class WVuMeterBase;
+ class WWaveformViewer;
+ class WaveformWidgetAbstract;
+ class VSyncThread;
++class DisplayLinkFrameDriver;
+ class GuiTick;
+ class VisualsManager;
+ class ControlObject;
+@@ -292,6 +293,10 @@ class WaveformWidgetFactory : public QObject,
+     void swap();
+     void swapAndRender();
+     void slotFrameSwapped();
++    /// Called by the DisplayLinkFrameDriver for every frame in
++    /// VSyncThread::ST_DISPLAY_LINK mode (GUI thread).
++    void slotDisplayLinkFrame();
++    void tryReattachDisplayLink(int attemptsLeft);
+ 
+   private:
+     void renderSelf();
+@@ -354,6 +359,9 @@ class WaveformWidgetFactory : public QObject,
+     int m_beatGridAlpha;
+ 
+     VSyncThread* m_vsyncThread;
++    /// Only created in VSyncThread::ST_DISPLAY_LINK mode, owned via QObject
++    /// parenting.
++    DisplayLinkFrameDriver* m_pDisplayLinkFrameDriver;
+     GuiTick* m_pGuiTick;  // not owned
+     VisualsManager* m_pVisualsManager;  // not owned
+ 
+diff --git a/src/widget/openglwindow.cpp b/src/widget/openglwindow.cpp
+index 6797c5428e..58cce4d63e 100644
+--- a/src/widget/openglwindow.cpp
++++ b/src/widget/openglwindow.cpp
+@@ -4,6 +4,7 @@
+ #include <QResizeEvent>
+ 
+ #include "moc_openglwindow.cpp"
++#include "waveform/displaylinkframedriver.h"
+ #include "waveform/waveformwidgetfactory.h"
+ #include "widget/tooltipqopengl.h"
+ #include "widget/trackdroptarget.h"
+@@ -11,7 +12,8 @@
+ 
+ OpenGLWindow::OpenGLWindow(WGLWidget* pWidget)
+         : m_pWidget(pWidget),
+-          m_pTrackDropTarget(nullptr) {
++          m_pTrackDropTarget(nullptr),
++          m_pFrameDriver(nullptr) {
+     setFormat(WaveformWidgetFactory::getSurfaceFormat());
+ #ifdef __EMSCRIPTEN__
+     // This is required to ensure that QOpenGLWindows have no minimum size (When
+@@ -69,6 +71,15 @@ bool OpenGLWindow::event(QEvent* pEv) {
+ 
+     bool result = QOpenGLWindow::event(pEv);
+ 
++    if (t == QEvent::UpdateRequest && m_pFrameDriver) {
++        // VSyncThread::ST_DISPLAY_LINK: the platform display link (a
++        // CVDisplayLink inside the Cocoa plugin on macOS) has delivered the
++        // update request we asked for. This is the heartbeat of the waveform
++        // rendering. Do not forward it to the widget.
++        m_pFrameDriver->handleUpdateRequest();
++        return result;
++    }
++
+     if (m_pWidget) {
+         // Tooltip don't work by forwarding the events. This mimics the
+         // tooltip behavior.
+diff --git a/src/widget/openglwindow.h b/src/widget/openglwindow.h
+index 74e8f954db..cc9d4c7920 100644
+--- a/src/widget/openglwindow.h
++++ b/src/widget/openglwindow.h
+@@ -7,6 +7,8 @@ class TrackDropTarget;
+ 
+ /// Helper class used by wglwidgetqopengl
+ 
++class DisplayLinkFrameDriver;
++
+ class OpenGLWindow : public QOpenGLWindow {
+     Q_OBJECT
+ 
+@@ -16,6 +18,14 @@ class OpenGLWindow : public QOpenGLWindow {
+ 
+     void widgetDestroyed();
+ 
++    /// Installs the driver that turns QEvent::UpdateRequest into waveform
++    /// frames (VSyncThread::ST_DISPLAY_LINK mode). Only set on the window of
++    /// the shared GL context. The caller keeps the ownership and must call
++    /// this with nullptr before the driver is destroyed.
++    void setFrameDriver(DisplayLinkFrameDriver* pFrameDriver) {
++        m_pFrameDriver = pFrameDriver;
++    }
++
+   private:
+     void initializeGL() override;
+     void paintGL() override;
+@@ -24,4 +34,5 @@ class OpenGLWindow : public QOpenGLWindow {
+ 
+     WGLWidget* m_pWidget;
+     TrackDropTarget* m_pTrackDropTarget;
++    DisplayLinkFrameDriver* m_pFrameDriver;
+ };

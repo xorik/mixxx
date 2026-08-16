@@ -1,0 +1,188 @@
+diff --git a/src/waveform/waveformwidgetfactory.cpp b/src/waveform/waveformwidgetfactory.cpp
+index 482da86c76..45965078da 100644
+--- a/src/waveform/waveformwidgetfactory.cpp
++++ b/src/waveform/waveformwidgetfactory.cpp
+@@ -16,10 +16,13 @@
+ #endif
+ 
+ #include <QOpenGLFunctions>
++#include <QProcessEnvironment>
+ #include <QRegularExpression>
+ #include <QStringList>
+ #include <QWidget>
+ #include <QWindow>
++#include <algorithm>
++#include <vector>
+ 
+ #include "control/controlobject.h"
+ #include "moc_waveformwidgetfactory.cpp"
+@@ -71,6 +74,35 @@ bool shouldRenderWaveform(WaveformWidgetAbstract* pWaveformWidget) {
+     return glw->shouldRender();
+ }
+ 
++// --- WAVEFORM PERFORMANCE TELEMETRY -----------------------------------------
++// One line per second, only with --developer, so a build measured by the
++// benchmark harness can be compared with any other. Two rules behind the field
++// list:
++//   * report what REALLY happened, never what was requested: type= and
++//     options= are the values the widgets were actually built with, because
++//     Mixxx can silently substitute both (an unknown WaveformType is replaced
++//     by RGB on profiles older than 2.6);
++//   * report the rasterised area, because frame cost is meaningless without it.
++//
++// BENCHFLAG / BENCHHIT convention, used by every experimental patch layered on
++// top of this one: at startup each MIXXX_BENCH_* switch is logged as BENCHFLAG
++// (what was asked for), and the code path it enables logs BENCHHIT when it
++// really executes (what happened). A measurement of a change that never ran is
++// then impossible to mistake for a measurement of the change.
++double g_perfRenderMs = 0.0;     // waveform render() calls, summed over a second
++double g_perfSwapMs = 0.0;       // swapBuffers() calls, summed over a second
++int g_perfEffectiveOptions = -1; // waveform_options the widgets were BUILT with
++
++void logBenchFlags() {
++    const QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
++    const QStringList keys = env.keys();
++    for (const QString& key : keys) {
++        if (key.startsWith(QLatin1String("MIXXX_BENCH_"))) {
++            qDebug().nospace() << "BENCHFLAG " << key << "=" << env.value(key);
++        }
++    }
++}
++
+ const QRegularExpression openGLVersionRegex(QStringLiteral("^(\\d+)\\.(\\d+).*$"));
+ 
+ const QString kWaveformGroup(QStringLiteral("[Waveform]"));
+@@ -825,6 +857,24 @@ void WaveformWidgetFactory::renderSelf() {
+     ScopedTimer t(QStringLiteral("WaveformWidgetFactory::render() %1waveforms"),
+             static_cast<int>(m_waveformWidgetHolders.size()));
+ 
++    // TELEMETRY: wall-clock interval between consecutive render passes. An
++    // averaged frame-rate counter hides exactly what hurts - the occasional
++    // long frame - so the percentiles below are computed from real intervals.
++    static PerformanceTimer s_perfFrameTimer;
++    static std::vector<double> s_perfIntervalsMs;
++    static bool s_perfStarted = false;
++    const bool perfEnabled = CmdlineArgs::Instance().getDeveloper();
++    if (perfEnabled) {
++        if (!s_perfStarted) {
++            s_perfStarted = true;
++            s_perfFrameTimer.start();
++            logBenchFlags();
++        } else {
++            s_perfIntervalsMs.push_back(
++                    static_cast<double>(s_perfFrameTimer.restart().toIntegerMicros()) / 1000.0);
++        }
++    }
++
+     if (!m_skipRender) {
+         if (m_type) {   // no regular updates for an empty waveform
+             // next rendered frame is displayed after next buffer swap and than after VSync
+@@ -856,7 +906,11 @@ void WaveformWidgetFactory::renderSelf() {
+                 if (!shouldRenderWaveforms[static_cast<int>(i)]) {
+                     continue;
+                 }
++                PerformanceTimer tRender;
++                tRender.start();
+                 pWaveformWidget->render();
++                g_perfRenderMs +=
++                        static_cast<double>(tRender.elapsed().toIntegerMicros()) / 1000.0;
+                 //qDebug() << "render" << i << m_vsyncThread->elapsed();
+             }
+         }
+@@ -878,9 +932,70 @@ void WaveformWidgetFactory::renderSelf() {
+         mixxx::Duration timeCnt = m_time.elapsed();
+         if (timeCnt > mixxx::Duration::fromSeconds(1)) {
+             m_time.start();
++            const int perfFrames = static_cast<int>(m_frameCnt);
+             m_frameCnt = m_frameCnt * 1000 / timeCnt.toIntegerMillis(); // latency correction
++            const double perfFps = m_frameCnt;
+             emit waveformMeasured(m_frameCnt, m_vsyncThread->droppedFrames());
+             m_frameCnt = 0.0;
++
++            if (perfEnabled) {
++                static int s_perfLastDrops = 0;
++                const int drops = m_vsyncThread->droppedFrames();
++                auto& v = s_perfIntervalsMs;
++                double meanMs = 0.0, p50 = 0.0, p95 = 0.0, p99 = 0.0, maxMs = 0.0;
++                if (!v.empty()) {
++                    for (double x : v) {
++                        meanMs += x;
++                    }
++                    meanMs /= static_cast<double>(v.size());
++                    std::sort(v.begin(), v.end());
++                    const auto at = [&](double q) {
++                        return v[static_cast<size_t>(q * static_cast<double>(v.size() - 1))];
++                    };
++                    p50 = at(0.50);
++                    p95 = at(0.95);
++                    p99 = at(0.99);
++                    maxMs = v.back();
++                }
++                // Device pixels actually rasterised: without it, two runs with
++                // different window sizes are not comparable at all.
++                double totalDevicePx = 0.0;
++                for (const auto& holder : std::as_const(m_waveformWidgetHolders)) {
++                    const WaveformWidgetAbstract* pW = holder.m_waveformWidget;
++                    if (!pW) {
++                        continue;
++                    }
++                    const double dpr = static_cast<double>(pW->getDevicePixelRatio());
++                    totalDevicePx += static_cast<double>(pW->getWidth()) *
++                            static_cast<double>(pW->getHeight()) * dpr * dpr;
++                }
++
++                qDebug().nospace()
++                        << "WAVEPERF"
++                        << " frames=" << perfFrames
++                        << " fps=" << QString::number(perfFps, 'f', 1)
++                        << " samples=" << static_cast<int>(v.size())
++                        << " dropsTotal=" << drops
++                        << " dropsDelta=" << (drops - s_perfLastDrops)
++                        << " meanMs=" << QString::number(meanMs, 'f', 2)
++                        << " p50Ms=" << QString::number(p50, 'f', 2)
++                        << " p95Ms=" << QString::number(p95, 'f', 2)
++                        << " p99Ms=" << QString::number(p99, 'f', 2)
++                        << " maxMs=" << QString::number(maxMs, 'f', 2)
++                        << " renderMs=" << QString::number(perfFrames > 0
++                                           ? g_perfRenderMs / perfFrames : 0.0, 'f', 3)
++                        << " swapMs=" << QString::number(perfFrames > 0
++                                           ? g_perfSwapMs / perfFrames : 0.0, 'f', 3)
++                        << " widgets=" << static_cast<int>(m_waveformWidgetHolders.size())
++                        << " type=" << static_cast<int>(m_type)
++                        << " options=" << g_perfEffectiveOptions
++                        << " targetFps=" << m_frameRate
++                        << " totalDevicePx=" << QString::number(totalDevicePx, 'f', 0);
++                s_perfLastDrops = drops;
++                v.clear();
++                g_perfRenderMs = 0.0;
++                g_perfSwapMs = 0.0;
++            }
+         }
+     }
+ 
+@@ -916,9 +1031,13 @@ void WaveformWidgetFactory::swapSelf() {
+                 }
+                 WGLWidget* pGlw = pWaveformWidget->getGLWidget();
+                 if (pGlw != nullptr) {
++                    PerformanceTimer tSwap;
++                    tSwap.start();
+                     pGlw->makeCurrentIfNeeded();
+                     pGlw->swapBuffers();
+                     pGlw->doneCurrent();
++                    g_perfSwapMs +=
++                            static_cast<double>(tSwap.elapsed().toIntegerMicros()) / 1000.0;
+                 }
+                 //qDebug() << "swap x" << m_vsyncThread->elapsed();
+             }
+@@ -1207,6 +1326,11 @@ WaveformWidgetAbstract* WaveformWidgetFactory::createWaveformWidget(
+         WaveformRendererSignalBase::Options options =
+                 m_config->getValue(ConfigKey("[Waveform]", "waveform_options"),
+                         WaveformRendererSignalBase::Option::None);
++        // TELEMETRY: the options the widgets are really built with. They select
++        // between the textured and the geometric signal renderer, i.e. between
++        // two different pieces of code, so a run whose options differ from the
++        // requested ones measures something else. Reported as options=.
++        g_perfEffectiveOptions = static_cast<int>(options);
+ 
+         switch (type) {
+         case WaveformWidgetType::Simple:

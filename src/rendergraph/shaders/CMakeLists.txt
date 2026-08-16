@@ -18,6 +18,11 @@ if(TARGET rendergraph_sg)
   qt6_add_shaders(rendergraph_sg "shaders-qsb"
       BATCHABLE
       PRECOMPILE
+      # Must match the rendergraph_gl invocation below: both write the same
+      # .qsb files, so the two commands have to stay identical or CMake sees
+      # two different rules for one output.
+      GLSL
+          "100 es,120,150,410"
       # FIXME qsl relies on 'spirv-opt' to be available in the path, so only installing it via VCPKG is not sufficient
       # See https://doc.qt.io/qt-6/qtshadertools-build.html#invoking-external-tools
       # OPTIMIZED
@@ -37,6 +42,11 @@ if(TARGET rendergraph_gl)
     qt6_add_shaders(rendergraph_gl "shaders-qsb"
           BATCHABLE
           PRECOMPILE
+          # 410 is needed for an OpenGL 4.1 Core context, which is the newest
+          # macOS offers. Without it the bundle only holds 100es/120/150 and a
+          # Core context cannot be used at all.
+          GLSL
+              "100 es,120,150,410"
           # FIXME qsl relies on 'spirv-opt' to be available in the path, so only installing it via VCPKG is not sufficient
           # See https://doc.qt.io/qt-6/qtshadertools-build.html#invoking-external-tools
           # OPTIMIZED

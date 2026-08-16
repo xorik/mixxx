@@ -1,0 +1,203 @@
+# bench-hooks.patch
+#
+# STATUS: in use by the waveform benchmark harness; every hook here is exercised
+# by real runs. Temporary benchmark hooks, not product changes.
+#
+# Contains:
+#   MIXXX_BENCH_NO_AUDIO=1   - start with no audio output and without the
+#     blocking "No Output Devices" dialog, so an unattended run can never make a
+#     sound.
+#   MIXXX_BENCH_BACKGROUND=1 - move the process to the accessory activation
+#     policy: its windows are shown and rendered while it never activates, never
+#     enters the Dock and never takes the keyboard focus. Needed for a bare
+#     (non-bundled) binary, which Qt would otherwise promote to a foreground
+#     application. Combine with QT_MAC_DISABLE_FOREGROUND_APPLICATION_TRANSFORM=1,
+#     which stops that promotion - on its own that variable is not enough,
+#     because a background-only process cannot put a window on screen at all and
+#     renders exactly zero frames.
+#   A BENCHFLAG dump of every MIXXX_BENCH_* variable the process started with.
+#
+# The background hook reports the activation policy it ENDED UP IN, not the
+# return value of the call that set it:
+#   BENCHHIT MIXXX_BENCH_BACKGROUND=1 policyWas=... policyNow=... applied=...
+#            reason=already-accessory|set-by-hook isActive=...
+# A process launched from a bundle marked LSUIElement is already accessory, so
+# setting the policy again returns NO while the mode is perfectly active; the
+# old "accessoryPolicyApplied=false" could not be told apart from a real
+# failure. This wording is the one authored in MIX-11 and is kept identical here
+# on purpose: one hook, one log format, one parser.
+#
+# Applies to: clean main 9e670c1120.
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 0d81e2ff82..43a2d0ecf3 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -2109,7 +2109,7 @@ if(APPLE)
+       target_compile_definitions(mixxx-lib PUBLIC __IOS_ITUNES_LIBRARY__)
+     endif()
+   else()
+-    target_sources(mixxx-lib PRIVATE src/util/darkappearance.mm)
++    target_sources(mixxx-lib PRIVATE src/util/benchmac.mm src/util/darkappearance.mm)
+ 
+     option(
+       MACOS_ITUNES_LIBRARY
+diff --git a/src/main.cpp b/src/main.cpp
+index d961786812..7f6faaf101 100644
+--- a/src/main.cpp
++++ b/src/main.cpp
+@@ -1,6 +1,7 @@
+ #include <QApplication>
+ #include <QDir>
+ #include <QPixmapCache>
++#include <QProcessEnvironment>
+ #include <QString>
+ #include <QStringList>
+ #include <QStyle>
+@@ -31,6 +32,9 @@
+ #include "skin/skin.h"
+ #include "skin/skinloader.h"
+ #include "sources/soundsourceproxy.h"
++#ifdef __APPLE__
++#include "util/benchmac.h"
++#endif
+ #include "util/cmdlineargs.h"
+ #include "util/console.h"
+ #include "util/logging.h"
+@@ -58,11 +62,36 @@ const QString kNotifyMaxDbgTimeKey = QStringLiteral("notify_max_dbg_time");
+ // An indicator that the QPixmapCache was too small.
+ constexpr int kPixmapCacheLimitAt100PercentZoom = 32 * 1024; // 32 MByte
+ 
++// TEMPORARY BENCHMARK HOOK: log every MIXXX_BENCH_* switch this process was
++// started with, so the harness can prove which build/configuration produced a
++// measurement. See tools/bench/run.sh.
++void logBenchFlags() {
++    const QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
++    const QStringList keys = env.keys();
++    for (const QString& key : keys) {
++        if (key.startsWith(QLatin1String("MIXXX_BENCH_"))) {
++            qDebug().nospace() << "BENCHFLAG " << key << "=" << env.value(key);
++        }
++    }
++}
++
+ int runMixxx(MixxxApplication* pApp, const CmdlineArgs& args) {
+     CmdlineArgs::Instance().parseForUserFeedback();
+ 
+     int exitCode;
+     auto pCoreServices = std::make_shared<mixxx::CoreServices>(args, pApp);
++
++    // TEMPORARY BENCHMARK HOOKS - remove before any product change.
++    // CoreServices has just initialized logging, so this is the first point at
++    // which the benchmark harness can be told, in the log file it later parses,
++    // which experimental switches this process was actually asked to apply.
++    // Each switch additionally logs a BENCHHIT line when its code path really
++    // runs, so a run measuring a change that never executed can be rejected.
++    logBenchFlags();
++#ifdef __APPLE__
++    // Must happen before the first window is shown.
++    mixxx::benchApplyMacActivationPolicy();
++#endif
+ #ifdef MIXXX_USE_QML
+     QString mainQmlFilePath;
+     bool loadQml = args.isQml();
+diff --git a/src/mixxxmainwindow.cpp b/src/mixxxmainwindow.cpp
+index d787a019d0..8dffece384 100644
+--- a/src/mixxxmainwindow.cpp
++++ b/src/mixxxmainwindow.cpp
+@@ -391,7 +391,15 @@ void MixxxMainWindow::initialize() {
+     // that says "mixxx will barely work with no outs".
+     // In case of persisting errors, the user has already received a message
+     // above. So we can just check the output count here.
+-    while (m_pCoreServices->getSoundManager()->getConfig().getOutputs().isEmpty()) {
++    // TEMPORARY BENCHMARK HOOK: with MIXXX_BENCH_NO_AUDIO=1 Mixxx starts with
++    // no audio output at all and without the blocking "No Output Devices"
++    // dialog, so an unattended harness can run and can never produce sound.
++    const bool benchNoAudio = !qEnvironmentVariableIsEmpty("MIXXX_BENCH_NO_AUDIO");
++    if (benchNoAudio) {
++        qDebug() << "BENCHHIT MIXXX_BENCH_NO_AUDIO=1 noOutputDialogSuppressed=true";
++    }
++    while (!benchNoAudio &&
++            m_pCoreServices->getSoundManager()->getConfig().getOutputs().isEmpty()) {
+         // Exit when we press the Exit button in the noSoundDlg dialog
+         // only call it if result != OK
+         bool continueClicked = false;
+diff --git a/src/util/benchmac.h b/src/util/benchmac.h
+new file mode 100644
+index 0000000000..c379abf682
+--- /dev/null
++++ b/src/util/benchmac.h
+@@ -0,0 +1,20 @@
++#pragma once
++
++// TEMPORARY BENCHMARK HOOK - not part of any product change.
++//
++// build/mixxx is a bare Mach-O, not an .app bundle, so macOS starts it as a
++// background-only process and it is Qt that promotes it to a foreground
++// application (and thereby steals the user's keyboard focus).
++// QT_MAC_DISABLE_FOREGROUND_APPLICATION_TRANSFORM=1 suppresses that promotion,
++// but a background-only process cannot put windows on the screen at all, so
++// nothing is ever rendered and there is nothing to measure.
++//
++// With MIXXX_BENCH_BACKGROUND=1 this hook moves the process to the accessory
++// activation policy instead: its windows are displayed and rendered normally,
++// while the process never activates, never appears in the Dock and never takes
++// keyboard focus - which is what lets the waveform benchmark run while the user
++// keeps working. See tools/bench/run.sh.
++
++namespace mixxx {
++void benchApplyMacActivationPolicy();
++} // namespace mixxx
+diff --git a/src/util/benchmac.mm b/src/util/benchmac.mm
+new file mode 100644
+index 0000000000..06877454d1
+--- /dev/null
++++ b/src/util/benchmac.mm
+@@ -0,0 +1,48 @@
++#include "util/benchmac.h"
++
++#import <AppKit/NSApplication.h>
++
++#include <QtDebug>
++#include <QtGlobal>
++
++namespace mixxx {
++
++void benchApplyMacActivationPolicy() {
++    if (qEnvironmentVariableIsEmpty("MIXXX_BENCH_BACKGROUND")) {
++        return;
++    }
++    // NSApplicationActivationPolicyAccessory: the process may show windows, but
++    // it is not activated by showing them and it cannot become the frontmost
++    // application on its own.
++    //
++    // Report the state, not the call. When the process already runs from a
++    // bundle marked LSUIElement it is accessory from the start, and setting the
++    // policy again returns NO - which looks exactly like a failure while the
++    // mode is in fact active. What matters is where we end up.
++    //
++    // This wording is shared with MIX-11 (bench-hooks-mix11.patch) on purpose:
++    // one hook, one log format, one parser.
++    const auto policyName = [](NSApplicationActivationPolicy policy) {
++        switch (policy) {
++        case NSApplicationActivationPolicyRegular:
++            return "regular";
++        case NSApplicationActivationPolicyAccessory:
++            return "accessory";
++        case NSApplicationActivationPolicyProhibited:
++            return "prohibited";
++        }
++        return "unknown";
++    };
++    const NSApplicationActivationPolicy before = [NSApp activationPolicy];
++    [NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];
++    const NSApplicationActivationPolicy after = [NSApp activationPolicy];
++    const bool applied = after == NSApplicationActivationPolicyAccessory;
++    qDebug().nospace() << "BENCHHIT MIXXX_BENCH_BACKGROUND=1 policyWas=" << policyName(before)
++                       << " policyNow=" << policyName(after) << " applied=" << applied
++                       << " reason="
++                       << (before == NSApplicationActivationPolicyAccessory ? "already-accessory"
++                                                                           : "set-by-hook")
++                       << " isActive=" << static_cast<bool>([NSApp isActive]);
++}
++
++} // namespace mixxx

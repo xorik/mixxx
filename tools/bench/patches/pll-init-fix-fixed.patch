@@ -1,0 +1,198 @@
+# pll-init-fix-fixed.patch  (RECOMMENDED over pll-init-fix.patch)
+#
+# STATUS: the same initialisation fix, plus two corrections for failure modes
+# that were OBSERVED, not imagined. Compiles; the initialisation fix itself is
+# still not confirmed by an A/B series.
+#
+# Same core change as pll-init-fix.patch: reject implausible deltas, take the
+# median instead of a mean the sample was folded into, snap to the display
+# interval when within 2%. Measured problem it solves: 5 of 10 launches locked
+# ~2% off and dropped ~15 frames/s for the whole session.
+#
+# The two corrections:
+#  1. A rejected delta no longer blocks rendering. It used to return before
+#     setting m_pllPendingUpdate, and runPLL() emits a frame only when
+#     (!pllInitializing() || m_pllPendingUpdate) - so when the check kept
+#     rejecting, NOTHING was ever drawn: background only, no renderer output,
+#     and no "PLL locked to" line to explain it.
+#  2. The cross-check can give up. After about two seconds of nothing but
+#     rejections it is dropped for that lock attempt and the median alone is
+#     used, with a log line saying so. Without this, a display whose reported
+#     rate does not match its real cadence keeps the PLL in initialisation
+#     forever and the period silently stays at the startup default: frames flow,
+#     synchronisation is wrong, and nothing indicates it. A ProMotion panel is
+#     exactly that case - it reports its current mode while the real interval
+#     floats between 24 and 120 Hz, and the system lowers the rate when the
+#     window is inactive.
+#
+# Still inherits the primary-screen reference of the as-built version; that is
+# corrected by pll-drift-clamp-fixed.patch.
+#
+# Applies to: clean main 9e670c1120. Mutually exclusive with pll-init-fix.patch.
+# Apply BEFORE either drift-clamp patch.
+diff --git a/src/waveform/vsyncthread.cpp b/src/waveform/vsyncthread.cpp
+index 175435a261..e66ae7f004 100644
+--- a/src/waveform/vsyncthread.cpp
++++ b/src/waveform/vsyncthread.cpp
+@@ -1,5 +1,9 @@
+ #include "vsyncthread.h"
+ 
++#include <QGuiApplication>
++#include <QScreen>
++#include <algorithm>
++
+ #include "moc_vsyncthread.cpp"
+ #include "util/math.h"
+ #include "util/performancetimer.h"
+@@ -8,6 +12,21 @@ namespace {
+ 
+ constexpr int kNumStableDeltasRequired = 20;
+ 
++/// How long the PLL may keep rejecting deltas as implausible before it stops
++/// cross-checking against the display and locks on the median alone.
++constexpr double kPllCrossCheckTimeoutMicros = 2e6;
++
++/// Frame interval of the display, in microseconds, or 0 if unknown. Used to
++/// tell a plausible frame interval from a startup artefact.
++double displayFrameIntervalMicros() {
++    const QScreen* pScreen = QGuiApplication::primaryScreen();
++    if (!pScreen) {
++        return 0.0;
++    }
++    const double hz = pScreen->refreshRate();
++    return hz > 1.0 ? 1e6 / hz : 0.0;
++}
++
+ VSyncThread::VSyncMode defaultVSyncMode() {
+ #ifdef __APPLE__
+     return VSyncThread::ST_PLL;
+@@ -33,7 +52,10 @@ VSyncThread::VSyncThread(QObject* pParent, VSyncThread::VSyncMode vSyncMode)
+           m_pllInitSum(0.0),
+           m_pllPhaseOut(0.0),
+           m_pllDeltaOut(16666.6),
+-          m_pllLogging(0.0) {
++          m_pllLogging(0.0),
++          m_pllRejectedSinceMicros(0.0),
++          m_pllRejectedCount(0),
++          m_pllCrossCheckOff(false) {
+     m_pllTimer.start();
+ }
+ 
+@@ -304,22 +326,78 @@ void VSyncThread::updatePLL() {
+     const double pllPhaseIn = m_pllTimer.elapsed().toDoubleMicros();
+ 
+     if (m_pllInitCnt < kNumStableDeltasRequired) {
+-        // Before activating the phase-lock-looped, we need an initial
+-        // delta and phase, which we calculate by taking the average
+-        // delta over a number of stable deltas.
++        // Robust initialisation.
++        //
++        // The original code compared each delta against a running mean that the
++        // delta itself had just been folded into. For the first sample after a
++        // reset that difference is zero by construction, so ANY value was
++        // accepted as the seed; every following normal sample then landed
++        // within the +/-2000us tolerance of the mean the bad seed had dragged
++        // down. A single short startup frame therefore poisoned the lock:
++        // 4933 + 19*8333 over 20 samples = 8163us, i.e. 122.5Hz on a 120Hz
++        // display. Measured: 5 of 10 launches locked to ~8163us instead of
++        // 8333us and dropped ~15 frames/s for the whole session.
++        //
++        // Fix: discard implausible deltas up front using the refresh rate the
++        // display reports, take the median rather than the mean so a single
++        // outlier cannot shift the result, and snap to the display interval
++        // when we are close to it.
+         const double delta = pllPhaseIn - m_pllPhaseOut;
+         m_pllPhaseOut = pllPhaseIn;
+-        m_pllInitSum += delta;
+-        m_pllInitCnt++;
+-        m_pllInitAvg = m_pllInitSum / static_cast<double>(m_pllInitCnt);
+-        if (std::abs(delta - m_pllInitAvg) > 2000.0) {
+-            // The current delta is too different from the current
+-            // average so we reset the init process.
+-            m_pllInitSum = 0.0;
+-            m_pllInitCnt = 0;
++
++        const double expected = m_pllCrossCheckOff ? 0.0 : displayFrameIntervalMicros();
++        if (expected > 0.0 && std::abs(delta - expected) > expected * 0.25) {
++            // Not a plausible frame interval for this display; ignore it rather
++            // than letting it contribute to the estimate. Two safeguards, both
++            // learned the hard way:
++            //
++            // 1. Rendering must not depend on that judgement. A rejected sample
++            //    must still mark an update as pending: runPLL() only emits a
++            //    frame when (!pllInitializing() || m_pllPendingUpdate), so a
++            //    display whose interval the check never accepts froze the
++            //    waveforms completely - background only, no renderer output at
++            //    all, and no "PLL locked to" line to explain it.
++            // 2. The check must be able to give up. A ProMotion panel reports
++            //    its current mode while the real interval floats between 24 and
++            //    120 Hz, and the system lowers the rate when the window is not
++            //    active. Every sample then looks implausible, the lock never
++            //    completes, and the period silently stays at the startup
++            //    default: frames flow but the synchronisation is wrong. After a
++            //    couple of seconds of nothing but rejections, drop the
++            //    cross-check for this attempt - the median initialisation is
++            //    self-sufficient, the cross-check was insurance, not the
++            //    foundation.
++            if (m_pllRejectedSinceMicros == 0.0) {
++                m_pllRejectedSinceMicros = pllPhaseIn;
++            }
++            ++m_pllRejectedCount;
++            if (pllPhaseIn - m_pllRejectedSinceMicros > kPllCrossCheckTimeoutMicros) {
++                m_pllCrossCheckOff = true;
++                qDebug() << "VSyncThread: PLL display cross-check gave up after"
++                         << m_pllRejectedCount << "implausible deltas in"
++                         << (pllPhaseIn - m_pllRejectedSinceMicros) / 1000.0
++                         << "ms (display reports" << expected
++                         << "us); locking on the median alone";
++            }
++            m_pllPendingUpdate = true;
++            return;
+         }
++        m_pllRejectedSinceMicros = 0.0;
++        m_pllRejectedCount = 0;
++
++        m_pllInitDeltas.push_back(delta);
++        m_pllInitCnt = static_cast<int>(m_pllInitDeltas.size());
++
+         if (m_pllInitCnt == kNumStableDeltasRequired) {
+-            m_pllDeltaOut = m_pllInitAvg;
++            std::vector<double> sorted = m_pllInitDeltas;
++            std::sort(sorted.begin(), sorted.end());
++            const double median = sorted[sorted.size() / 2];
++            m_pllDeltaOut = (expected > 0.0 && !m_pllCrossCheckOff &&
++                                    std::abs(median - expected) < expected * 0.02)
++                    ? expected
++                    : median;
++            qDebug() << "VSyncThread: PLL locked to" << m_pllDeltaOut
++                     << "us (display reports" << expected << "us)";
+         }
+         return;
+     }
+diff --git a/src/waveform/vsyncthread.h b/src/waveform/vsyncthread.h
+index 7ff44dc5b1..462ca19073 100644
+--- a/src/waveform/vsyncthread.h
++++ b/src/waveform/vsyncthread.h
+@@ -4,6 +4,7 @@
+ #include <QSemaphore>
+ #include <QThread>
+ #include <mutex>
++#include <vector>
+ 
+ #include "util/performancetimer.h"
+ #include "waveform/isynctimeprovider.h"
+@@ -77,8 +78,13 @@ class VSyncThread : public QThread, public VSyncTimeProvider {
+     std::atomic<int> m_pllInitCnt;
+     std::atomic<bool> m_pllPendingUpdate;
+     double m_pllInitSum;
+-    double m_pllInitAvg;
++    std::vector<double> m_pllInitDeltas;
+     double m_pllPhaseOut;
+     double m_pllDeltaOut;
+     double m_pllLogging;
++    /// Timestamp of the first of the current run of rejected deltas, 0 if the
++    /// last delta was accepted. See the cross-check timeout in updatePLL().
++    double m_pllRejectedSinceMicros;
++    int m_pllRejectedCount;
++    bool m_pllCrossCheckOff;
+ };

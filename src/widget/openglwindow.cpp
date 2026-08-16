@@ -4,6 +4,7 @@
 #include <QResizeEvent>
 
 #include "moc_openglwindow.cpp"
+#include "waveform/displaylinkframedriver.h"
 #include "waveform/waveformwidgetfactory.h"
 #include "widget/tooltipqopengl.h"
 #include "widget/trackdroptarget.h"
@@ -11,7 +12,8 @@
 
 OpenGLWindow::OpenGLWindow(WGLWidget* pWidget)
         : m_pWidget(pWidget),
-          m_pTrackDropTarget(nullptr) {
+          m_pTrackDropTarget(nullptr),
+          m_pFrameDriver(nullptr) {
     setFormat(WaveformWidgetFactory::getSurfaceFormat());
 #ifdef __EMSCRIPTEN__
     // This is required to ensure that QOpenGLWindows have no minimum size (When
@@ -68,6 +70,15 @@ bool OpenGLWindow::event(QEvent* pEv) {
     const auto t = pEv->type();
 
     bool result = QOpenGLWindow::event(pEv);
+
+    if (t == QEvent::UpdateRequest && m_pFrameDriver) {
+        // VSyncThread::ST_DISPLAY_LINK: the platform display link (a
+        // CVDisplayLink inside the Cocoa plugin on macOS) has delivered the
+        // update request we asked for. This is the heartbeat of the waveform
+        // rendering. Do not forward it to the widget.
+        m_pFrameDriver->handleUpdateRequest();
+        return result;
+    }
 
     if (m_pWidget) {
         // Tooltip don't work by forwarding the events. This mimics the

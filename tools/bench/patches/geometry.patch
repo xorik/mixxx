@@ -1,0 +1,156 @@
+# geometry.patch
+#
+# STATUS: implemented and exercised - this is the mechanism the waveform
+# benchmark harness uses for every run, and the window has been observed landing
+# where it was told to, with the screen it landed on logged. Not a product
+# change: a temporary benchmark hook.
+#
+# MIXXX_BENCH_GEOMETRY=<W>x<H>[+<X>+<Y>] sets the main window geometry BEFORE
+# the window is first shown. Negative X is supported and necessary: a screen to
+# the left of the primary one starts at a negative x.
+#
+# Use this instead of writing [MainWindow] geometry into the config. That route
+# does not work: a blob written for one monitor was verified line by line and
+# the window still opened on another screen, because Qt's restoreGeometry()
+# silently rejects a rectangle it does not consider sane for the current virtual
+# desktop and gives no indication that it did.
+#
+# Applying it before the first show() also means the window never flashes across
+# another screen on its way, and that startup decisions which depend on the
+# screen - notably the refresh rate the vsync PLL locks onto - are made on the
+# screen the window will stay on.
+#
+# The hook logs 'BENCHHIT MIXXX_BENCH_GEOMETRY reason=... window=... screen=...
+# refreshHz=... dpr=...' plus one BENCHSCREENS line per screen. ALWAYS read the
+# coordinates to use from those BENCHSCREENS lines: the layout changes whenever
+# a monitor is plugged or unplugged, and stale coordinates either push the
+# window off the desktop or let Qt move it somewhere else.
+#
+# Independent of bench-hooks.patch, framerate-clamp.patch and telemetry.patch;
+# touches a different part of mixxxmainwindow.cpp than bench-hooks does.
+#
+# Applies to: clean main 9e670c1120.
+diff --git a/src/mixxxmainwindow.cpp b/src/mixxxmainwindow.cpp
+index d787a019d0..62d1cc4139 100644
+--- a/src/mixxxmainwindow.cpp
++++ b/src/mixxxmainwindow.cpp
+@@ -5,7 +5,11 @@
+ #include <QDebug>
+ #include <QFileDialog>
+ #include <QOpenGLContext>
++#include <QRegularExpression>
++#include <QScreen>
++#include <QTimer>
+ #include <QUrl>
++#include <QWindow>
+ 
+ #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+ #include <QGLFormat>
+@@ -69,6 +73,85 @@
+ #endif
+ 
+ namespace {
++
++// TEMPORARY BENCHMARK HOOK - not part of any product change.
++//
++// MIXXX_BENCH_GEOMETRY=<W>x<H>[+<X>+<Y>] places the main window before it is
++// shown for the first time. This is how an unattended benchmark parks Mixxx on
++// a display nobody is working on, without a single window-manipulating system
++// call and without AppleScript.
++//
++// Why an environment variable and not the [MainWindow] geometry key of the
++// config: that route does not work. A geometry blob written into the config for
++// one monitor was verified line by line and the window still opened on another
++// screen - Qt's restoreGeometry() silently rejects a rectangle it does not
++// consider sane for the current virtual desktop, and nothing says that it did.
++//
++// Coordinates are Qt virtual-desktop (logical) pixels and X may be NEGATIVE: a
++// screen placed left of the primary one starts at a negative x. Read the actual
++// layout from the BENCHSCREENS lines below rather than assuming it - it changes
++// whenever a monitor is plugged or unplugged.
++//
++// Applying the geometry BEFORE the first show() matters twice over: the window
++// never flashes across another screen on its way, and every per-screen decision
++// made at startup - notably the refresh rate the vsync PLL locks onto - is made
++// on the screen the window will stay on.
++bool benchApplyGeometry(QWidget* pWindow) {
++    const QByteArray benchGeom = qgetenv("MIXXX_BENCH_GEOMETRY");
++    if (benchGeom.isEmpty()) {
++        return false;
++    }
++    static const QRegularExpression geomRe(
++            QStringLiteral("^(\\d+)x(\\d+)(?:\\+(-?\\d+)\\+(-?\\d+))?$"));
++    const QRegularExpressionMatch m = geomRe.match(QString::fromLatin1(benchGeom).trimmed());
++    if (!m.hasMatch()) {
++        qWarning() << "BENCH: cannot parse MIXXX_BENCH_GEOMETRY" << benchGeom;
++        return false;
++    }
++    const int w = m.captured(1).toInt();
++    const int h = m.captured(2).toInt();
++    if (w <= 100 || h <= 100) {
++        qWarning() << "BENCH: implausible MIXXX_BENCH_GEOMETRY" << benchGeom;
++        return false;
++    }
++    if (m.captured(3).isNull()) {
++        pWindow->resize(w, h);
++    } else {
++        pWindow->setGeometry(m.captured(3).toInt(), m.captured(4).toInt(), w, h);
++    }
++    return true;
++}
++
++// Report where the window ended up, and the layout it was placed into. A run
++// that cannot show which screen it ran on - and at which refresh rate, since
++// that is the ceiling for every frame-rate figure - cannot be compared with any
++// other run.
++void benchLogScreen(QWidget* pWindow, const QString& reason) {
++    QScreen* pScreen = pWindow->windowHandle() ? pWindow->windowHandle()->screen() : nullptr;
++    if (!pScreen) {
++        pScreen = QGuiApplication::primaryScreen();
++    }
++    const QRect g = pWindow->frameGeometry();
++    const QList<QScreen*> screens = QGuiApplication::screens();
++    // screenCount uses the same field name as MIX-11's BENCHHIT MIXXX_WF_WINDOW
++    // line, so both projects' logs can be parsed by one piece of code.
++    qDebug().nospace() << "BENCHHIT MIXXX_BENCH_GEOMETRY reason=" << reason
++                       << " window=" << g.width() << "x" << g.height()
++                       << "+" << g.x() << "+" << g.y()
++                       << " screen=" << (pScreen ? pScreen->name() : QStringLiteral("?"))
++                       << " refreshHz=" << (pScreen ? pScreen->refreshRate() : 0.0)
++                       << " dpr=" << pWindow->devicePixelRatioF()
++                       << " screenCount=" << screens.size();
++    for (const QScreen* pS : screens) {
++        const QRect sg = pS->geometry();
++        qDebug().nospace() << "BENCHSCREENS name=" << pS->name()
++                           << " geometry=" << sg.width() << "x" << sg.height()
++                           << "+" << sg.x() << "+" << sg.y()
++                           << " refreshHz=" << pS->refreshRate()
++                           << " dpr=" << pS->devicePixelRatio();
++    }
++}
++
+ #ifdef __LINUX__
+ // Detect if the desktop supports a global menu to decide whether we need to rebuild
+ // and reconnect the menu bar when switching to/from fullscreen mode.
+@@ -145,8 +228,21 @@ MixxxMainWindow::MixxxMainWindow(std::shared_ptr<mixxx::CoreServices> pCoreServi
+     m_pCentralWidget = (QWidget*)m_pLaunchImage;
+     setCentralWidget(m_pCentralWidget);
+ 
++    // TEMPORARY BENCHMARK HOOK: place the window before it is shown at all.
++    const bool benchGeometryApplied = benchApplyGeometry(this);
++
+     show();
+ 
++    if (benchGeometryApplied) {
++        benchLogScreen(this, QStringLiteral("beforeSkin"));
++        // The skin resizes the window when it is loaded, so re-apply and report
++        // again once that has happened.
++        QTimer::singleShot(4000, this, [this]() {
++            benchApplyGeometry(this);
++            benchLogScreen(this, QStringLiteral("afterSkin"));
++        });
++    }
++
+     m_pGuiTick = new GuiTick();
+     m_pVisualsManager = new VisualsManager();
+ }

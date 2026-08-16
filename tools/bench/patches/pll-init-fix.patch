@@ -1,0 +1,142 @@
+# pll-init-fix.patch  (AS BUILT - reproduces the binary in /Applications)
+#
+# STATUS: fixes a real bug, BUT CONTAINS A DEFECT THAT CAN STOP THE WAVEFORMS
+# ENTIRELY. Use pll-init-fix-fixed.patch unless you specifically want to
+# reproduce that bundle.
+#
+# THE DEFECT, observed: waveforms are not drawn at all - background only, no
+# renderer output, and no "PLL locked to" line in the log. A delta rejected as
+# implausible returns before setting m_pllPendingUpdate, and runPLL() emits a
+# frame only when (!pllInitializing() || m_pllPendingUpdate). If the plausibility
+# check keeps rejecting, the lock never completes, no frame is ever emitted and
+# the waveform stays empty. There is also no way out of the check: if it never
+# accepts anything, the PLL stays in initialisation forever and the period keeps
+# the startup default regardless of the actual display.
+# This is not hypothetical on a modern Mac: a ProMotion panel reports its current
+# mode while the real interval floats between 24 and 120 Hz, and the system
+# lowers the rate when the window is inactive - so the +/-25% band around the
+# reported rate does not cover reality.
+#
+# What the patch does right: the PLL used to seed its lock from a running mean
+# that each sample was folded into before being compared against it, so the very
+# first delta was always accepted, including a short startup frame. Measured: 5
+# of 10 launches locked ~2% off and dropped ~15 frames/s for the whole session.
+# This replaces that with a plausibility check against the display's refresh
+# rate, the median instead of the mean, and snapping to the display interval
+# when within 2%.
+#
+# Known defect it also inherits: the refresh rate comes from the PRIMARY screen,
+# not the screen the window is on - see pll-drift-clamp-fixed.patch.
+#
+# Applies to: clean main 9e670c1120. Mutually exclusive with
+# pll-init-fix-fixed.patch. Apply BEFORE either drift-clamp patch.
+diff --git a/src/waveform/vsyncthread.cpp b/src/waveform/vsyncthread.cpp
+index 175435a261..ce43292dc0 100644
+--- a/src/waveform/vsyncthread.cpp
++++ b/src/waveform/vsyncthread.cpp
+@@ -1,5 +1,9 @@
+ #include "vsyncthread.h"
+ 
++#include <QGuiApplication>
++#include <QScreen>
++#include <algorithm>
++
+ #include "moc_vsyncthread.cpp"
+ #include "util/math.h"
+ #include "util/performancetimer.h"
+@@ -8,6 +12,17 @@ namespace {
+ 
+ constexpr int kNumStableDeltasRequired = 20;
+ 
++/// Frame interval of the display, in microseconds, or 0 if unknown. Used to
++/// tell a plausible frame interval from a startup artefact.
++double displayFrameIntervalMicros() {
++    const QScreen* pScreen = QGuiApplication::primaryScreen();
++    if (!pScreen) {
++        return 0.0;
++    }
++    const double hz = pScreen->refreshRate();
++    return hz > 1.0 ? 1e6 / hz : 0.0;
++}
++
+ VSyncThread::VSyncMode defaultVSyncMode() {
+ #ifdef __APPLE__
+     return VSyncThread::ST_PLL;
+@@ -304,22 +319,44 @@ void VSyncThread::updatePLL() {
+     const double pllPhaseIn = m_pllTimer.elapsed().toDoubleMicros();
+ 
+     if (m_pllInitCnt < kNumStableDeltasRequired) {
+-        // Before activating the phase-lock-looped, we need an initial
+-        // delta and phase, which we calculate by taking the average
+-        // delta over a number of stable deltas.
++        // Robust initialisation.
++        //
++        // The original code compared each delta against a running mean that the
++        // delta itself had just been folded into. For the first sample after a
++        // reset that difference is zero by construction, so ANY value was
++        // accepted as the seed; every following normal sample then landed
++        // within the +/-2000us tolerance of the mean the bad seed had dragged
++        // down. A single short startup frame therefore poisoned the lock:
++        // 4933 + 19*8333 over 20 samples = 8163us, i.e. 122.5Hz on a 120Hz
++        // display. Measured: 5 of 10 launches locked to ~8163us instead of
++        // 8333us and dropped ~15 frames/s for the whole session.
++        //
++        // Fix: discard implausible deltas up front using the refresh rate the
++        // display reports, take the median rather than the mean so a single
++        // outlier cannot shift the result, and snap to the display interval
++        // when we are close to it.
+         const double delta = pllPhaseIn - m_pllPhaseOut;
+         m_pllPhaseOut = pllPhaseIn;
+-        m_pllInitSum += delta;
+-        m_pllInitCnt++;
+-        m_pllInitAvg = m_pllInitSum / static_cast<double>(m_pllInitCnt);
+-        if (std::abs(delta - m_pllInitAvg) > 2000.0) {
+-            // The current delta is too different from the current
+-            // average so we reset the init process.
+-            m_pllInitSum = 0.0;
+-            m_pllInitCnt = 0;
++
++        const double expected = displayFrameIntervalMicros();
++        if (expected > 0.0 && std::abs(delta - expected) > expected * 0.25) {
++            // Not a plausible frame interval for this display; ignore it rather
++            // than letting it contribute to the estimate.
++            return;
+         }
++
++        m_pllInitDeltas.push_back(delta);
++        m_pllInitCnt = static_cast<int>(m_pllInitDeltas.size());
++
+         if (m_pllInitCnt == kNumStableDeltasRequired) {
+-            m_pllDeltaOut = m_pllInitAvg;
++            std::vector<double> sorted = m_pllInitDeltas;
++            std::sort(sorted.begin(), sorted.end());
++            const double median = sorted[sorted.size() / 2];
++            m_pllDeltaOut = (expected > 0.0 && std::abs(median - expected) < expected * 0.02)
++                    ? expected
++                    : median;
++            qDebug() << "VSyncThread: PLL locked to" << m_pllDeltaOut
++                     << "us (display reports" << expected << "us)";
+         }
+         return;
+     }
+diff --git a/src/waveform/vsyncthread.h b/src/waveform/vsyncthread.h
+index 7ff44dc5b1..fa79d1b5c5 100644
+--- a/src/waveform/vsyncthread.h
++++ b/src/waveform/vsyncthread.h
+@@ -4,6 +4,7 @@
+ #include <QSemaphore>
+ #include <QThread>
+ #include <mutex>
++#include <vector>
+ 
+ #include "util/performancetimer.h"
+ #include "waveform/isynctimeprovider.h"
+@@ -77,7 +78,7 @@ class VSyncThread : public QThread, public VSyncTimeProvider {
+     std::atomic<int> m_pllInitCnt;
+     std::atomic<bool> m_pllPendingUpdate;
+     double m_pllInitSum;
+-    double m_pllInitAvg;
++    std::vector<double> m_pllInitDeltas;
+     double m_pllPhaseOut;
+     double m_pllDeltaOut;
+     double m_pllLogging;

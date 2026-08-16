@@ -1,0 +1,46 @@
+# pll-drift-clamp.patch  (AS BUILT - the version inside /Applications/Mixxx alpha.app)
+#
+# STATUS: implemented and running in that bundle, but NOT confirmed by an A/B
+# measurement, and it CONTAINS A KNOWN DEFECT (see below). The hypothesis it
+# addresses is backed by data: on a 60 Hz panel the locked period drifted
+# 16667 -> 16558us over about three minutes while the phase error grew to
+# -7561us, costing roughly 5 fps and several dropped frames per second.
+#
+# What it does: after each loop-filter update, clamp the estimated period to
+# +/-1% of the interval the display reports.
+#
+# KNOWN DEFECT: the reference interval comes from the PRIMARY screen. If the
+# Mixxx window is on another screen with a different refresh rate - a 120 Hz
+# laptop panel next to a 60 Hz external primary, for example - this actively
+# pins the period to the WRONG screen's rate and caps the frame rate there.
+# Reproduced: a window on the 120 Hz built-in screen ran at 60 fps because of
+# this. Use pll-drift-clamp-fixed.patch instead unless you specifically want to
+# reproduce the bundle.
+#
+# Requires: pll-init-fix.patch applied first (it introduces the helper used
+# here). Mutually exclusive with pll-drift-clamp-fixed.patch.
+diff --git a/src/waveform/vsyncthread.cpp b/src/waveform/vsyncthread.cpp
+index ce43292dc0..461350aa4b 100644
+--- a/src/waveform/vsyncthread.cpp
++++ b/src/waveform/vsyncthread.cpp
+@@ -380,6 +380,20 @@ void VSyncThread::updatePLL() {
+     m_pllPhaseOut += alpha * pllPhaseError; // adjust phase
+     m_pllDeltaOut += beta * pllPhaseError;  // adjust delta
+ 
++    // Keep the estimated period near the interval the display actually reports.
++    // The loop filter has no anchor, so a persistent one-sided phase error
++    // slowly walks the period away from the truth: measured on a 60 Hz panel it
++    // drifted 16667 -> 16558us with the phase error growing to -7561us (nearly
++    // half a frame), costing ~5 fps and several dropped frames per second.
++    // Clamping to +/-1% keeps the loop free to track jitter while preventing it
++    // from settling on a period the display does not have.
++    const double expectedInterval = displayFrameIntervalMicros();
++    if (expectedInterval > 0.0) {
++        const double lo = expectedInterval * 0.99;
++        const double hi = expectedInterval * 1.01;
++        m_pllDeltaOut = std::clamp(m_pllDeltaOut, lo, hi);
++    }
++
+     if (pllPhaseIn > m_pllLogging) {
+         if (m_pllLogging == 0) {
+             m_pllLogging = pllPhaseIn;

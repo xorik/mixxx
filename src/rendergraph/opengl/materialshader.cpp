@@ -22,7 +22,11 @@ QByteArray loadShaderCodeFromFile(const QString& path) {
         return QByteArray();
     }
     QShader qsbShader = QShader::fromSerialized(file.readAll());
-    QShaderKey key(QShader::GlslShader, 120);
+    // TEMPORARY BENCHMARK HOOK: with a 4.1 Core context the ancient GLSL 120
+    // variant is rejected outright, so pick the 410 variant instead.
+    static const bool useCoreProfile =
+            !qEnvironmentVariableIsEmpty("MIXXX_BENCH_CORE_PROFILE");
+    QShaderKey key(QShader::GlslShader, useCoreProfile ? 410 : 120);
     return qsbShader.shader(key).shader();
 }
 #else

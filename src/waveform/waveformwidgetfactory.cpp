@@ -17,9 +17,14 @@
 
 #include <QOpenGLFunctions>
 #include <QRegularExpression>
+#include <QScreen>
 #include <QStringList>
 #include <QWidget>
+#include <QTimer>
 #include <QWindow>
+#include <algorithm>
+#include <cmath>
+#include <vector>
 
 #include "control/controlobject.h"
 #include "moc_waveformwidgetfactory.cpp"
@@ -27,6 +32,7 @@
 #include "util/math.h"
 #include "util/performancetimer.h"
 #include "util/timer.h"
+#include "waveform/displaylinkframedriver.h"
 #include "waveform/guitick.h"
 #include "waveform/sharedglcontext.h"
 #include "waveform/visualsmanager.h"
@@ -35,6 +41,7 @@
 #include "waveform/renderers/allshader/waveformrenderersignalbase.h"
 #include "waveform/widgets/allshader/waveformwidget.h"
 #include "waveform/widgets/glvsynctestwidget.h"
+#include "widget/openglwindow.h"
 #endif
 #include "waveform/widgets/emptywaveformwidget.h"
 #include "waveform/widgets/hsvwaveformwidget.h"
@@ -70,6 +77,87 @@ bool shouldRenderWaveform(WaveformWidgetAbstract* pWaveformWidget) {
 
     return glw->shouldRender();
 }
+
+// --- TEMPORARY BENCHMARK HOOK: proof that pixels were really drawn ---
+// A broken shader, an occluded surface or a renderer that silently draws
+// nothing still produces perfect frame-time telemetry, so the numbers of a run
+// mean nothing unless we can show that the waveform area really contains a
+// waveform. Screenshots cannot do this: screencapture needs the Screen
+// Recording permission and, without it, silently returns an all-black image.
+// Reading the pixels back inside the process needs no permission at all.
+//
+// MIXXX_BENCH_PIXELPROBE=<n>: probe every n rendered frames (1 = use the
+// default of roughly one second). Reported per deck: mean AND standard
+// deviation over the sampled block plus a checksum - the mean of an empty area
+// can coincide with the background, its spread cannot.
+//
+// glReadPixels stalls the CPU until the GPU has caught up, so a probing run is
+// NOT comparable with a normal one. This is why it is off unless asked for.
+void benchProbePixels(WaveformWidgetAbstract* pWaveformWidget) {
+    WGLWidget* pGlw = pWaveformWidget->getGLWidget();
+    if (pGlw == nullptr) {
+        return;
+    }
+    pGlw->makeCurrentIfNeeded();
+    QOpenGLContext* pContext = QOpenGLContext::currentContext();
+    if (pContext == nullptr) {
+        return;
+    }
+    const double dpr = static_cast<double>(pWaveformWidget->getDevicePixelRatio());
+    const int w = static_cast<int>(pWaveformWidget->getWidth() * dpr);
+    const int h = static_cast<int>(pWaveformWidget->getHeight() * dpr);
+    // A block in the middle of the widget: that is where the signal is drawn,
+    // and it is one readback instead of one per sample point.
+    const int bw = std::min(128, w);
+    const int bh = std::min(32, h);
+    if (bw < 4 || bh < 4) {
+        return;
+    }
+    const int x0 = (w - bw) / 2;
+    const int y0 = (h - bh) / 2;
+    std::vector<unsigned char> buf(static_cast<size_t>(bw) * static_cast<size_t>(bh) * 4);
+    // The frame is still in the back buffer; the swap happens after render().
+    pContext->functions()->glReadPixels(
+            x0, y0, bw, bh, GL_RGBA, GL_UNSIGNED_BYTE, buf.data());
+    pGlw->doneCurrent();
+
+    const int n = bw * bh;
+    double sum = 0.0;
+    double sumSq = 0.0;
+    unsigned int checksum = 2166136261u; // FNV-1a
+    for (int i = 0; i < n; ++i) {
+        const unsigned char r = buf[static_cast<size_t>(i) * 4];
+        const unsigned char g = buf[static_cast<size_t>(i) * 4 + 1];
+        const unsigned char b = buf[static_cast<size_t>(i) * 4 + 2];
+        const double lum = 0.299 * r + 0.587 * g + 0.114 * b;
+        sum += lum;
+        sumSq += lum * lum;
+        checksum = (checksum ^ r) * 16777619u;
+        checksum = (checksum ^ g) * 16777619u;
+        checksum = (checksum ^ b) * 16777619u;
+    }
+    const double mean = sum / n;
+    const double sd = std::sqrt(std::max(0.0, sumSq / n - mean * mean));
+    qDebug().nospace() << "BENCHPIXELS group=" << pWaveformWidget->getGroup()
+                       << " block=" << bw << "x" << bh << "+" << x0 << "+" << y0
+                       << " mean=" << QString::number(mean, 'f', 2)
+                       << " sd=" << QString::number(sd, 'f', 2)
+                       << " checksum=" << checksum;
+}
+
+// --- TEMPORARY PERF INSTRUMENTATION: per-frame phase accumulators (ms) ---
+// Summed over one reporting second, reported as mean-per-frame in WAVEPERF.
+double g_perfPreRenderMs = 0.0;
+double g_perfRenderMs = 0.0;
+double g_perfExtrasMs = 0.0;
+double g_perfSwapMs = 0.0;
+double g_perfDispatchMs = 0.0;   // queued-signal latency: emit -> slot entry
+double g_perfTickMs = 0.0;       // waveformUpdateTick: repaint of all other widgets
+double g_perfVisualsMs = 0.0;    // VisualsManager + GuiTick
+double g_perfUpdateMs = 0.0;     // update() on the shared-context window
+int g_perfEffectiveOptions = -1; // waveform_options the widgets were BUILT with
+int g_perfRenderedCount = 0;     // waveforms actually rendered this second
+int g_perfSwappedCount = 0;      // surfaces actually swapped this second
 
 const QRegularExpression openGLVersionRegex(QStringLiteral("^(\\d+)\\.(\\d+).*$"));
 
@@ -144,6 +232,7 @@ WaveformWidgetFactory::WaveformWidgetFactory()
           m_openGLShaderAvailable(false),
           m_beatGridAlpha(90),
           m_vsyncThread(nullptr),
+          m_pDisplayLinkFrameDriver(nullptr),
           m_pGuiTick(nullptr),
           m_pVisualsManager(nullptr),
           m_frameCnt(0),
@@ -375,6 +464,11 @@ WaveformWidgetFactory::WaveformWidgetFactory()
 }
 
 WaveformWidgetFactory::~WaveformWidgetFactory() {
+    if (m_pDisplayLinkFrameDriver) {
+        // Unregisters itself from the window (if that still exists).
+        delete m_pDisplayLinkFrameDriver;
+        m_pDisplayLinkFrameDriver = nullptr;
+    }
     if (m_vsyncThread) {
         delete m_vsyncThread;
     }
@@ -389,7 +483,11 @@ bool WaveformWidgetFactory::setConfig(UserSettingsPointer config) {
     bool ok = false;
 
     int frameRate = m_config->getValue(kFrameRateKey, m_frameRate);
-    m_frameRate = math_clamp(frameRate, 1, 120);
+    // Must match the limit in setFrameRate() and the spin box in
+    // dlgprefwaveformdlg.ui, both of which allow 240. Commit 122bcdc50a
+    // raised those two but missed this one, so any configured rate above 120
+    // was silently reduced on every start.
+    m_frameRate = math_clamp(frameRate, 1, 240);
 
     int endTime = m_config->getValueString(kEndOfTrackWarningKey).toInt(&ok);
     if (ok) {
@@ -519,6 +617,11 @@ void WaveformWidgetFactory::addVuMeter(WVuMeterBase* pVuMeter) {
 }
 
 void WaveformWidgetFactory::slotSkinLoaded() {
+#ifdef MIXXX_USE_QOPENGL
+    if (m_pDisplayLinkFrameDriver) {
+        tryReattachDisplayLink(30);
+    }
+#endif
     setWidgetTypeFromConfig();
 #if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0) && defined __WINDOWS__
     // This regenerates the waveforms twice because of a bug found on Windows
@@ -576,6 +679,9 @@ void WaveformWidgetFactory::setFrameRate(int frameRate) {
     }
     if (m_vsyncThread) {
         m_vsyncThread->setSyncIntervalTimeMicros(static_cast<int>(1e6 / m_frameRate));
+    }
+    if (m_pDisplayLinkFrameDriver) {
+        m_pDisplayLinkFrameDriver->setFrameRate(m_frameRate);
     }
 }
 
@@ -825,6 +931,24 @@ void WaveformWidgetFactory::renderSelf() {
     ScopedTimer t(QStringLiteral("WaveformWidgetFactory::render() %1waveforms"),
             static_cast<int>(m_waveformWidgetHolders.size()));
 
+    // --- TEMPORARY PERF INSTRUMENTATION (WAVEPERF) ---
+    // Records the wall-clock interval between consecutive render passes so we
+    // can report real frame-time percentiles, not just an averaged fps counter.
+    // Only active in --developer mode. Remove before any product change.
+    static PerformanceTimer s_perfFrameTimer;
+    static std::vector<double> s_perfIntervalsMs;
+    static bool s_perfStarted = false;
+    const bool perfEnabled = CmdlineArgs::Instance().getDeveloper();
+    if (perfEnabled) {
+        if (!s_perfStarted) {
+            s_perfFrameTimer.start();
+            s_perfStarted = true;
+        } else {
+            s_perfIntervalsMs.push_back(
+                    static_cast<double>(s_perfFrameTimer.restart().toIntegerMicros()) / 1000.0);
+        }
+    }
+
     if (!m_skipRender) {
         if (m_type) {   // no regular updates for an empty waveform
             // next rendered frame is displayed after next buffer swap and than after VSync
@@ -842,7 +966,11 @@ void WaveformWidgetFactory::renderSelf() {
                     continue;
                 }
                 // Calculate play position for the new Frame in following run
+                PerformanceTimer tPre;
+                tPre.start();
                 pWaveformWidget->preRender(m_vsyncThread);
+                g_perfPreRenderMs +=
+                        static_cast<double>(tPre.elapsed().toIntegerMicros()) / 1000.0;
             }
             //qDebug() << "prerender" << m_vsyncThread->elapsed();
 
@@ -856,36 +984,189 @@ void WaveformWidgetFactory::renderSelf() {
                 if (!shouldRenderWaveforms[static_cast<int>(i)]) {
                     continue;
                 }
+                PerformanceTimer tRen;
+                tRen.start();
+                ++g_perfRenderedCount;
                 pWaveformWidget->render();
+                g_perfRenderMs +=
+                        static_cast<double>(tRen.elapsed().toIntegerMicros()) / 1000.0;
                 //qDebug() << "render" << i << m_vsyncThread->elapsed();
+            }
+
+            // TEMPORARY BENCHMARK HOOK: see benchProbePixels() above. Runs
+            // after every waveform of this frame has been rendered and before
+            // the buffers are swapped, so it reads exactly the frame that is
+            // about to be shown, for every visible deck.
+            static const int probeSetting =
+                    qEnvironmentVariableIntValue("MIXXX_BENCH_PIXELPROBE");
+            if (probeSetting > 0) {
+                const int probeEvery = probeSetting > 1
+                        ? probeSetting
+                        : std::max(1, static_cast<int>(m_frameRate));
+                static int s_probeCountdown = 0;
+                static bool s_probeAnnounced = false;
+                if (!s_probeAnnounced) {
+                    s_probeAnnounced = true;
+                    qDebug().nospace() << "BENCHHIT MIXXX_BENCH_PIXELPROBE=" << probeSetting
+                                       << " probingEvery=" << probeEvery << " frames"
+                                       << " (frame times of this run are NOT comparable)";
+                }
+                if (--s_probeCountdown <= 0) {
+                    s_probeCountdown = probeEvery;
+                    for (decltype(m_waveformWidgetHolders)::size_type i = 0;
+                            i < m_waveformWidgetHolders.size();
+                            i++) {
+                        if (shouldRenderWaveforms[static_cast<int>(i)]) {
+                            benchProbePixels(m_waveformWidgetHolders[i].m_waveformWidget);
+                        }
+                    }
+                }
             }
         }
 
         // WSpinnys are also double-buffered WGLWidgets, like all the waveform
         // renderers. Render all the WSpinny widgets now.
+        PerformanceTimer tExtra;
+        tExtra.start();
         emit renderSpinnies(m_vsyncThread);
         // Same for WVuMeterGL. Note that we are either using WVuMeter or WVuMeterGL.
         // If we are using WVuMeter, this does nothing
         emit renderVuMeters(m_vsyncThread);
+        g_perfExtrasMs += static_cast<double>(tExtra.elapsed().toIntegerMicros()) / 1000.0;
 
         // Notify all other waveform-like widgets (e.g. WSpinny's) that they should
         // update.
-        //int t1 = m_vsyncThread->elapsed();
+        PerformanceTimer tTick;
+        tTick.start();
         emit waveformUpdateTick();
+        g_perfTickMs += static_cast<double>(tTick.elapsed().toIntegerMicros()) / 1000.0;
         //qDebug() << "emit" << m_vsyncThread->elapsed() - t1;
 
         m_frameCnt += 1.0f;
         mixxx::Duration timeCnt = m_time.elapsed();
         if (timeCnt > mixxx::Duration::fromSeconds(1)) {
             m_time.start();
+            const int perfFrames = static_cast<int>(m_frameCnt);
             m_frameCnt = m_frameCnt * 1000 / timeCnt.toIntegerMillis(); // latency correction
+            const double perfFps = m_frameCnt;
             emit waveformMeasured(m_frameCnt, m_vsyncThread->droppedFrames());
             m_frameCnt = 0.0;
+
+            // --- TEMPORARY PERF INSTRUMENTATION (WAVEPERF) ---
+            if (perfEnabled) {
+                static int s_perfLastDrops = 0;
+                const int drops = m_vsyncThread->droppedFrames();
+                auto& v = s_perfIntervalsMs;
+                double mean = 0.0, p50 = 0.0, p95 = 0.0, p99 = 0.0, maxMs = 0.0;
+                if (!v.empty()) {
+                    for (double x : v) {
+                        mean += x;
+                    }
+                    mean /= static_cast<double>(v.size());
+                    std::sort(v.begin(), v.end());
+                    const auto at = [&v](double q) {
+                        size_t i = static_cast<size_t>(q * static_cast<double>(v.size() - 1));
+                        return v[i];
+                    };
+                    p50 = at(0.50);
+                    p95 = at(0.95);
+                    p99 = at(0.99);
+                    maxMs = v.back();
+                }
+                // Widget geometry: frame cost must be normalised by the area
+                // actually rasterised, otherwise runs are not comparable and we
+                // cannot separate GPU fill rate from CPU/draw-call overhead.
+                int wfW = 0;
+                int wfH = 0;
+                double wfDpr = 0.0;
+                double totalDevicePx = 0.0;
+                for (const auto& holder : std::as_const(m_waveformWidgetHolders)) {
+                    const WaveformWidgetAbstract* pW = holder.m_waveformWidget;
+                    if (!pW) {
+                        continue;
+                    }
+                    const double dpr = static_cast<double>(pW->getDevicePixelRatio());
+                    totalDevicePx += static_cast<double>(pW->getWidth()) *
+                            static_cast<double>(pW->getHeight()) * dpr * dpr;
+                    wfW = pW->getWidth();
+                    wfH = pW->getHeight();
+                    wfDpr = dpr;
+                }
+
+                qDebug().nospace()
+                        << "WAVEPERF"
+                        << " frames=" << perfFrames
+                        << " fps=" << QString::number(perfFps, 'f', 1)
+                        << " samples=" << static_cast<int>(v.size())
+                        << " dropsTotal=" << drops
+                        << " dropsDelta=" << (drops - s_perfLastDrops)
+                        << " meanMs=" << QString::number(mean, 'f', 2)
+                        << " p50Ms=" << QString::number(p50, 'f', 2)
+                        << " p95Ms=" << QString::number(p95, 'f', 2)
+                        << " p99Ms=" << QString::number(p99, 'f', 2)
+                        << " maxMs=" << QString::number(maxMs, 'f', 2)
+                        << " widgets=" << static_cast<int>(m_waveformWidgetHolders.size())
+                        << " type=" << static_cast<int>(m_type)
+                        << " options=" << g_perfEffectiveOptions
+                        << " targetFps=" << m_frameRate
+                        << " wLogical=" << wfW
+                        << " hLogical=" << wfH
+                        << " dpr=" << QString::number(wfDpr, 'f', 2)
+                        << " totalDevicePx=" << static_cast<qint64>(totalDevicePx)
+                        // per-frame mean cost of each phase of the frame, in ms
+                        << " preRenderMs=" << QString::number(perfFrames > 0
+                                           ? g_perfPreRenderMs / perfFrames : 0.0, 'f', 3)
+                        << " renderMs=" << QString::number(perfFrames > 0
+                                           ? g_perfRenderMs / perfFrames : 0.0, 'f', 3)
+                        << " extrasMs=" << QString::number(perfFrames > 0
+                                           ? g_perfExtrasMs / perfFrames : 0.0, 'f', 3)
+                        << " swapMs=" << QString::number(perfFrames > 0
+                                           ? g_perfSwapMs / perfFrames : 0.0, 'f', 3)
+                        << " dispatchMs=" << QString::number(perfFrames > 0
+                                           ? g_perfDispatchMs / perfFrames : 0.0, 'f', 3)
+                        // surfaces actually touched per frame (visible decks),
+                        // as opposed to the number merely registered
+                        << " renderedPerFrame=" << QString::number(perfFrames > 0
+                                           ? static_cast<double>(g_perfRenderedCount) / perfFrames
+                                           : 0.0, 'f', 2)
+                        << " swappedPerFrame=" << QString::number(perfFrames > 0
+                                           ? static_cast<double>(g_perfSwappedCount) / perfFrames
+                                           : 0.0, 'f', 2)
+                        << " tickMs=" << QString::number(perfFrames > 0
+                                           ? g_perfTickMs / perfFrames : 0.0, 'f', 3)
+                        << " visualsMs=" << QString::number(perfFrames > 0
+                                           ? g_perfVisualsMs / perfFrames : 0.0, 'f', 3)
+                        << " updateMs=" << QString::number(perfFrames > 0
+                                           ? g_perfUpdateMs / perfFrames : 0.0, 'f', 3)
+                        // Renamed from the misleading "pllDeltaUs": this is
+                        // the sync interval that was ASKED for (1e6/FrameRate),
+                        // not the period the PLL settled on. The latter is
+                        // pllPeriodUs below.
+                        << " syncIntervalUs=" << static_cast<int>(
+                                   m_vsyncThread->getSyncInterval().count())
+                        << " pllPeriodUs=" << QString::number(
+                                   m_vsyncThread->pllPeriodMicros(), 'f', 1);
+                g_perfTickMs = 0.0;
+                g_perfVisualsMs = 0.0;
+                g_perfUpdateMs = 0.0;
+                g_perfDispatchMs = 0.0;
+                g_perfRenderedCount = 0;
+                g_perfSwappedCount = 0;
+                g_perfPreRenderMs = 0.0;
+                g_perfRenderMs = 0.0;
+                g_perfExtrasMs = 0.0;
+                g_perfSwapMs = 0.0;
+                s_perfLastDrops = drops;
+                v.clear();
+            }
         }
     }
 
+    PerformanceTimer tVis;
+    tVis.start();
     m_pVisualsManager->process(m_endOfTrackWarningTime);
     m_pGuiTick->process();
+    g_perfVisualsMs += static_cast<double>(tVis.elapsed().toIntegerMicros()) / 1000.0;
 
     //qDebug() << "refresh end" << m_vsyncThread->elapsed();
 }
@@ -916,9 +1197,21 @@ void WaveformWidgetFactory::swapSelf() {
                 }
                 WGLWidget* pGlw = pWaveformWidget->getGLWidget();
                 if (pGlw != nullptr) {
+                    PerformanceTimer tSwap;
+                    tSwap.start();
+                    ++g_perfSwappedCount;
                     pGlw->makeCurrentIfNeeded();
                     pGlw->swapBuffers();
-                    pGlw->doneCurrent();
+                    // TEMPORARY BENCHMARK HOOK: releasing the context after
+                    // every surface forces the next one to re-acquire it, and
+                    // each acquisition runs Apple's GL->Metal resource sync.
+                    static const bool skipDoneCurrent =
+                            !qEnvironmentVariableIsEmpty("MIXXX_BENCH_NO_DONECURRENT");
+                    if (!skipDoneCurrent) {
+                        pGlw->doneCurrent();
+                    }
+                    g_perfSwapMs +=
+                            static_cast<double>(tSwap.elapsed().toIntegerMicros()) / 1000.0;
                 }
                 //qDebug() << "swap x" << m_vsyncThread->elapsed();
             }
@@ -938,14 +1231,71 @@ void WaveformWidgetFactory::swap() {
 }
 
 void WaveformWidgetFactory::swapAndRender() {
+    // TEMPORARY INSTRUMENTATION: how long did this frame's signal wait in the
+    // GUI thread's event queue? Large values mean the main thread was busy with
+    // something else and the frame missed its vsync slot.
+    g_perfDispatchMs +=
+            static_cast<double>(m_vsyncThread->m_emitTimer.elapsed().toIntegerMicros()) / 1000.0;
+
     // used for PLL
+    PerformanceTimer tUpd;
+    tUpd.start();
     WGLWidget* widget = SharedGLContext::getWidget();
     widget->getOpenGLWindow()->update();
+    g_perfUpdateMs += static_cast<double>(tUpd.elapsed().toIntegerMicros()) / 1000.0;
 
     swapSelf();
     renderSelf();
 
     m_vsyncThread->vsyncSlotFinished();
+}
+
+void WaveformWidgetFactory::tryReattachDisplayLink(int attemptsLeft) {
+#ifdef MIXXX_USE_QOPENGL
+    if (!m_pDisplayLinkFrameDriver) {
+        return;
+    }
+    // The driver is created on the 3x3 shared-context helper window. In a
+    // normal window the compositor never serves update requests for it, so no
+    // frame is ever driven and the waveforms stay blank; only in full screen
+    // did it happen to work. Move the driver onto a real, exposed waveform
+    // window as soon as one exists.
+    //
+    // This must NOT be done from the frame callback: without a frame there is
+    // nothing to move it from, and without moving it there is no frame.
+    for (const auto& holder : std::as_const(m_waveformWidgetHolders)) {
+        WaveformWidgetAbstract* pWidget = holder.m_waveformWidget;
+        if (!pWidget) {
+            continue;
+        }
+        WGLWidget* pGlw = pWidget->getGLWidget();
+        if (pGlw && pGlw->getOpenGLWindow() && pGlw->shouldRender()) {
+            m_pDisplayLinkFrameDriver->reattachTo(pGlw->getOpenGLWindow());
+            return;
+        }
+    }
+    if (attemptsLeft > 0) {
+        // Windows are realised lazily in their show event; try again shortly.
+        QTimer::singleShot(100, this, [this, attemptsLeft]() {
+            tryReattachDisplayLink(attemptsLeft - 1);
+        });
+    } else {
+        qWarning() << "DisplayLinkFrameDriver: no exposed waveform window found,"
+                   << "frames stay on the shared-context window";
+    }
+#else
+    Q_UNUSED(attemptsLeft);
+#endif
+}
+
+void WaveformWidgetFactory::slotDisplayLinkFrame() {
+    // Same work as swapAndRender(), but without the cross thread semaphore
+    // handshake and without triggering a repaint of the shared GL window:
+    // the frame pacing comes from the platform display link
+    // (QWindow::requestUpdate()), which the DisplayLinkFrameDriver has already
+    // re-armed for the next frame.
+    swapSelf();
+    renderSelf();
 }
 
 void WaveformWidgetFactory::slotFrameSwapped() {
@@ -1207,6 +1557,12 @@ WaveformWidgetAbstract* WaveformWidgetFactory::createWaveformWidget(
         WaveformRendererSignalBase::Options options =
                 m_config->getValue(ConfigKey("[Waveform]", "waveform_options"),
                         WaveformRendererSignalBase::Option::None);
+        // TEMPORARY PERF INSTRUMENTATION: which renderer was really built. The
+        // option decides between the textured and the geometric signal
+        // renderer, i.e. between two different pieces of code, so a run whose
+        // options silently differ from the requested ones measures the wrong
+        // thing. Reported as options= in WAVEPERF.
+        g_perfEffectiveOptions = static_cast<int>(options);
 
         switch (type) {
         case WaveformWidgetType::Simple:
@@ -1258,9 +1614,33 @@ int WaveformWidgetFactory::findIndexOf(WWaveformViewer* viewer) const {
 
 void WaveformWidgetFactory::startVSync(
         GuiTick* pGuiTick, VisualsManager* pVisualsManager, bool useQML) {
-    const auto vSyncMode = useQML
+    auto vSyncMode = useQML
             ? VSyncThread::ST_TIMER
             : static_cast<VSyncThread::VSyncMode>(m_config->getValue(kVSyncKey, 0));
+
+#ifndef MIXXX_USE_QOPENGL
+    if (vSyncMode == VSyncThread::ST_DISPLAY_LINK) {
+        qWarning() << "VSync mode ST_DISPLAY_LINK requires the QOpenGLWindow "
+                      "based widgets, falling back to the default mode";
+        vSyncMode = VSyncThread::ST_DEFAULT;
+    }
+#else
+    OpenGLWindow* pDisplayLinkWindow = nullptr;
+    if (vSyncMode == VSyncThread::ST_DISPLAY_LINK) {
+        WGLWidget* pWidget = SharedGLContext::getWidget();
+        // Note: the OpenGLWindow of the shared GL widget is created lazily in
+        // its show event, which has already happened at this point (the
+        // initialization continues from WInitialGLWidget::onInitialized).
+        pDisplayLinkWindow = pWidget
+                ? qobject_cast<OpenGLWindow*>(pWidget->getOpenGLWindow())
+                : nullptr;
+        if (!pDisplayLinkWindow) {
+            qWarning() << "VSync mode ST_DISPLAY_LINK requires the shared GL "
+                          "window, falling back to the default mode";
+            vSyncMode = VSyncThread::ST_DEFAULT;
+        }
+    }
+#endif
 
     m_pGuiTick = pGuiTick;
     m_pVisualsManager = pVisualsManager;
@@ -1269,15 +1649,46 @@ void WaveformWidgetFactory::startVSync(
     m_vsyncThread->setSyncIntervalTimeMicros(static_cast<int>(1e6 / m_frameRate));
 
 #ifdef MIXXX_USE_QOPENGL
+    if (m_vsyncThread->vsyncMode() == VSyncThread::ST_DISPLAY_LINK) {
+        DEBUG_ASSERT(pDisplayLinkWindow);
+        WGLWidget* pWidget = SharedGLContext::getWidget();
+        // The window must be visible, otherwise the platform does not deliver
+        // update requests for it.
+        pWidget->show();
+        m_pDisplayLinkFrameDriver = new DisplayLinkFrameDriver(
+                pDisplayLinkWindow, m_vsyncThread, this);
+        m_pDisplayLinkFrameDriver->setFrameRate(m_frameRate);
+        connect(m_pDisplayLinkFrameDriver,
+                &DisplayLinkFrameDriver::frameDue,
+                this,
+                &WaveformWidgetFactory::slotDisplayLinkFrame);
+        m_pDisplayLinkFrameDriver->start();
+        // No VSyncThread is started in this mode: it only serves as the
+        // VSyncTimeProvider, fed by the driver.
+        return;
+    }
+
     if (m_vsyncThread->vsyncMode() == VSyncThread::ST_PLL) {
         WGLWidget* widget = SharedGLContext::getWidget();
         if (widget) {
-            connect(widget->getOpenGLWindow(),
+            QOpenGLWindow* pWindow = widget->getOpenGLWindow();
+            connect(pWindow,
                     &QOpenGLWindow::frameSwapped,
                     this,
                     &WaveformWidgetFactory::slotFrameSwapped,
                     Qt::DirectConnection);
             widget->show();
+            // The PLL must sanity-check itself against the screen this window
+            // is really on, not against the primary screen: with a 120 Hz
+            // panel next to a 60 Hz primary monitor, every true interval of
+            // the other screen looks implausible. Windows also move between
+            // monitors while Mixxx runs, so follow that too.
+            auto reportScreen = [this, pWindow]() {
+                const QScreen* pScreen = pWindow->screen();
+                m_vsyncThread->setDisplayRefreshRate(pScreen ? pScreen->refreshRate() : 0.0);
+            };
+            connect(pWindow, &QWindow::screenChanged, this, reportScreen);
+            reportScreen();
         }
     }
 #endif
@@ -1422,7 +1833,12 @@ QSurfaceFormat WaveformWidgetFactory::getSurfaceFormat(UserSettingsPointer pConf
 #if defined(__APPLE__)
     // On OS X, syncing to vsync has good performance FPS-wise and
     // eliminates tearing. (This is an comment from pre QOpenGLWindow times)
-    format.setSwapInterval(1);
+    //
+    // TEMPORARY BENCHMARK HOOK: MIXXX_BENCH_SWAP_INTERVAL=0 lifts the forced
+    // vsync so the raw throughput ceiling of the renderer can be measured.
+    // Without this, even VSyncThread::ST_FREE still blocks in swapBuffers.
+    const QByteArray benchSwapInterval = qgetenv("MIXXX_BENCH_SWAP_INTERVAL");
+    format.setSwapInterval(benchSwapInterval.isEmpty() ? 1 : benchSwapInterval.toInt());
     (void)vsyncMode;
 #else
     // It seems that on Windows (at least for some AMD drivers), the setting 1 is not
@@ -1430,8 +1846,33 @@ QSurfaceFormat WaveformWidgetFactory::getSurfaceFormat(UserSettingsPointer pConf
     // be with values >1 (see https://github.com/mixxxdj/mixxx/issues/11617)
     // Reported as https://bugreports.qt.io/browse/QTBUG-114882
     // On Linux, horrible FPS were seen with "VSync off" before switching to QOpenGLWindow too
-    format.setSwapInterval(vsyncMode == VSyncThread::ST_PLL ? 1 : 0);
+    // Note: ST_DISPLAY_LINK is handled like ST_PLL here. On macOS (where the
+    // swap interval is 1 anyway, see above) the Qt Cocoa plugin only serves
+    // QWindow::requestUpdate() from its CVDisplayLink if the surface format
+    // has a swap interval > 0 (QCocoaWindow::updatesWithDisplayLink()).
+    format.setSwapInterval(vsyncMode == VSyncThread::ST_PLL ||
+                            vsyncMode == VSyncThread::ST_DISPLAY_LINK
+                    ? 1
+                    : 0);
 #endif
+
+    // TEMPORARY BENCHMARK HOOK: MIXXX_BENCH_SWAP_BEHAVIOR=triple|double.
+    // Triple buffering lets the GPU keep working while a finished frame waits
+    // to be presented, which can hide a late frame instead of dropping it.
+    const QByteArray benchSwapBehavior = qgetenv("MIXXX_BENCH_SWAP_BEHAVIOR");
+    if (benchSwapBehavior == "triple") {
+        format.setSwapBehavior(QSurfaceFormat::TripleBuffer);
+    } else if (benchSwapBehavior == "double") {
+        format.setSwapBehavior(QSurfaceFormat::DoubleBuffer);
+    }
+
+    // TEMPORARY BENCHMARK HOOK: request a 4.1 Core context. Without this macOS
+    // hands out a legacy 2.1 NoProfile context, which is the slowest path
+    // through Apple's GL-on-Metal translation layer.
+    if (!qEnvironmentVariableIsEmpty("MIXXX_BENCH_CORE_PROFILE")) {
+        format.setProfile(QSurfaceFormat::CoreProfile);
+        format.setVersion(4, 1);
+    }
 
 #ifdef FORCE_GLES
     // Define FORCE_GLES to test GLES waveforms on a GLSL Hardware

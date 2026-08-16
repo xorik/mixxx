@@ -155,6 +155,8 @@ VSyncThread::VSyncMode upgradeDeprecatedVSyncModes(int configVSyncMode) {
             return VT::ST_TIMER;
         case VT::ST_PLL:
             return VT::ST_PLL;
+        case VT::ST_DISPLAY_LINK:
+            return VT::ST_DISPLAY_LINK;
         case VT::ST_COUNT:
             return VT::ST_DEFAULT;
         }

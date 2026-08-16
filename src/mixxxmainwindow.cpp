@@ -5,7 +5,12 @@
 #include <QDebug>
 #include <QFileDialog>
 #include <QOpenGLContext>
+#include <QRegularExpression>
+#include <QScreen>
+#include <QTimer>
 #include <QUrl>
+#include <QWindow>
+#include <algorithm>
 
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 #include <QGLFormat>
@@ -69,6 +74,67 @@
 #endif
 
 namespace {
+
+// TEMPORARY BENCHMARK HOOK: MIXXX_BENCH_GEOMETRY=<W>x<H>[+<X>+<Y>], negative
+// coordinates allowed (the built-in display sits left of the main one, at a
+// negative x). Applied twice: once before the window is first shown, so every
+// surface and the frame pacing start on the intended screen, and once after the
+// skin has been loaded, because loading it resizes the window.
+bool benchApplyGeometry(QWidget* pWindow) {
+    const QByteArray benchGeom = qgetenv("MIXXX_BENCH_GEOMETRY");
+    if (benchGeom.isEmpty()) {
+        return false;
+    }
+    static const QRegularExpression geomRe(
+            QStringLiteral("^(\\d+)x(\\d+)(?:\\+(-?\\d+)\\+(-?\\d+))?$"));
+    const QRegularExpressionMatch m = geomRe.match(QString::fromLatin1(benchGeom).trimmed());
+    if (!m.hasMatch()) {
+        qWarning() << "BENCH: cannot parse MIXXX_BENCH_GEOMETRY" << benchGeom;
+        return false;
+    }
+    const int w = m.captured(1).toInt();
+    const int h = m.captured(2).toInt();
+    if (w <= 100 || h <= 100) {
+        qWarning() << "BENCH: implausible MIXXX_BENCH_GEOMETRY" << benchGeom;
+        return false;
+    }
+    if (m.captured(3).isNull()) {
+        pWindow->resize(w, h);
+    } else {
+        pWindow->setGeometry(m.captured(3).toInt(), m.captured(4).toInt(), w, h);
+    }
+    return true;
+}
+
+// TEMPORARY BENCHMARK HOOK: report which screen the main window ended up on.
+// Every frame-rate figure of a run is capped by the refresh rate of that
+// screen, so a run whose screen is unknown cannot be compared with any other.
+void benchLogScreen(QWidget* pWindow, const QString& reason) {
+    QScreen* pScreen = pWindow->windowHandle() ? pWindow->windowHandle()->screen() : nullptr;
+    if (!pScreen) {
+        pScreen = QGuiApplication::primaryScreen();
+    }
+    const QRect g = pWindow->frameGeometry();
+    const QList<QScreen*> screens = QGuiApplication::screens();
+    // screenCount uses the same field name as MIX-11's BENCHHIT MIXXX_WF_WINDOW
+    // line, so both projects' logs can be parsed by one piece of code.
+    qDebug().nospace() << "BENCHSCREEN reason=" << reason
+                       << " window=" << g.width() << "x" << g.height()
+                       << "+" << g.x() << "+" << g.y()
+                       << " screen=" << (pScreen ? pScreen->name() : QStringLiteral("?"))
+                       << " refreshHz=" << (pScreen ? pScreen->refreshRate() : 0.0)
+                       << " dpr=" << pWindow->devicePixelRatioF()
+                       << " screenCount=" << screens.size();
+    for (const QScreen* pS : screens) {
+        const QRect sg = pS->geometry();
+        qDebug().nospace() << "BENCHSCREENS name=" << pS->name()
+                           << " geometry=" << sg.width() << "x" << sg.height()
+                           << "+" << sg.x() << "+" << sg.y()
+                           << " refreshHz=" << pS->refreshRate()
+                           << " dpr=" << pS->devicePixelRatio();
+    }
+}
+
 #ifdef __LINUX__
 // Detect if the desktop supports a global menu to decide whether we need to rebuild
 // and reconnect the menu bar when switching to/from fullscreen mode.
@@ -144,6 +210,13 @@ MixxxMainWindow::MixxxMainWindow(std::shared_ptr<mixxx::CoreServices> pCoreServi
     m_pLaunchImage = m_pSkinLoader->loadLaunchImage(this);
     m_pCentralWidget = (QWidget*)m_pLaunchImage;
     setCentralWidget(m_pCentralWidget);
+
+    // TEMPORARY BENCHMARK HOOK: place the window before it is shown for the
+    // first time. Doing it later is not enough: measured, the vsync PLL locks
+    // to the refresh rate of the screen the window started on (60 Hz) and never
+    // re-locks after the window is moved to the 120 Hz one, so the whole run is
+    // capped at 60 fps on a 120 Hz display.
+    benchApplyGeometry(this);
 
     show();
 
@@ -391,7 +464,13 @@ void MixxxMainWindow::initialize() {
     // that says "mixxx will barely work with no outs".
     // In case of persisting errors, the user has already received a message
     // above. So we can just check the output count here.
-    while (m_pCoreServices->getSoundManager()->getConfig().getOutputs().isEmpty()) {
+    // TEMPORARY BENCHMARK HOOK: with MIXXX_BENCH_NO_AUDIO=1 Mixxx starts with
+    // no audio output at all and without the blocking "No Output Devices"
+    // dialog, so the waveform performance harness can run unattended and can
+    // never produce sound. See tools/waveperf.sh.
+    const bool benchNoAudio = !qEnvironmentVariableIsEmpty("MIXXX_BENCH_NO_AUDIO");
+    while (!benchNoAudio &&
+            m_pCoreServices->getSoundManager()->getConfig().getOutputs().isEmpty()) {
         // Exit when we press the Exit button in the noSoundDlg dialog
         // only call it if result != OK
         bool continueClicked = false;
@@ -467,6 +546,53 @@ void MixxxMainWindow::initialize() {
         // because the sidebar is still in its initial state (top feature visible,
         // AutoDj is second from the top by default, all features collapsed).
         pLibrary->showAutoDJ();
+    }
+
+    // TEMPORARY BENCHMARK HOOK: MIXXX_BENCH_GEOMETRY=<W>x<H>[+<X>+<Y>] forces a
+    // precise main-window size and position. The size keeps runs comparable
+    // (the rasterised area is reported as totalDevicePx in the WAVEPERF
+    // telemetry); the position is how the harness parks the window on a display
+    // the user is not working on, without a single window-manipulating system
+    // call. Coordinates are in Qt virtual-desktop (logical) pixels; the screen
+    // the window actually landed on is logged, because the refresh rate of that
+    // screen is the ceiling for every frame-rate number of the run.
+    if (!qgetenv("MIXXX_BENCH_GEOMETRY").isEmpty()) {
+        QTimer::singleShot(2000, this, [this]() {
+            showNormal();
+            benchApplyGeometry(this);
+            benchLogScreen(this, QStringLiteral("geometry"));
+        });
+    }
+    if (!qEnvironmentVariableIsEmpty("MIXXX_BENCH_BACKGROUND")) {
+        // Same report for runs that do not move the window: which screen, at
+        // which refresh rate, was actually measured.
+        QTimer::singleShot(4000, this, [this]() {
+            benchLogScreen(this, QStringLiteral("startup"));
+        });
+    }
+
+    // TEMPORARY BENCHMARK HOOK: MIXXX_BENCH_AUTOPLAY=<seconds> silences every
+    // deck and the main output, then starts playback, so waveform performance
+    // can be measured while the waveforms actually scroll (which is when the
+    // renderer re-uploads waveform data) instead of on a frozen screen.
+    // Volumes are zeroed first, so nothing is ever audible.
+    const QByteArray benchAutoplay = qgetenv("MIXXX_BENCH_AUTOPLAY");
+    if (!benchAutoplay.isEmpty()) {
+        const int delayMs = std::max(1, benchAutoplay.toInt()) * 1000;
+        QTimer::singleShot(delayMs, this, []() {
+            // Only the channel volume faders are pulled down. Deliberately NOT
+            // pregain/gain: those scale the waveform itself, so zeroing them
+            // would flatten the drawn signal and make the measurement useless.
+            for (int i = 1; i <= 4; ++i) {
+                const QString group = QStringLiteral("[Channel%1]").arg(i);
+                ControlObject::set(ConfigKey(group, QStringLiteral("volume")), 0.0);
+            }
+            for (int i = 1; i <= 4; ++i) {
+                const QString group = QStringLiteral("[Channel%1]").arg(i);
+                ControlObject::set(ConfigKey(group, QStringLiteral("play")), 1.0);
+            }
+            qDebug() << "BENCH: deck faders at 0, playback started (gain untouched)";
+        });
     }
 }
 
