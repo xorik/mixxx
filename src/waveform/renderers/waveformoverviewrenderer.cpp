@@ -1,11 +1,54 @@
 #include "waveformoverviewrenderer.h"
 
 #include <QPainter>
+#include <QStringList>
 
 #include "util/colorcomponents.h"
 #include "util/math.h"
 #include "util/timer.h"
 #include "waveform/renderers/waveformsignalcolors.h"
+
+namespace {
+
+/// Balance between the three bands, applied to the colour only, never to the
+/// height. The same numbers as the Spectrum waveform of the deck uses: the
+/// formula that turns the three bands into a colour is the same here, so the
+/// bias of the mid band is the same too.
+///
+/// The colour smoothing of the deck is deliberately NOT carried over. One
+/// column of the overview is about 190 ms of audio (the summary is stored at
+/// about 5.3 columns per second against 441 in the deck), so it is already an
+/// average; the four bin window of the deck would be 760 ms here and would
+/// turn the picture into porridge.
+///
+/// Overridable as MIXXX_WF_BAND_GAIN_OVERVIEW="low,mid,high", separately from
+/// the deck: the overview normalizes each track to its own peak and the deck
+/// does not, so the two do not have to agree.
+struct BandColorGain {
+    float low;
+    float mid;
+    float high;
+};
+
+const BandColorGain& bandColorGain() {
+    static const BandColorGain value = []() -> BandColorGain {
+        const QStringList parts =
+                qEnvironmentVariable("MIXXX_WF_BAND_GAIN_OVERVIEW").split(QChar(','));
+        if (parts.size() == 3) {
+            bool okLow = false, okMid = false, okHigh = false;
+            const float low = parts.at(0).toFloat(&okLow);
+            const float mid = parts.at(1).toFloat(&okMid);
+            const float high = parts.at(2).toFloat(&okHigh);
+            if (okLow && okMid && okHigh) {
+                return {low, mid, high};
+            }
+        }
+        return {1.068f, 0.7f, 7.111f};
+    }();
+    return value;
+}
+
+} // namespace
 
 namespace waveformOverviewRenderer {
 
@@ -119,6 +162,10 @@ void drawWaveformPartRGB(
             mid = pWaveform->getMid(i) + pWaveform->getMid(i + 1);
             high = pWaveform->getHigh(i) + pWaveform->getHigh(i + 1);
 
+            low *= bandColorGain().low;
+            mid *= bandColorGain().mid;
+            high *= bandColorGain().high;
+
             red = low * lowColor_r + mid * midColor_r + high * highColor_r;
             green = low * lowColor_g + mid * midColor_g + high * highColor_g;
             blue = low * lowColor_b + mid * midColor_b + high * highColor_b;
@@ -141,6 +188,10 @@ void drawWaveformPartRGB(
             mid = pWaveform->getMid(i);
             high = pWaveform->getHigh(i);
 
+            low *= bandColorGain().low;
+            mid *= bandColorGain().mid;
+            high *= bandColorGain().high;
+
             red = low * lowColor_r + mid * midColor_r + high * highColor_r;
             green = low * lowColor_g + mid * midColor_g + high * highColor_g;
             blue = low * lowColor_b + mid * midColor_b + high * highColor_b;
@@ -160,6 +211,10 @@ void drawWaveformPartRGB(
             low = pWaveform->getLow(i + 1);
             mid = pWaveform->getMid(i + 1);
             high = pWaveform->getHigh(i + 1);
+
+            low *= bandColorGain().low;
+            mid *= bandColorGain().mid;
+            high *= bandColorGain().high;
 
             red = low * lowColor_r + mid * midColor_r + high * highColor_r;
             green = low * lowColor_g + mid * midColor_g + high * highColor_g;
