@@ -119,7 +119,7 @@ WaveformWidget::addWaveformSignalRenderer(WaveformWidgetType::Type type,
     if (options & ::WaveformRendererSignalBase::Option::HighDetail) {
         switch (type) {
         case ::WaveformWidgetType::RGB:
-        case ::WaveformWidgetType::Traktor:
+        case ::WaveformWidgetType::Spectrum:
         case ::WaveformWidgetType::Filtered:
         case ::WaveformWidgetType::Stacked:
             return addWaveformSignalRenderer<WaveformRendererTextured>(
@@ -134,7 +134,7 @@ WaveformWidget::addWaveformSignalRenderer(WaveformWidgetType::Type type,
     case ::WaveformWidgetType::Simple:
         return addWaveformSignalRenderer<WaveformRendererSimple>(options);
     case ::WaveformWidgetType::RGB:
-    case ::WaveformWidgetType::Traktor:
+    case ::WaveformWidgetType::Spectrum:
         // Without the HighDetail option there is no textured renderer, so the
         // Traktor style falls back to the geometry based RGB waveform.
         return addWaveformSignalRenderer<WaveformRendererRGB>(positionSource, options);

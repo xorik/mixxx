@@ -112,8 +112,8 @@ QString WaveformRendererTextured::fragShaderForType(::WaveformWidgetType::Type t
         return QStringLiteral(":/shaders/filteredsignal.frag");
     case ::WaveformWidgetType::RGB:
         return QStringLiteral(":/shaders/rgbsignal.frag");
-    case ::WaveformWidgetType::Traktor:
-        return QStringLiteral(":/shaders/traktorsignal.frag");
+    case ::WaveformWidgetType::Spectrum:
+        return QStringLiteral(":/shaders/spectrumsignal.frag");
     case ::WaveformWidgetType::Stacked:
         return QStringLiteral(":/shaders/stackedsignal.frag");
     default:
@@ -503,12 +503,12 @@ void WaveformRendererTextured::paintGL() {
         m_frameShaderProgram->setUniformValue("midGain", midGain);
         m_frameShaderProgram->setUniformValue("highGain", highGain);
 
-        if (m_type == ::WaveformWidgetType::RGB || m_type == ::WaveformWidgetType::Traktor) {
+        if (m_type == ::WaveformWidgetType::RGB || m_type == ::WaveformWidgetType::Spectrum) {
             m_frameShaderProgram->setUniformValue("splitStereoSignal",
                     m_options & ::WaveformRendererSignalBase::Option::SplitStereoSignal);
         }
 
-        if (m_type == ::WaveformWidgetType::Traktor) {
+        if (m_type == ::WaveformWidgetType::Spectrum) {
             m_frameShaderProgram->setUniformValue("colorSmoothBins", colorSmoothBins());
             // The shader works in frame buffer pixels, the tunable is in
             // device pixels.
@@ -544,7 +544,7 @@ void WaveformRendererTextured::paintGL() {
                             1.0));
         }
         if (m_type == ::WaveformWidgetType::RGB || m_type == ::WaveformWidgetType::Stacked ||
-                m_type == ::WaveformWidgetType::Traktor) {
+                m_type == ::WaveformWidgetType::Spectrum) {
             m_frameShaderProgram->setUniformValue("lowColor",
                     QVector4D(static_cast<GLfloat>(m_rgbLowColor_r),
                             static_cast<GLfloat>(m_rgbLowColor_g),

@@ -611,7 +611,7 @@ bool WaveformWidgetFactory::setWidgetType(
 
 bool WaveformWidgetFactory::widgetTypeSupportsUntilMark() const {
     switch (m_configType) {
-    case WaveformWidgetType::Traktor:
+    case WaveformWidgetType::Spectrum:
     case WaveformWidgetType::RGB:
     case WaveformWidgetType::Filtered:
     case WaveformWidgetType::Simple:
@@ -626,7 +626,7 @@ bool WaveformWidgetFactory::widgetTypeSupportsUntilMark() const {
 
 bool WaveformWidgetFactory::widgetTypeSupportsStems() const {
     switch (m_configType) {
-    case WaveformWidgetType::Traktor:
+    case WaveformWidgetType::Spectrum:
     case WaveformWidgetType::RGB:
     case WaveformWidgetType::Filtered:
     case WaveformWidgetType::Simple:
@@ -1080,7 +1080,7 @@ void WaveformWidgetFactory::evaluateWidgets() {
             addHandle(collectedHandles, type, waveformWidgetVars<HSVWaveformWidget>());
             break;
         case WaveformWidgetType::Stacked:
-        case WaveformWidgetType::Traktor:
+        case WaveformWidgetType::Spectrum:
 #ifdef MIXXX_USE_QOPENGL
             addHandle(collectedHandles, type, allshader::WaveformWidget::vars());
             supportedOptions[type] =
@@ -1163,7 +1163,7 @@ WaveformWidgetAbstract* WaveformWidgetFactory::createRGBWaveformWidget(
     }
 }
 
-WaveformWidgetAbstract* WaveformWidgetFactory::createTraktorWaveformWidget(
+WaveformWidgetAbstract* WaveformWidgetFactory::createSpectrumWaveformWidget(
         WWaveformViewer* viewer, WaveformRendererSignalBase::Options options) {
 #ifdef MIXXX_USE_QOPENGL
     WaveformWidgetBackend backend = getBackendFromConfig();
@@ -1243,8 +1243,8 @@ WaveformWidgetAbstract* WaveformWidgetFactory::createWaveformWidget(
         case WaveformWidgetType::Stacked:
             pWidget = createStackedWaveformWidget(pViewer, options);
             break;
-        case WaveformWidgetType::Traktor:
-            pWidget = createTraktorWaveformWidget(pViewer, options);
+        case WaveformWidgetType::Spectrum:
+            pWidget = createSpectrumWaveformWidget(pViewer, options);
             break;
         default:
             pWidget = new EmptyWaveformWidget(pViewer->getGroup(), pViewer);
@@ -1407,8 +1407,8 @@ QString WaveformWidgetAbstractHandle::getDisplayName(WaveformWidgetType::Type ty
         return QObject::tr("RGB");
     case WaveformWidgetType::Stacked:
         return QObject::tr("Stacked");
-    case WaveformWidgetType::Traktor:
-        return QObject::tr("RGB Traktor style");
+    case WaveformWidgetType::Spectrum:
+        return QObject::tr("Spectrum");
     default:
         return QObject::tr("Unknown");
     }

@@ -20,7 +20,7 @@ class WaveformWidgetType {
         // New types must be appended with a value that was never used by the
         // legacy numbering (see preferences/upgrade.cpp, which maps the old
         // ids up to 26), and existing values must not be renumbered.
-        Traktor = 30,  // 30 RGB, Traktor style (MIX-5 research)
+        Spectrum = 30, // 30 RGB with the colour model measured from Traktor
         Invalid,       // Don't use! Used to indicate invalid/unknown type, as
                        // Count_WaveformWidgetType used to.
     };
@@ -32,7 +32,7 @@ class WaveformWidgetType {
             WaveformWidgetType::VSyncTest,
             WaveformWidgetType::RGB,
             WaveformWidgetType::Stacked,
-            WaveformWidgetType::Traktor,
+            WaveformWidgetType::Spectrum,
     };
 };
 

@@ -1,6 +1,6 @@
-// Waveform in the style of Traktor Pro, measured from screenshots (see the
-// MIX-5 research). Structurally this is res/shaders/rgbsignal.frag with three
-// differences:
+// The "Spectrum" waveform: the colour model measured from screenshots of
+// Traktor Pro (see the MIX-5 research). Structurally this is
+// res/shaders/rgbsignal.frag with three differences:
 //   * the color of a column is read from a smoothed grid while the amplitude
 //     keeps the full detail (in Traktor the color comes from a precomputed
 //     coarse analysis, roughly 60 cells per second, stretched over the screen

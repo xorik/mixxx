@@ -365,7 +365,7 @@ class WaveformWidgetFactory : public QObject,
             WaveformRendererSignalBase::Options option);
     WaveformWidgetAbstract* createRGBWaveformWidget(WWaveformViewer* viewer,
             WaveformRendererSignalBase::Options option);
-    WaveformWidgetAbstract* createTraktorWaveformWidget(WWaveformViewer* viewer,
+    WaveformWidgetAbstract* createSpectrumWaveformWidget(WWaveformViewer* viewer,
             WaveformRendererSignalBase::Options options);
     WaveformWidgetAbstract* createStackedWaveformWidget(WWaveformViewer* viewer,
             WaveformRendererSignalBase::Options option);
