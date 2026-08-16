@@ -152,7 +152,24 @@ frontname() { # -> name of the frontmost application, or "?"
     echo "${name:-?}"
 }
 
+# Track count of the profile actually in use. A run against the wrong profile -
+# an old copy, an empty library - otherwise looks entirely normal, and the only
+# trace would be someone's memory of which path was passed.
+PROFILE_TRACKS=$(sqlite3 "$PROFILE/mixxxdb.sqlite" "select count(*) from library;" 2>/dev/null)
+[ -n "$PROFILE_TRACKS" ] || PROFILE_TRACKS="unknown (sqlite3 unavailable)"
+
 FRONT_BEFORE=$(frontname)
+
+# Preflight says what it checked, out loud. A check that prints nothing when it
+# passes cannot be told apart from a check that never ran - which has bitten this
+# project four times, from black screenshots to an empty "git status | grep".
+log "preflight OK"
+log "  binary   $BIN"
+log "           $(shasum -a 256 "$BIN" | cut -c1-16)  $(stat -f %Sm -t %FT%T "$BIN")"
+log "  profile  $PROFILE"
+log "           $PROFILE_TRACKS tracks in the library"
+log "  window   $GEOMETRY"
+log "  no other Mixxx running, front application is $FRONT_BEFORE"
 
 # ------------------------------------------------------- environment snapshot
 {
@@ -162,6 +179,7 @@ FRONT_BEFORE=$(frontname)
     echo "bin_mtime=$(stat -f %Sm -t %FT%T "$BIN")"
     echo "bin_sha256=$(shasum -a 256 "$BIN" | cut -d' ' -f1)"
     echo "profile=$PROFILE"
+    echo "profile_tracks=$PROFILE_TRACKS"
     echo "git_head=$(git -C "$ROOT" rev-parse HEAD 2>/dev/null)"
     echo "git_dirty_sha256=$(git -C "$ROOT" diff HEAD | shasum -a 256 | cut -d' ' -f1)"
     echo "measure_s=$MEASURE"

@@ -202,6 +202,30 @@ from the interval of the screen the window is on by more than 5%. Applied to the
 earlier acceptance run, this check catches it: locked to 16667 us on a 120 Hz
 screen.
 
+## How an A/B series is designed
+
+`series-pllwrap.sh` is the current series; the rules below are the ones worth
+keeping whatever is being compared.
+
+* **Long enough for the effect.** 90 s of measurement per run, because the drift
+  accumulates with *time*: on the live profile the period moved
+  16682.9 -> 16588.9 -> 16565.2 -> 16558.6 us over minutes. A 20 s run sees the
+  tail of that or nothing at all, and both arms then report the same number - the
+  classic way to "prove" there is no difference where there is one.
+* **Interleave the arms** (A, B, A, B, ...). Running one arm to completion and
+  then the other attributes any drift of the machine itself - thermals, other
+  load, the user arriving - to the change under test.
+* **One binary for the whole series**, its sha256 checked before every run. If it
+  changes, the series is void as a whole, not partially. Both arms therefore have
+  to be selectable at run time, which is what the `MIXXX_BENCH_*` switches are
+  for.
+* **A dropped run stays visible.** `series_report.py` prints it as EXCLUDED with
+  the reason; it is never silently replaced by a repeat.
+* **Decide the metric before the numbers arrive**, and in order: what the change
+  is supposed to affect first, the metric that distinguishes cause from symptom
+  second, the convenient headline number last. For the PLL work that order is
+  period, phase error, fps - with dropped frames as reference only.
+
 ## A check that says nothing has not passed
 
 An empty output is indistinguishable from a check that never ran. Over two days

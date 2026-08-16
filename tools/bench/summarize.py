@@ -326,6 +326,8 @@ def main(outdir):
         'single_screen': single_screen,
         'screen_count': screen_count,
         'screens_system': meta.get('screens_system', [None])[0],
+        'profile': meta.get('profile', [None])[0],
+        'profile_tracks': meta.get('profile_tracks', [None])[0],
         'gui_apps': [meta.get('gui_apps_before', [None])[0], meta.get('gui_apps_after', [None])[0]],
         'front_app': front_names,
         'front_samples': len(front),
@@ -334,6 +336,8 @@ def main(outdir):
         json.dump(summary, f, indent=2)
 
     print('--- %s [%s]' % (summary['label'], verdict))
+    print('    profile %s (%s tracks)' % (meta.get('profile', ['?'])[0],
+                                          meta.get('profile_tracks', ['?'])[0]))
     if rows:
         print('    fps %.1f (min %.1f)  frame %.2f ms  p95 %.2f  p99 %.2f  max %.2f  '
               'drops %d (worst second %d)  px %.0f'
