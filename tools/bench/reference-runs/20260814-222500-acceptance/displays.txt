@@ -1,0 +1,32 @@
+Graphics/Displays:
+
+    Apple M5 Pro:
+
+      Chipset Model: Apple M5 Pro
+      Type: GPU
+      Bus: Built-In
+      Total Number of Cores: 16
+      Vendor: Apple (0x106b)
+      Metal Support: Metal 4
+      Displays:
+        DELL U2518D:
+          Resolution: 4096 x 2304
+          UI Looks like: 2048 x 1152 @ 60.00Hz
+          Main Display: Yes
+          Mirror: Off
+          Online: Yes
+          Rotation: Supported
+        Color LCD:
+          Display Type: Built-in Liquid Retina XDR Display
+          Resolution: 3024 x 1964 Retina
+          Mirror: Off
+          Online: Yes
+          Automatically Adjust Brightness: No
+          Connection Type: Internal
+        DELL U2417H:
+          Resolution: 3840 x 2160 (2160p/4K UHD 1 - Ultra High Definition)
+          UI Looks like: 1920 x 1080 @ 60.00Hz
+          Mirror: Off
+          Online: Yes
+          Rotation: Supported
+

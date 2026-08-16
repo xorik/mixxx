@@ -1,0 +1,69 @@
+{
+  "outdir": "/tmp/waveperf/20260814-222500-acceptance",
+  "label": "acceptance",
+  "verdict": "INVALID",
+  "fails": [
+    "the PLL locked to 16667 us but the screen it is on runs at 120 Hz (8333 us): the run is synchronised to something else"
+  ],
+  "warns": [
+    "this build does not report the effective renderer options"
+  ],
+  "metrics": {
+    "seconds": 17,
+    "fps_mean": 60.34117647058823,
+    "fps_min": 58.2,
+    "frame_ms_mean": 16.584705882352946,
+    "frame_ms_p50": 16.521176470588234,
+    "frame_ms_p95": 18.96294117647059,
+    "frame_ms_p99": 21.867058823529405,
+    "frame_ms_max": 35.08,
+    "drops_total": 8.0,
+    "drops_worst_second": 3.0,
+    "device_px": 920666.0,
+    "widgets": 4.0,
+    "waveform_type": 16.0,
+    "target_fps": 120.0,
+    "audio_outputs": 0,
+    "renderer_options": null,
+    "pll_locked_us": 16666.7,
+    "pll_display_us": 16666.7,
+    "pll_cross_check_gave_up": false,
+    "profile_version": "2.7.0-alpha",
+    "screen": "Built-in Retina Display",
+    "screen_refresh_hz": 120.0,
+    "window": "1400x932+-1460+118",
+    "dpr": 2.0
+  },
+  "flags": {},
+  "screen_layout": [
+    {
+      "name": "Built-in Retina Display",
+      "geometry": "1512x982+-1512+107",
+      "refresh_hz": 120.0,
+      "dpr": 2.0
+    },
+    {
+      "name": "DELL U2417H",
+      "geometry": "1920x1080+2048+0",
+      "refresh_hz": 60.0,
+      "dpr": 2.0
+    },
+    {
+      "name": "DELL U2518D",
+      "geometry": "2048x1152+0+0",
+      "refresh_hz": 60.0,
+      "dpr": 2.0
+    }
+  ],
+  "single_screen": false,
+  "screen_count": 3,
+  "screens_system": null,
+  "gui_apps": [
+    null,
+    null
+  ],
+  "front_app": [
+    "Firefox"
+  ],
+  "front_samples": 58
+}

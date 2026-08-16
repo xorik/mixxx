@@ -1,0 +1,1136 @@
+
+[Auto DJ]
+EnableRandomQueue 0
+EnableRandomQueueBuff 0
+IgnoreTime 23:59:00
+MinimumAvailable 20
+RandomQueueMinimumAllowed 5
+Requeue 0
+Transition 10
+UseIgnoreTime 0
+UseIgnoreTimeBuff 0
+center_xfader_when_disabling 0
+
+[Auxiliary1]
+orientation 1
+
+[Auxiliary2]
+orientation 1
+
+[Auxiliary3]
+orientation 1
+
+[Auxiliary4]
+orientation 1
+
+[BPM]
+BPMDetectionEnabled 1
+BeatDetectionFixedTempoAssumption 1
+FastAnalysisEnabled 0
+ReanalyzeImported 0
+ReanalyzeWhenSettingsChange 0
+stem_strategy 0
+sync_lock_algorithm 0
+
+[Channel1]
+keylock 0
+loop_anchor 0
+orientation 0
+quantize 1
+vinylcontrol_cueing 0
+vinylcontrol_enabled 0
+vinylcontrol_lead_in_time 0
+vinylcontrol_mode 1
+vinylcontrol_pitch_estimator_type Kalman filter (accurate)
+vinylcontrol_scratching 0
+vinylcontrol_signal_enabled 1
+vinylcontrol_speed_type 33.3 RPM
+vinylcontrol_vinyl_type Serato CV02 Vinyl, Side A
+vinylcontrol_wantenabled 0
+
+[Channel2]
+keylock 0
+loop_anchor 0
+orientation 2
+quantize 1
+vinylcontrol_cueing 0
+vinylcontrol_enabled 0
+vinylcontrol_lead_in_time 0
+vinylcontrol_mode 1
+vinylcontrol_pitch_estimator_type Kalman filter (accurate)
+vinylcontrol_scratching 0
+vinylcontrol_signal_enabled 1
+vinylcontrol_speed_type 33.3 RPM
+vinylcontrol_vinyl_type Serato CV02 Vinyl, Side A
+vinylcontrol_wantenabled 0
+
+[Channel3]
+keylock 0
+loop_anchor 0
+orientation 0
+quantize 1
+vinylcontrol_cueing 0
+vinylcontrol_enabled 0
+vinylcontrol_lead_in_time 0
+vinylcontrol_mode 1
+vinylcontrol_pitch_estimator_type Kalman filter (accurate)
+vinylcontrol_scratching 0
+vinylcontrol_signal_enabled 1
+vinylcontrol_speed_type 33.3 RPM
+vinylcontrol_vinyl_type Serato CV02 Vinyl, Side A
+vinylcontrol_wantenabled 0
+
+[Channel4]
+keylock 0
+loop_anchor 0
+orientation 2
+quantize 0
+vinylcontrol_cueing 0
+vinylcontrol_enabled 0
+vinylcontrol_lead_in_time 0
+vinylcontrol_mode 1
+vinylcontrol_pitch_estimator_type Kalman filter (accurate)
+vinylcontrol_scratching 0
+vinylcontrol_signal_enabled 1
+vinylcontrol_speed_type 33.3 RPM
+vinylcontrol_vinyl_type Serato CV02 Vinyl, Side A
+vinylcontrol_wantenabled 0
+
+[Config]
+HotcueColorPalette Mixxx Hotcue Colors
+InhibitScreensaver 1
+KeyColorPalette Mixxx Key Colors
+Locale en_US
+Path /Applications/mixxx.app/Contents/Resources/
+ResizableSkin LateNight
+ScaleFactor 1
+ScaleFactorAuto 0
+Scheme PaleMoon
+StartInFullscreen 0
+TrackColorPalette Traktor Pro Track Colors
+Version 2.7.0-alpha
+hide_menubar 1
+key_colors_enabled 2
+
+[ControllerPreset]
+Launchkey_Mini_MK3_DAW_Port /Users/andreysmelov/Library/Containers/org.mixxx.mixxx/Data/Library/Application Support/Mixxx/controllers/launch-component.midi.xml
+Launchkey_Mini_MK3_MIDI_Port /Users/andreysmelov/Library/Containers/org.mixxx.mixxx/Data/Library/Application Support/Mixxx/controllers/launch-midi.midi.xml
+PIONEER_DDJ-WeGO /Users/gsgemployee/Library/Containers/org.mixxx.mixxx/Data/Library/Application Support/Mixxx/controllers/Pioneer-DDJWego.midi.xml
+
+[Controller]
+Launchkey_Mini_MK3_DAW_Port 1
+Launchkey_Mini_MK3_MIDI_Port 1
+PIONEER_DDJ-WeGO 1
+
+[Controls]
+AllowTrackLoadToPlayingDeck 0
+CloneDeckOnLoadDoubleTap 1
+CueDefault 0
+CueRecall 3
+HotcueDefaultColorIndex -1
+LoadWhenDeckPlaying 0
+LoopDefaultColorIndex -1
+PositionDisplay 0
+RateDir 0
+RatePermLeft 0.5
+RatePermRight 0.02
+RateRamp 0
+RateRampSensitivity 250
+RateRangePercent 8
+RateTempLeft 1
+RateTempRight 0.5
+SetIntroStartAtMainCue 1
+SpeedAutoReset 1
+TimeFormat 0
+Tooltips 2
+auto_hotcue_colors 1
+auto_jump_colors 0
+auto_loop_colors 1
+jump_default_color_index 6
+keylockMode 0
+keyunlockMode 0
+
+[EffectRack1]
+show 1
+
+[EffectRack1_EffectUnit1]
+focused_effect 0
+group_[Auxiliary1]_enable 0
+group_[Auxiliary2]_enable 0
+group_[Auxiliary3]_enable 0
+group_[Auxiliary4]_enable 0
+group_[BusCenter]_enable 0
+group_[BusLeft]_enable 0
+group_[BusRight]_enable 0
+group_[BusTalkover]_enable 0
+group_[Channel1]_enable 1
+group_[Channel1_Stem1]_enable 0
+group_[Channel1_Stem2]_enable 0
+group_[Channel1_Stem3]_enable 0
+group_[Channel1_Stem4]_enable 0
+group_[Channel2]_enable 0
+group_[Channel2_Stem1]_enable 0
+group_[Channel2_Stem2]_enable 0
+group_[Channel2_Stem3]_enable 0
+group_[Channel2_Stem4]_enable 0
+group_[Channel3]_enable 0
+group_[Channel3_Stem1]_enable 0
+group_[Channel3_Stem2]_enable 0
+group_[Channel3_Stem3]_enable 0
+group_[Channel3_Stem4]_enable 0
+group_[Channel4]_enable 0
+group_[Channel4_Stem1]_enable 0
+group_[Channel4_Stem2]_enable 0
+group_[Channel4_Stem3]_enable 0
+group_[Channel4_Stem4]_enable 0
+group_[Headphone]_enable 0
+group_[MasterOutput]_enable 0
+group_[Master]_enable 0
+group_[Microphone2]_enable 0
+group_[Microphone3]_enable 0
+group_[Microphone4]_enable 0
+group_[Microphone]_enable 0
+group_[PreviewDeck1]_enable 0
+group_[Sampler10]_enable 0
+group_[Sampler11]_enable 0
+group_[Sampler12]_enable 0
+group_[Sampler13]_enable 0
+group_[Sampler14]_enable 0
+group_[Sampler15]_enable 0
+group_[Sampler16]_enable 0
+group_[Sampler17]_enable 0
+group_[Sampler18]_enable 0
+group_[Sampler19]_enable 0
+group_[Sampler1]_enable 0
+group_[Sampler20]_enable 0
+group_[Sampler21]_enable 0
+group_[Sampler22]_enable 0
+group_[Sampler23]_enable 0
+group_[Sampler24]_enable 0
+group_[Sampler25]_enable 0
+group_[Sampler26]_enable 0
+group_[Sampler27]_enable 0
+group_[Sampler28]_enable 0
+group_[Sampler29]_enable 0
+group_[Sampler2]_enable 0
+group_[Sampler30]_enable 0
+group_[Sampler31]_enable 0
+group_[Sampler32]_enable 0
+group_[Sampler3]_enable 0
+group_[Sampler4]_enable 0
+group_[Sampler5]_enable 0
+group_[Sampler6]_enable 0
+group_[Sampler7]_enable 0
+group_[Sampler8]_enable 0
+group_[Sampler9]_enable 0
+mix 1
+show_parameters 0
+
+[EffectRack1_EffectUnit2]
+focused_effect 0
+group_[Auxiliary1]_enable 0
+group_[Auxiliary2]_enable 0
+group_[Auxiliary3]_enable 0
+group_[Auxiliary4]_enable 0
+group_[BusCenter]_enable 0
+group_[BusLeft]_enable 0
+group_[BusRight]_enable 0
+group_[BusTalkover]_enable 0
+group_[Channel1]_enable 0
+group_[Channel1_Stem1]_enable 0
+group_[Channel1_Stem2]_enable 0
+group_[Channel1_Stem3]_enable 0
+group_[Channel1_Stem4]_enable 0
+group_[Channel2]_enable 1
+group_[Channel2_Stem1]_enable 0
+group_[Channel2_Stem2]_enable 0
+group_[Channel2_Stem3]_enable 0
+group_[Channel2_Stem4]_enable 0
+group_[Channel3]_enable 0
+group_[Channel3_Stem1]_enable 0
+group_[Channel3_Stem2]_enable 0
+group_[Channel3_Stem3]_enable 0
+group_[Channel3_Stem4]_enable 0
+group_[Channel4]_enable 0
+group_[Channel4_Stem1]_enable 0
+group_[Channel4_Stem2]_enable 0
+group_[Channel4_Stem3]_enable 0
+group_[Channel4_Stem4]_enable 0
+group_[Headphone]_enable 0
+group_[MasterOutput]_enable 0
+group_[Master]_enable 0
+group_[Microphone2]_enable 0
+group_[Microphone3]_enable 0
+group_[Microphone4]_enable 0
+group_[Microphone]_enable 0
+group_[PreviewDeck1]_enable 0
+group_[Sampler10]_enable 0
+group_[Sampler11]_enable 0
+group_[Sampler12]_enable 0
+group_[Sampler13]_enable 0
+group_[Sampler14]_enable 0
+group_[Sampler15]_enable 0
+group_[Sampler16]_enable 0
+group_[Sampler17]_enable 0
+group_[Sampler18]_enable 0
+group_[Sampler19]_enable 0
+group_[Sampler1]_enable 0
+group_[Sampler20]_enable 0
+group_[Sampler21]_enable 0
+group_[Sampler22]_enable 0
+group_[Sampler23]_enable 0
+group_[Sampler24]_enable 0
+group_[Sampler25]_enable 0
+group_[Sampler26]_enable 0
+group_[Sampler27]_enable 0
+group_[Sampler28]_enable 0
+group_[Sampler29]_enable 0
+group_[Sampler2]_enable 0
+group_[Sampler30]_enable 0
+group_[Sampler31]_enable 0
+group_[Sampler32]_enable 0
+group_[Sampler3]_enable 0
+group_[Sampler4]_enable 0
+group_[Sampler5]_enable 0
+group_[Sampler6]_enable 0
+group_[Sampler7]_enable 0
+group_[Sampler8]_enable 0
+group_[Sampler9]_enable 0
+mix 1
+show_parameters 0
+
+[EffectRack1_EffectUnit3]
+focused_effect 0
+group_[Auxiliary1]_enable 0
+group_[Auxiliary2]_enable 0
+group_[Auxiliary3]_enable 0
+group_[Auxiliary4]_enable 0
+group_[BusCenter]_enable 0
+group_[BusLeft]_enable 0
+group_[BusRight]_enable 0
+group_[BusTalkover]_enable 0
+group_[Channel1]_enable 0
+group_[Channel1_Stem1]_enable 0
+group_[Channel1_Stem2]_enable 0
+group_[Channel1_Stem3]_enable 0
+group_[Channel1_Stem4]_enable 0
+group_[Channel2]_enable 0
+group_[Channel2_Stem1]_enable 0
+group_[Channel2_Stem2]_enable 0
+group_[Channel2_Stem3]_enable 0
+group_[Channel2_Stem4]_enable 0
+group_[Channel3]_enable 1
+group_[Channel3_Stem1]_enable 0
+group_[Channel3_Stem2]_enable 0
+group_[Channel3_Stem3]_enable 0
+group_[Channel3_Stem4]_enable 0
+group_[Channel4]_enable 0
+group_[Channel4_Stem1]_enable 0
+group_[Channel4_Stem2]_enable 0
+group_[Channel4_Stem3]_enable 0
+group_[Channel4_Stem4]_enable 0
+group_[Headphone]_enable 0
+group_[MasterOutput]_enable 0
+group_[Master]_enable 0
+group_[Microphone2]_enable 0
+group_[Microphone3]_enable 0
+group_[Microphone4]_enable 0
+group_[Microphone]_enable 0
+group_[PreviewDeck1]_enable 0
+group_[Sampler10]_enable 0
+group_[Sampler11]_enable 0
+group_[Sampler12]_enable 0
+group_[Sampler13]_enable 0
+group_[Sampler14]_enable 0
+group_[Sampler15]_enable 0
+group_[Sampler16]_enable 0
+group_[Sampler17]_enable 0
+group_[Sampler18]_enable 0
+group_[Sampler19]_enable 0
+group_[Sampler1]_enable 0
+group_[Sampler20]_enable 0
+group_[Sampler21]_enable 0
+group_[Sampler22]_enable 0
+group_[Sampler23]_enable 0
+group_[Sampler24]_enable 0
+group_[Sampler25]_enable 0
+group_[Sampler26]_enable 0
+group_[Sampler27]_enable 0
+group_[Sampler28]_enable 0
+group_[Sampler29]_enable 0
+group_[Sampler2]_enable 0
+group_[Sampler30]_enable 0
+group_[Sampler31]_enable 0
+group_[Sampler32]_enable 0
+group_[Sampler3]_enable 0
+group_[Sampler4]_enable 0
+group_[Sampler5]_enable 0
+group_[Sampler6]_enable 0
+group_[Sampler7]_enable 0
+group_[Sampler8]_enable 0
+group_[Sampler9]_enable 0
+mix 0
+show_parameters 0
+
+[EffectRack1_EffectUnit4]
+focused_effect 0
+group_[Auxiliary1]_enable 0
+group_[Auxiliary2]_enable 0
+group_[Auxiliary3]_enable 0
+group_[Auxiliary4]_enable 0
+group_[BusCenter]_enable 0
+group_[BusLeft]_enable 0
+group_[BusRight]_enable 0
+group_[BusTalkover]_enable 0
+group_[Channel1]_enable 0
+group_[Channel1_Stem1]_enable 0
+group_[Channel1_Stem2]_enable 0
+group_[Channel1_Stem3]_enable 0
+group_[Channel1_Stem4]_enable 0
+group_[Channel2]_enable 0
+group_[Channel2_Stem1]_enable 0
+group_[Channel2_Stem2]_enable 0
+group_[Channel2_Stem3]_enable 0
+group_[Channel2_Stem4]_enable 0
+group_[Channel3]_enable 0
+group_[Channel3_Stem1]_enable 0
+group_[Channel3_Stem2]_enable 0
+group_[Channel3_Stem3]_enable 0
+group_[Channel3_Stem4]_enable 0
+group_[Channel4]_enable 1
+group_[Channel4_Stem1]_enable 0
+group_[Channel4_Stem2]_enable 0
+group_[Channel4_Stem3]_enable 0
+group_[Channel4_Stem4]_enable 0
+group_[Headphone]_enable 0
+group_[MasterOutput]_enable 0
+group_[Master]_enable 0
+group_[Microphone2]_enable 0
+group_[Microphone3]_enable 0
+group_[Microphone4]_enable 0
+group_[Microphone]_enable 0
+group_[PreviewDeck1]_enable 0
+group_[Sampler10]_enable 0
+group_[Sampler11]_enable 0
+group_[Sampler12]_enable 0
+group_[Sampler13]_enable 0
+group_[Sampler14]_enable 0
+group_[Sampler15]_enable 0
+group_[Sampler16]_enable 0
+group_[Sampler17]_enable 0
+group_[Sampler18]_enable 0
+group_[Sampler19]_enable 0
+group_[Sampler1]_enable 0
+group_[Sampler20]_enable 0
+group_[Sampler21]_enable 0
+group_[Sampler22]_enable 0
+group_[Sampler23]_enable 0
+group_[Sampler24]_enable 0
+group_[Sampler25]_enable 0
+group_[Sampler26]_enable 0
+group_[Sampler27]_enable 0
+group_[Sampler28]_enable 0
+group_[Sampler29]_enable 0
+group_[Sampler2]_enable 0
+group_[Sampler30]_enable 0
+group_[Sampler31]_enable 0
+group_[Sampler32]_enable 0
+group_[Sampler3]_enable 0
+group_[Sampler4]_enable 0
+group_[Sampler5]_enable 0
+group_[Sampler6]_enable 0
+group_[Sampler7]_enable 0
+group_[Sampler8]_enable 0
+group_[Sampler9]_enable 0
+mix 0
+show_parameters 0
+
+[Effects]
+AdoptMetaknobValue 1
+
+[EqualizerRack1_[Channel1]]
+focused_effect 0
+group_[Channel1]_enable 1
+mix 1
+show_parameters 0
+
+[EqualizerRack1_[Channel2]]
+focused_effect 0
+group_[Channel2]_enable 1
+mix 1
+show_parameters 0
+
+[EqualizerRack1_[Channel3]]
+focused_effect 0
+group_[Channel3]_enable 1
+mix 1
+show_parameters 0
+
+[EqualizerRack1_[Channel4]]
+focused_effect 0
+group_[Channel4]_enable 1
+mix 1
+show_parameters 0
+
+[InternalClock]
+bpm 86.8595
+
+[Key]
+FastAnalysisEnabled 0
+KeyDetectionEnabled 1
+KeyNotation Lancelot/Traditional
+ReanalyzeWhenSettingsChange 0
+stem_strategy 0
+
+[Keyboard]
+Enabled 1
+
+[LateNight]
+deck_size_without_mixer 2
+expand_samplers_1-4 0
+expand_samplers_1-8 0
+expand_samplers_9-16 0
+max_lib_show_decks 1
+sampler_rows 1
+show_loopjump_controls_compact 0
+show_spinny_cover 1
+show_sync_button_compact 0
+show_vumeters_compact 1
+
+[Library]
+ApplyPlayedTrackColor 1
+BpmColumnPrecision 1
+CoverArtFetcherQuality 0
+DateFormat 
+EditMetadataSelectedClick 0
+EnableSearchCompletions 1
+EnableSearchHistoryShortcuts 1
+EnableWaveformCaching 1
+EnableWaveformGenerationWithAnalysis 0
+RescanOnStartup 0
+RowHeight 24
+SearchDebouncingTimeoutMillis 300
+SeratoMetadataExport 0
+ShowBansheeLibrary 1
+ShowITunesLibrary 1
+ShowRekordboxLibrary 1
+ShowRhythmboxLibrary 1
+ShowSeratoLibrary 1
+ShowTraktorLibrary 1
+SupportedFileExtensions 3g2,3gp2,3gpp2,3gp,3gpp,3ga,aac,adts,ass,aiff,aif,caf,flac,it,m4a,f4a,mj2,mjp2,mod,ult,uni,m15,mtm,669,med,qt,mov,moov,qtvr,mp2,mpeg,mpg,mpe,vob,mp3,mpga,mp4,m4v,f4v,lrv,oga,ogg,opus,spx,ogv,okt,s3m,stem.m4a,stem.mp4,stm,wav,wv,wvp,xm
+SyncTrackMetadataExport 0
+TrackLoadAction 0
+UseRelativePathOnExport 0
+history_min_tracks_to_keep 1
+history_track_duplicate_distance 6
+search_bpm_fuzzy_range 75
+show_coverart 1
+show_library_scan_summary 1
+sidebar_hover_expand_delay 500
+
+[MainWindow]
+geometry AdnQywADAAAAAAeEAAAA9AAADUEAAAUvAAAHhAAAARAAAA1BAAAFLwAAAAEAAAAACgAAAAeEAAABEAAADUEAAAUv
+state AAAA/wAAAAD9AAAAAAAABb4AAAQgAAAABAAAAAQAAAAIAAAACPwAAAAA
+
+[Master]
+boothDelay 0
+delay 0
+duckMode 1
+duckStrength 90
+enabled 1
+headDelay 0
+headSplit 0
+keylock_engine 0
+maximize_library 0
+microphoneLatencyCompensation 0
+mono_mixdown 0
+show_mixer 1
+talkover_mix 0
+
+[Microphone2]
+orientation 1
+
+[Microphone3]
+orientation 1
+
+[Microphone4]
+orientation 1
+
+[Microphone]
+orientation 1
+show_microphone 0
+
+[Mixer Profile]
+EQsOnly 1
+EnableEQs 1
+EqAutoReset 0
+GainAutoReset 0
+HiEQFrequency 2484
+HiEQFrequencyPrecise 2485.041703
+LoEQFrequency 246
+LoEQFrequencyPrecise 246.462152
+QuickEffectForGroup_[Channel1] org.mixxx.effects.filter
+QuickEffectForGroup_[Channel2] org.mixxx.effects.filter
+QuickEffectForGroup_[Channel3] org.mixxx.effects.filter
+QuickEffectForGroup_[Channel4] org.mixxx.effects.filter
+SingleEQEffect 1
+stem_auto_reset 1
+xFaderCurve 24.0141
+xFaderMode 0
+xFaderReverse 0
+
+[Modplug]
+MaxMixChannels 128
+MegabassCutoff 50
+MegabassEnabled 0
+MegabassLevel 50
+NoiseReductionEnabled 0
+OversamplingEnabled 1
+PerTrackMemoryLimitMB 256
+ResamplingMode 1
+ReverbDelay 50
+ReverbEnabled 0
+ReverbLevel 50
+StereoSeparation 1
+SurroundDelay 50
+SurroundEnabled 0
+SurroundLevel 50
+
+[OutputEffectRack_[Master]]
+focused_effect 0
+group_[MasterOutput]_enable 1
+mix 1
+show_parameters 0
+
+[Playlist]
+Directory /Users/gsgemployee/Music/set
+
+[Preferences]
+geometry 2617,360,1249,753
+multi_sampling 0
+
+[PreviewDeck1]
+keylock 0
+loop_anchor 0
+orientation 1
+quantize 0
+
+[PreviewDeck]
+show_previewdeck 1
+
+[QuickEffectRack1_[Channel1]]
+focused_effect 0
+group_[Channel1]_enable 1
+mix 1
+show_parameters 0
+
+[QuickEffectRack1_[Channel1_Stem1]]
+focused_effect 0
+group_[Channel1_Stem1]_enable 0
+mix 1
+show_parameters 0
+
+[QuickEffectRack1_[Channel1_Stem2]]
+focused_effect 0
+group_[Channel1_Stem2]_enable 0
+mix 1
+show_parameters 0
+
+[QuickEffectRack1_[Channel1_Stem3]]
+focused_effect 0
+group_[Channel1_Stem3]_enable 0
+mix 1
+show_parameters 0
+
+[QuickEffectRack1_[Channel1_Stem4]]
+focused_effect 0
+group_[Channel1_Stem4]_enable 0
+mix 1
+show_parameters 0
+
+[QuickEffectRack1_[Channel2]]
+focused_effect 0
+group_[Channel2]_enable 1
+mix 1
+show_parameters 0
+
+[QuickEffectRack1_[Channel2_Stem1]]
+focused_effect 0
+group_[Channel2_Stem1]_enable 0
+mix 1
+show_parameters 0
+
+[QuickEffectRack1_[Channel2_Stem2]]
+focused_effect 0
+group_[Channel2_Stem2]_enable 0
+mix 1
+show_parameters 0
+
+[QuickEffectRack1_[Channel2_Stem3]]
+focused_effect 0
+group_[Channel2_Stem3]_enable 0
+mix 1
+show_parameters 0
+
+[QuickEffectRack1_[Channel2_Stem4]]
+focused_effect 0
+group_[Channel2_Stem4]_enable 0
+mix 1
+show_parameters 0
+
+[QuickEffectRack1_[Channel3]]
+focused_effect 0
+group_[Channel3]_enable 1
+mix 1
+show_parameters 0
+
+[QuickEffectRack1_[Channel3_Stem1]]
+focused_effect 0
+group_[Channel3_Stem1]_enable 0
+mix 1
+show_parameters 0
+
+[QuickEffectRack1_[Channel3_Stem2]]
+focused_effect 0
+group_[Channel3_Stem2]_enable 0
+mix 1
+show_parameters 0
+
+[QuickEffectRack1_[Channel3_Stem3]]
+focused_effect 0
+group_[Channel3_Stem3]_enable 0
+mix 1
+show_parameters 0
+
+[QuickEffectRack1_[Channel3_Stem4]]
+focused_effect 0
+group_[Channel3_Stem4]_enable 0
+mix 1
+show_parameters 0
+
+[QuickEffectRack1_[Channel4]]
+focused_effect 0
+group_[Channel4]_enable 1
+mix 1
+show_parameters 0
+
+[QuickEffectRack1_[Channel4_Stem1]]
+focused_effect 0
+group_[Channel4_Stem1]_enable 0
+mix 1
+show_parameters 0
+
+[QuickEffectRack1_[Channel4_Stem2]]
+focused_effect 0
+group_[Channel4_Stem2]_enable 0
+mix 1
+show_parameters 0
+
+[QuickEffectRack1_[Channel4_Stem3]]
+focused_effect 0
+group_[Channel4_Stem3]_enable 0
+mix 1
+show_parameters 0
+
+[QuickEffectRack1_[Channel4_Stem4]]
+focused_effect 0
+group_[Channel4_Stem4]_enable 0
+mix 1
+show_parameters 0
+
+[Recording]
+Album 
+Author 
+CueEnabled 1
+CuePath /Users/gsgemployee/Music/Mixxx/Recordings/2024-10-08_20h00m57s.cue
+Directory /Users/gsgemployee/Music/Mixxx/Recordings
+Encoding MP3
+FileSize 4 GB
+MP3_Quality 10
+MP3_VBR_MODE 0
+Path /Users/gsgemployee/Music/Mixxx/Recordings/2024-10-08_20h00m57s.mp3
+Title 
+WAV_BITS 0
+channel_mode 0
+cue_file_annotation_enabled 0
+tracklist_as_comment 1
+
+[ReplayGain]
+InitialDefaultBoost -6
+InitialReplayGainBoost 4
+ReplayGainEnabled 1
+ReplayGainReanalyze 0
+
+[Sampler10]
+keylock 0
+loop_anchor 0
+orientation 1
+quantize 0
+
+[Sampler11]
+keylock 0
+loop_anchor 0
+orientation 1
+quantize 0
+
+[Sampler12]
+keylock 0
+loop_anchor 0
+orientation 1
+quantize 0
+
+[Sampler13]
+keylock 0
+loop_anchor 0
+orientation 1
+quantize 0
+
+[Sampler14]
+keylock 0
+loop_anchor 0
+orientation 1
+quantize 0
+
+[Sampler15]
+keylock 0
+loop_anchor 0
+orientation 1
+quantize 0
+
+[Sampler16]
+keylock 0
+loop_anchor 0
+orientation 1
+quantize 0
+
+[Sampler17]
+keylock 0
+loop_anchor 0
+orientation 1
+quantize 0
+
+[Sampler18]
+keylock 0
+loop_anchor 0
+orientation 1
+quantize 0
+
+[Sampler19]
+keylock 0
+loop_anchor 0
+orientation 1
+quantize 0
+
+[Sampler1]
+keylock 0
+loop_anchor 0
+orientation 1
+quantize 0
+
+[Sampler20]
+keylock 0
+loop_anchor 0
+orientation 1
+quantize 0
+
+[Sampler21]
+keylock 0
+loop_anchor 0
+orientation 1
+quantize 0
+
+[Sampler22]
+keylock 0
+loop_anchor 0
+orientation 1
+quantize 0
+
+[Sampler23]
+keylock 0
+loop_anchor 0
+orientation 1
+quantize 0
+
+[Sampler24]
+keylock 0
+loop_anchor 0
+orientation 1
+quantize 0
+
+[Sampler25]
+keylock 0
+loop_anchor 0
+orientation 1
+quantize 0
+
+[Sampler26]
+keylock 0
+loop_anchor 0
+orientation 1
+quantize 0
+
+[Sampler27]
+keylock 0
+loop_anchor 0
+orientation 1
+quantize 0
+
+[Sampler28]
+keylock 0
+loop_anchor 0
+orientation 1
+quantize 0
+
+[Sampler29]
+keylock 0
+loop_anchor 0
+orientation 1
+quantize 0
+
+[Sampler2]
+keylock 0
+loop_anchor 0
+orientation 1
+quantize 0
+
+[Sampler30]
+keylock 0
+loop_anchor 0
+orientation 1
+quantize 0
+
+[Sampler31]
+keylock 0
+loop_anchor 0
+orientation 1
+quantize 0
+
+[Sampler32]
+keylock 0
+loop_anchor 0
+orientation 1
+quantize 0
+
+[Sampler3]
+keylock 0
+loop_anchor 0
+orientation 1
+quantize 0
+
+[Sampler4]
+keylock 0
+loop_anchor 0
+orientation 1
+quantize 0
+
+[Sampler5]
+keylock 0
+loop_anchor 0
+orientation 1
+quantize 0
+
+[Sampler6]
+keylock 0
+loop_anchor 0
+orientation 1
+quantize 0
+
+[Sampler7]
+keylock 0
+loop_anchor 0
+orientation 1
+quantize 0
+
+[Sampler8]
+keylock 0
+loop_anchor 0
+orientation 1
+quantize 0
+
+[Sampler9]
+keylock 0
+loop_anchor 0
+orientation 1
+quantize 0
+
+[Sampler]
+LoadSamplerBank 0
+SaveSamplerBank 0
+
+[Samplers]
+show_samplers 0
+
+[ScriptDebugger]
+Enabled 0
+
+[SearchQueries]
+0 omni
+1 spectre
+10 zzz nu:tone
+11 first cont
+12 intro
+13 back
+14 glass
+15 jungle fa
+16 city
+17 blu mar
+18 zzz/aph
+19 nost
+2 dyg
+20 arab
+21 nitro
+22 gori
+23 nu:tone
+24 touch
+25 plag
+26 wast
+27 /trance
+28 dan/
+29 shia
+3 nipel
+30 trancej
+31 losing
+32 bliss
+33 aquask
+34 adh
+35 beau
+36 altr
+37 chimp
+38 punish
+39 mysti
+4 plago
+40 delta
+41 sea
+42 bath
+43 agress
+44 avic
+45 sunri
+46 lamb
+47 fatl
+48 breat
+49 heaven
+5 toma
+6 waiti
+7 /dopo
+8 your ga
+9 paper
+
+[Shoutcast]
+enabled 0
+
+[Skin]
+coverArt_splitsize 297,42
+keep_consistent_waveform_heights 0
+librarySidebar_splitsize 217,1071
+select_big_spinny_coverart 0
+select_big_spinny_or_cover 0
+show_4decks 0
+show_4effectunits 0
+show_8_hotcues 1
+show_beatgrid_controls 0
+show_beatjump_controls 1
+show_beatjump_controls_compact 1
+show_big_spinny_coverart 0
+show_coverart 1
+show_effectrack 1
+show_eq_kill_buttons 0
+show_eq_knobs 1
+show_hotcues 1
+show_intro_outro_cues 1
+show_key_controls 1
+show_key_controls_compact 1
+show_library_coverart 1
+show_loop_controls 1
+show_loop_controls_compact 1
+show_loopjump_controls_compact 1
+show_main_head_mixer 1
+show_maximized_library 0
+show_microphones 0
+show_mixer 1
+show_preview_decks 1
+show_rate_control_buttons 0
+show_rate_controls 1
+show_rate_controls_compact 1
+show_sampler_fx 0
+show_samplers 0
+show_spinnies 1
+show_stem_controls 0
+show_superknobs 0
+show_sync_button_compact 1
+show_vinylcontrol 0
+show_vumeters_compact 1
+show_waveforms 1
+show_xfader 0
+stackedWaveforms_splitSize 208,813
+timing_shift_buttons 0
+
+[Soundcard]
+Samplerate 44100
+
+[TrackCollection]
+RepairDatabaseOnNextRestart 0
+
+[Vamp]
+AnalyserBeatPluginID qm-tempotracker:0
+AnalyserKeyPluginID qm-keydetector:2
+
+[VinylControl]
+cueing_ch1 0
+cueing_ch2 0
+cueing_ch3 0
+cueing_ch4 0
+gain 1
+mode_ch1 1
+mode_ch2 1
+mode_ch3 1
+mode_ch4 1
+show_signal_quality 0
+show_vinylcontrol 0
+
+[Visible Built-in Effects]
+org.mixxx.effects.autopan 1
+org.mixxx.effects.balance 1
+org.mixxx.effects.bessel4lvmixeq 1
+org.mixxx.effects.bessel8lvmixeq 1
+org.mixxx.effects.biquadfullkilleq 1
+org.mixxx.effects.bitcrusher 1
+org.mixxx.effects.echo 1
+org.mixxx.effects.filter 1
+org.mixxx.effects.flanger 1
+org.mixxx.effects.graphiceq 1
+org.mixxx.effects.linkwitzrileyeq 1
+org.mixxx.effects.loudnesscontour 1
+org.mixxx.effects.metronome 1
+org.mixxx.effects.moogladder4filter 1
+org.mixxx.effects.parametriceq 1
+org.mixxx.effects.phaser 1
+org.mixxx.effects.reverb 1
+org.mixxx.effects.threebandbiquadeq 1
+org.mixxx.effects.tremolo 1
+
+[Waveform]
+DefaultZoom 3
+EndOfTrackWarningTime 30
+FrameRate 120
+OverviewNormalized 1
+PlayMarkerPosition 0.5
+UntilMarkAlign 1
+UntilMarkShowBeats 0
+UntilMarkShowTime 0
+UntilMarkTextHeightLimit 0
+UntilMarkTextPointSize 24
+VSync 0
+VisualGain_0 0.8
+VisualGain_1 1
+VisualGain_2 1
+VisualGain_3 1
+WaveformOverviewType 2
+WaveformType 16
+ZoomSynchronization 1
+beatGridAlpha 80
+stem_opacity 0.75
+stem_outline_opacity 0.15
+stem_reorder_on_change 1
+stem_split_tracks 0
+use_hardware_acceleration 3
+waveform_options 2

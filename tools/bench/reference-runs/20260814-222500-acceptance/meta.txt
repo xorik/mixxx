@@ -1,0 +1,17 @@
+date=2026-08-14T22:25:01+02:00
+label=acceptance
+bin=/Users/andrey/www/ai/mixxx/build/mixxx
+bin_mtime=2026-08-14T22:24:56
+bin_sha256=d4e7f645ef16539ac1e7ec3d50da369eda6ffd7acfbf4814f5bc5cdb4dbd6a84
+profile=/tmp/mixxx-perf
+git_head=9e670c1120cc82304c4d5dcaa11a36367c5d50c3
+git_dirty_sha256=1e0f2659609022fcc0f39556436d17f387f3a7374cfebceaf3d918f75ed6cf07
+measure_s=18
+geometry=1400x900+-1460+150
+settle_s=22
+front_before=Firefox
+power_before=AC Power
+uptime=22:25  up 14 days, 20:08, 1 user, load averages: 3.24 3.42 3.74
+track=/Users/andrey/Music/set/chillstep/Tritonal ft. Cristina Soto - Still With Me (Seven Lions Remix).mp3
+track=/Users/andrey/Music/set/chillstep/MitiS - Born.mp3
+front_after=Firefox

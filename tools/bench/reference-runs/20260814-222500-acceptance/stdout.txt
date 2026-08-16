@@ -1,0 +1,1259 @@
+dlopen error : dlopen(libjack.0.dylib, 0x0001): tried: 'libjack.0.dylib' (no such file), '/System/Volumes/Preboot/Cryptexes/OSlibjack.0.dylib' (no such file), '/Users/andrey/www/ai/mixxx/buildenv/mixxx-deps-2.7-arm64-osx-1c20f84a/installed/arm64-osx-min1100/lib/libjack.0.dylib' (no such file), '/System/Volumes/Preboot/Cryptexes/OS/Users/andrey/www/ai/mixxx/buildenv/mixxx-deps-2.7-arm64-osx-1c20f84a/installed/arm64-osx-min1100/lib/libjack.0.dylib' (no such file), '/Users/andrey/www/ai/mixxx/buildenv/mixxx-deps-2.7-arm64-osx-1c20f84a/installed/arm64-osx-min1100/lib/libjack.0.dylib' (no such file), '/System/Volumes/Preboot/Cryptexes/OS/Users/andrey/www/ai/mixxx/buildenv/mixxx-deps-2.7-arm64-osx-1c20f84a/installed/arm64-osx-min1100/lib/libjack.0.dylib' (no such file), '/usr/lib/libjack.0.dylib' (no such file, not in dyld cache), 'libjack.0.dylib' (no such file) 
+dlopen error : dlopen(/usr/local/lib/libjack.0.dylib, 0x0001): tried: '/usr/local/lib/libjack.0.dylib' (no such file), '/System/Volumes/Preboot/Cryptexes/OS/usr/local/lib/libjack.0.dylib' (no such file), '/usr/local/lib/libjack.0.dylib' (no such file) 
+Using preferences ScaleFactor 1
+Selected Qt style: "macos"
+Loading resources from  "/Users/andrey/www/ai/mixxx/res/"
+Configuration file is at the current version "2.7.0-alpha"
+BroadcastSettings - Found 1 profile(s)
+debug [Main] Skipping loading of translations because the locale is 'en' or 'en_US'.
+debug [StatsManager] StatsManager thread starting up.
+debug [Main] KeyboardEventFilter - createKeyboardConfig
+debug [Main] KeyboardEventFilter - Found and will use default keyboard mapping "/Users/andrey/www/ai/mixxx/res/keyboard/ru_RU.kbd.cfg"
+debug [Main] Loading resources from  "/Users/andrey/www/ai/mixxx/res/"
+debug [Main] BENCHFLAG "MIXXX_BENCH_BACKGROUND"="1"
+debug [Main] BENCHFLAG "MIXXX_BENCH_GEOMETRY"="1400x900+-1460+150"
+debug [Main] BENCHFLAG "MIXXX_BENCH_NO_AUDIO"="1"
+debug [Main] BENCHHIT MIXXX_BENCH_BACKGROUND=1 accessoryPolicyApplied=true isActive=false
+debug [Main] SoundSourceProxy - Registering SoundSource providers
+debug [Main] SoundSourceProxy - Registering platform and fallback SoundSource providers
+debug [Main] SoundSourceProviderRegistry - Registering provider "Apple CoreAudio Version 26.3.1 (a) (Build 25D771280a)"
+debug [Main] SoundSourceProviderRegistry - Registering file type "aac" for provider "Apple CoreAudio Version 26.3.1 (a) (Build 25D771280a)" with priority 4 (higher)
+debug [Main] SoundSourceProviderRegistry - Registering file type "m4a" for provider "Apple CoreAudio Version 26.3.1 (a) (Build 25D771280a)" with priority 4 (higher)
+debug [Main] SoundSourceProviderRegistry - Registering file type "mp4" for provider "Apple CoreAudio Version 26.3.1 (a) (Build 25D771280a)" with priority 4 (higher)
+debug [Main] SoundSourceProviderRegistry - Registering file type "mp3" for provider "Apple CoreAudio Version 26.3.1 (a) (Build 25D771280a)" with priority 4 (higher)
+debug [Main] SoundSourceProviderRegistry - Registering file type "mp2" for provider "Apple CoreAudio Version 26.3.1 (a) (Build 25D771280a)" with priority 4 (higher)
+debug [Main] SoundSourceProviderRegistry - Registering provider "FFmpeg 7.1"
+debug [Main] SoundSourceFFmpeg - Disabling untested input formats: aa, aax, ac3, ac4, ace, acm, act, adf, adp, ads, adx, aea, afc, aix, alp, amr, amrnb, amrwb, anm, apac, apc, ape, apm, apng, aptx, aptx_hd, aqtitle, argo_asf, argo_brp, argo_cvg, asf, asf_o, ass, ast, au, av1, avi, avr, avs, avs2, avs3, bethsoftvid, bfi, bin, bink, binka, bit, bitpacked, bmv, bfstm, brstm, boa, bonk, c93, caf, cavsvideo, cdg, cdxl, cine, codec2, codec2raw, concat, data, daud, dcstr, derf, dfa, dfpwm, dhav, dirac, dnxhd, dsf, dsicin, dss, dts, dtshd, dv, dvbsub, dvbtxt, dxa, ea, ea_cdata, eac3, epaf, evc, ffmetadata, filmstrip, fits, flac, flic, flv, live_flv, 4xm, frm, fsb, fwse, g722, g723_1, g726, g726le, g729, gdv, genh, gif, gsm, gxf, h261, h263, h264, hca, hcom, hevc, hls, hnm, iamf, ico, idcin, idf, iff, ifv, ilbc, image2, image2pipe, alias_pix, brender_pix, ingenient, ipmovie, ipu, ircam, iss, iv8, ivf, ivr, jacosub, jv, jpegxl_anim, kux, kvag, laf, lc3, lmlm4, loas, luodat, lrc, lvf, lxf, mca, mcc, matroska,webm, mgsts, microdvd, mjpeg, mjpeg_2000, mlp, mlv, mm, mmf, mods, moflex, mpc, mpc8, mpeg, mpegts, mpegtsraw, mpegvideo, mpjpeg, mpl2, mpsub, msf, msnwctcp, msp, mtaf, mtv, musx, mv, mvi, mxf, mxg, nc, nistsphere, nsp, nsv, nut, nuv, obu, ogg, oma, osq, paf, alaw, mulaw, vidc, f64be, f64le, f32be, f32le, s32be, s32le, s24be, s24le, s16be, s16le, s8, u32be, u32le, u24be, u24le, u16be, u16le, u8, pdv, pjs, pmp, pp_bnk, pva, pvf, qcp, qoa, r3d, rawvideo, rcwt, realtext, redspark, rka, rl2, rm, roq, rpl, rsd, rso, rtp, rtsp, s337m, sami, sap, sbc, sbg, scc, scd, sdns, sdp, sdr2, sds, sdx, film_cpk, ser, sga, shn, siff, simbiosis_imx, sln, smk, smjpeg, smush, sol, sox, spdif, srt, psxstr, stl, subviewer1, subviewer, sup, svag, svs, swf, tak, tedcaptions, thp, 3dostr, tiertexseq, tmv, truehd, tta, txd, tty, ty, usm, v210, v210x, vag, vc1, vc1test, vividas, vivo, vmd, vobsub, voc, vpk, vplayer, vqf, vvc, w64, wady, wavarc, wc3movie, webm_dash_manifest, webvtt, wsaud, wsd, wsvqa, wtv, wve, xa, xbin, xmd, xmv, xvag, xwma, yop, yuv4mpegpipe, bmp_pipe, cri_pipe, dds_pipe, dpx_pipe, exr_pipe, gem_pipe, gif_pipe, hdr_pipe, j2k_pipe, jpeg_pipe, jpegls_pipe, jpegxl_pipe, pam_pipe, pbm_pipe, pcx_pipe, pfm_pipe, pgmyuv_pipe, pgm_pipe, pgx_pipe, phm_pipe, photocd_pipe, pictor_pipe, png_pipe, ppm_pipe, psd_pipe, qdraw_pipe, qoi_pipe, sgi_pipe, svg_pipe, sunrast_pipe, tiff_pipe, vbn_pipe, webp_pipe, xbm_pipe, xpm_pipe, xwd_pipe
+debug [Main] SoundSourceProviderRegistry - Registering file type "aac" for provider "FFmpeg 7.1" with priority 1 (lowest)
+debug [Main] SoundSourceProviderRegistry - Registering file type "aiff" for provider "FFmpeg 7.1" with priority 1 (lowest)
+debug [Main] SoundSourceProviderRegistry - Registering file type "mp4" for provider "FFmpeg 7.1" with priority 1 (lowest)
+debug [Main] SoundSourceProviderRegistry - Registering file type "mov" for provider "FFmpeg 7.1" with priority 1 (lowest)
+debug [Main] SoundSourceProviderRegistry - Registering file type "mp4" for provider "FFmpeg 7.1" with priority 1 (lowest)
+debug [Main] SoundSourceProviderRegistry - Registering file type "m4a" for provider "FFmpeg 7.1" with priority 1 (lowest)
+debug [Main] SoundSourceProviderRegistry - Registering file type "3gp" for provider "FFmpeg 7.1" with priority 1 (lowest)
+debug [Main] SoundSourceProviderRegistry - Registering file type "3g2" for provider "FFmpeg 7.1" with priority 1 (lowest)
+debug [Main] SoundSourceProviderRegistry - Registering file type "mj2" for provider "FFmpeg 7.1" with priority 1 (lowest)
+debug [Main] SoundSourceProviderRegistry - Registering file type "mp3" for provider "FFmpeg 7.1" with priority 1 (lowest)
+debug [Main] SoundSourceProviderRegistry - Registering file type "wav" for provider "FFmpeg 7.1" with priority 1 (lowest)
+debug [Main] SoundSourceProviderRegistry - Registering file type "wv" for provider "FFmpeg 7.1" with priority 1 (lowest)
+debug [Main] SoundSourceProviderRegistry - Registering provider "MODPlug"
+debug [Main] SoundSourceProviderRegistry - Registering file type "mod" for provider "MODPlug" with priority 3 (default)
+debug [Main] SoundSourceProviderRegistry - Registering file type "okt" for provider "MODPlug" with priority 3 (default)
+debug [Main] SoundSourceProviderRegistry - Registering file type "s3m" for provider "MODPlug" with priority 3 (default)
+debug [Main] SoundSourceProviderRegistry - Registering file type "stm" for provider "MODPlug" with priority 3 (default)
+debug [Main] SoundSourceProviderRegistry - Registering file type "xm" for provider "MODPlug" with priority 3 (default)
+debug [Main] SoundSourceProviderRegistry - Registering file type "it" for provider "MODPlug" with priority 3 (default)
+info [Main] SoundSourceSndFile - Disabling OGG decoding for "libsndfile-1.2.2"
+debug [Main] SoundSourceProviderRegistry - Registering provider "libsndfile"
+debug [Main] SoundSourceProviderRegistry - Registering file type "aiff" for provider "libsndfile" with priority 3 (default)
+debug [Main] SoundSourceProviderRegistry - Registering file type "caf" for provider "libsndfile" with priority 2 (lower)
+debug [Main] SoundSourceProviderRegistry - Registering file type "flac" for provider "libsndfile" with priority 2 (lower)
+debug [Main] SoundSourceProviderRegistry - Registering file type "wav" for provider "libsndfile" with priority 3 (default)
+debug [Main] SoundSourceProviderRegistry - Registering provider "STEM with FFmpeg 7.1"
+debug [Main] SoundSourceProviderRegistry - Registering file type "stem.mp4" for provider "STEM with FFmpeg 7.1" with priority 4 (higher)
+debug [Main] SoundSourceProviderRegistry - Registering file type "stem.m4a" for provider "STEM with FFmpeg 7.1" with priority 4 (higher)
+debug [Main] SoundSourceProxy - Registering reference SoundSource providers
+debug [Main] SoundSourceProviderRegistry - Registering provider "Xiph.org libFLAC"
+debug [Main] SoundSourceProviderRegistry - Registering file type "flac" for provider "Xiph.org libFLAC" with priority 4 (higher)
+debug [Main] SoundSourceProviderRegistry - Registering provider "Xiph.org OggVorbis"
+debug [Main] SoundSourceProviderRegistry - Registering file type "ogg" for provider "Xiph.org OggVorbis" with priority 4 (higher)
+debug [Main] SoundSourceProviderRegistry - Registering provider "Xiph.org libopusfile"
+debug [Main] SoundSourceProviderRegistry - Registering file type "opus" for provider "Xiph.org libopusfile" with priority 4 (higher)
+debug [Main] SoundSourceProviderRegistry - Registering provider "WavPack"
+debug [Main] SoundSourceProviderRegistry - Registering file type "wv" for provider "WavPack" with priority 4 (higher)
+debug [Main] QMimeType("video/3gpp2") "3g2"
+info [Main] SoundSourceProxy - SoundSource providers for file type "3g2"
+info [Main] SoundSourceProxy - 1 (lowest) : "FFmpeg 7.1"
+debug [Main] QMimeType("video/3gpp") "3gp"
+info [Main] SoundSourceProxy - SoundSource providers for file type "3gp"
+info [Main] SoundSourceProxy - 1 (lowest) : "FFmpeg 7.1"
+debug [Main] QMimeType("audio/aac") "aac"
+info [Main] SoundSourceProxy - SoundSource providers for file type "aac"
+info [Main] SoundSourceProxy - 4 (higher) : "Apple CoreAudio Version 26.3.1 (a) (Build 25D771280a)"
+info [Main] SoundSourceProxy - 1 (lowest) : "FFmpeg 7.1"
+debug [Main] QMimeType("audio/x-aiff") "aiff"
+info [Main] SoundSourceProxy - SoundSource providers for file type "aiff"
+info [Main] SoundSourceProxy - 3 (default) : "libsndfile"
+info [Main] SoundSourceProxy - 1 (lowest) : "FFmpeg 7.1"
+info [Main] SoundSourceProxy - SoundSource providers for file type "caf"
+info [Main] SoundSourceProxy - 2 (lower) : "libsndfile"
+debug [Main] QMimeType("audio/flac") "flac"
+info [Main] SoundSourceProxy - SoundSource providers for file type "flac"
+info [Main] SoundSourceProxy - 4 (higher) : "Xiph.org libFLAC"
+info [Main] SoundSourceProxy - 2 (lower) : "libsndfile"
+debug [Main] QMimeType("audio/x-it") "it"
+info [Main] SoundSourceProxy - SoundSource providers for file type "it"
+info [Main] SoundSourceProxy - 3 (default) : "MODPlug"
+debug [Main] QMimeType("audio/mp4") "m4a"
+info [Main] SoundSourceProxy - SoundSource providers for file type "m4a"
+info [Main] SoundSourceProxy - 4 (higher) : "Apple CoreAudio Version 26.3.1 (a) (Build 25D771280a)"
+info [Main] SoundSourceProxy - 1 (lowest) : "FFmpeg 7.1"
+debug [Main] QMimeType("video/mj2") "mj2"
+info [Main] SoundSourceProxy - SoundSource providers for file type "mj2"
+info [Main] SoundSourceProxy - 1 (lowest) : "FFmpeg 7.1"
+debug [Main] QMimeType("audio/x-mod") "mod"
+info [Main] SoundSourceProxy - SoundSource providers for file type "mod"
+info [Main] SoundSourceProxy - 3 (default) : "MODPlug"
+debug [Main] QMimeType("video/quicktime") "mov"
+info [Main] SoundSourceProxy - SoundSource providers for file type "mov"
+info [Main] SoundSourceProxy - 1 (lowest) : "FFmpeg 7.1"
+debug [Main] QMimeType("audio/mp2") "mp2"
+debug [Main] QMimeType("video/mpeg") "mp2"
+info [Main] SoundSourceProxy - SoundSource providers for file type "mp2"
+info [Main] SoundSourceProxy - 4 (higher) : "Apple CoreAudio Version 26.3.1 (a) (Build 25D771280a)"
+debug [Main] QMimeType("audio/mpeg") "mp3"
+info [Main] SoundSourceProxy - SoundSource providers for file type "mp3"
+info [Main] SoundSourceProxy - 4 (higher) : "Apple CoreAudio Version 26.3.1 (a) (Build 25D771280a)"
+info [Main] SoundSourceProxy - 1 (lowest) : "FFmpeg 7.1"
+debug [Main] QMimeType("video/mp4") "mp4"
+info [Main] SoundSourceProxy - SoundSource providers for file type "mp4"
+info [Main] SoundSourceProxy - 4 (higher) : "Apple CoreAudio Version 26.3.1 (a) (Build 25D771280a)"
+info [Main] SoundSourceProxy - 1 (lowest) : "FFmpeg 7.1"
+info [Main] SoundSourceProxy - 1 (lowest) : "FFmpeg 7.1"
+debug [Main] QMimeType("audio/ogg") "ogg"
+debug [Main] QMimeType("audio/x-flac+ogg") "ogg"
+debug [Main] QMimeType("audio/x-speex+ogg") "ogg"
+debug [Main] QMimeType("audio/x-vorbis+ogg") "ogg"
+debug [Main] QMimeType("video/ogg") "ogg"
+debug [Main] QMimeType("video/x-theora+ogg") "ogg"
+info [Main] SoundSourceProxy - SoundSource providers for file type "ogg"
+info [Main] SoundSourceProxy - 4 (higher) : "Xiph.org OggVorbis"
+info [Main] SoundSourceProxy - SoundSource providers for file type "okt"
+info [Main] SoundSourceProxy - 3 (default) : "MODPlug"
+debug [Main] QMimeType("audio/x-opus+ogg") "opus"
+info [Main] SoundSourceProxy - SoundSource providers for file type "opus"
+info [Main] SoundSourceProxy - 4 (higher) : "Xiph.org libopusfile"
+debug [Main] QMimeType("audio/x-s3m") "s3m"
+info [Main] SoundSourceProxy - SoundSource providers for file type "s3m"
+info [Main] SoundSourceProxy - 3 (default) : "MODPlug"
+info [Main] SoundSourceProxy - SoundSource providers for file type "stem.m4a"
+info [Main] SoundSourceProxy - 4 (higher) : "STEM with FFmpeg 7.1"
+info [Main] SoundSourceProxy - SoundSource providers for file type "stem.mp4"
+info [Main] SoundSourceProxy - 4 (higher) : "STEM with FFmpeg 7.1"
+debug [Main] QMimeType("audio/x-stm") "stm"
+info [Main] SoundSourceProxy - SoundSource providers for file type "stm"
+info [Main] SoundSourceProxy - 3 (default) : "MODPlug"
+debug [Main] QMimeType("audio/vnd.wave") "wav"
+info [Main] SoundSourceProxy - SoundSource providers for file type "wav"
+info [Main] SoundSourceProxy - 3 (default) : "libsndfile"
+info [Main] SoundSourceProxy - 1 (lowest) : "FFmpeg 7.1"
+debug [Main] QMimeType("audio/x-wavpack") "wv"
+info [Main] SoundSourceProxy - SoundSource providers for file type "wv"
+info [Main] SoundSourceProxy - 4 (higher) : "WavPack"
+info [Main] SoundSourceProxy - 1 (lowest) : "FFmpeg 7.1"
+debug [Main] QMimeType("audio/x-xm") "xm"
+info [Main] SoundSourceProxy - SoundSource providers for file type "xm"
+info [Main] SoundSourceProxy - 3 (default) : "MODPlug"
+debug [Main] Mixxx 2.7.0-alpha (git 2.7-alpha-349-g9e670c1120-modified (main); built on: Aug 14 2026 @ 22:24:41; flags: -pipe;-ffast-math;-funroll-loops;-O3;-fomit-frame-pointer;-fobjc-arc;-Wall;-Wextra;$<$<COMPILE_LANGUAGE:CXX>:-Woverloaded-virtual>;-Wfloat-conversion;-Werror=return-type;-Wformat=2;-Wformat-security;-Wvla;-Wundef;-fmacro-prefix-map=/Users/andrey/www/ai/mixxx=.) is starting...
+debug [Main] Compile time library versions:
+debug [Main] "Qt: 6.10.3"
+debug [Main] "libshout: 2.4.1"
+debug [Main] "PortAudio: 1246976 PortAudio V19.7.0-devel, revision unknown"
+debug [Main] "RubberBand: 4.0.0"
+debug [Main] "SoundTouch: 2.4.0"
+debug [Main] "TagLib: 2.3.0"
+debug [Main] "ChromaPrint: 1.6.0"
+debug [Main] "libebur128: 1.2.6"
+debug [Main] "Vorbis: Xiph.Org libVorbis 1.3.7"
+debug [Main] "libsndfile: libsndfile-1.2.2"
+debug [Main] "FLAC: 1.5.0"
+debug [Main] "libmp3lame: 3.100"
+debug [Main] QStandardPaths::writableLocation(HomeLocation): "/Users/andrey"
+debug [Main] QStandardPaths::writableLocation(AppDataLocation): "/Users/andrey/Library/Application Support/Mixxx"
+debug [Main] QCoreApplication::applicationDirPath() "/Users/andrey/www/ai/mixxx/build"
+debug [Main] Loading resources from  "/Users/andrey/www/ai/mixxx/res/"
+debug [Main] ConfigObject: Could not read "/tmp/mixxx-perf/sandbox.cfg"
+debug [Main] ConfigObject: Could not read "/tmp/mixxx-perf/sandbox.cfg"
+debug [Main] FONT LOADED family: "Open Sans" style: "Bold" point sizes: "9,10,11,12,13,14,18,24,36,48,64,72,96,144,288"
+debug [Main] FONT LOADED family: "Open Sans" style: "Bold" point sizes: "9,10,11,12,13,14,18,24,36,48,64,72,96,144,288"
+debug [Main] FONT LOADED family: "Open Sans" style: "Regular" point sizes: "9,10,11,12,13,14,18,24,36,48,64,72,96,144,288"
+debug [Main] FONT LOADED family: "Open Sans" style: "Bold" point sizes: "9,10,11,12,13,14,18,24,36,48,64,72,96,144,288"
+debug [Main] FONT LOADED family: "Open Sans" style: "Regular" point sizes: "9,10,11,12,13,14,18,24,36,48,64,72,96,144,288"
+debug [Main] FONT LOADED family: "Open Sans" style: "Semibold" point sizes: "9,10,11,12,13,14,18,24,36,48,64,72,96,144,288"
+debug [Main] FONT LOADED family: "Ubuntu" style: "Bold" point sizes: "9,10,11,12,13,14,18,24,36,48,64,72,96,144,288"
+debug [Main] FONT LOADED family: "Ubuntu" style: "Bold" point sizes: "9,10,11,12,13,14,18,24,36,48,64,72,96,144,288"
+debug [Main] FONT LOADED family: "Ubuntu" style: "Regular" point sizes: "9,10,11,12,13,14,18,24,36,48,64,72,96,144,288"
+info [Main] DbConnection - Available drivers for database connections: QList("QPSQL", "QSQLITE")
+debug [Main] DbConnection - Opening database connection "MIXXX-1" QSqlDatabase(driver="QSQLITE", database="file:///tmp/mixxx-perf/mixxxdb.sqlite", host="", port=-1, user="mixxx", open=false)
+info [Main] DbConnectionPool - Cloned thread-local database connection "MIXXX-1" QSqlDatabase(driver="QSQLITE", database="file:///tmp/mixxx-perf/mixxxdb.sqlite", host="", port=-1, user="mixxx", open=true)
+info [Main] CoreServices - Connecting to database
+debug [Main] DbConnectionPooled - Found thread-local database connection "MIXXX-1" QSqlDatabase(driver="QSQLITE", database="file:///tmp/mixxx-perf/mixxxdb.sqlite", host="", port=-1, user="mixxx", open=true)
+info [Main] CoreServices - Initializing or upgrading database schema
+info [Main] SchemaManager - Database schema is up-to-date at version 40
+debug [Main] RubberBand will use 4 tasks to scale the audio signal
+dlopen error : dlopen(libjack.0.dylib, 0x0001): tried: 'libjack.0.dylib' (no such file), '/System/Volumes/Preboot/Cryptexes/OSlibjack.0.dylib' (no such file), '/Users/andrey/www/ai/mixxx/buildenv/mixxx-deps-2.7-arm64-osx-1c20f84a/installed/arm64-osx-min1100/lib/libjack.0.dylib' (no such file), '/System/Volumes/Preboot/Cryptexes/OS/Users/andrey/www/ai/mixxx/buildenv/mixxx-deps-2.7-arm64-osx-1c20f84a/installed/arm64-osx-min1100/lib/libjack.0.dylib' (no such file), '/Users/andrey/www/ai/mixxx/buildenv/mixxx-deps-2.7-arm64-osx-1c20f84a/installed/arm64-osx-min1100/lib/libjack.0.dylib' (no such file), '/System/Volumes/Preboot/Cryptexes/OS/Users/andrey/www/ai/mixxx/buildenv/mixxx-deps-2.7-arm64-osx-1c20f84a/installed/arm64-osx-min1100/lib/libjack.0.dylib' (no such file), '/usr/lib/libjack.0.dylib' (no such file, not in dyld cache), 'libjack.0.dylib' (no such file) 
+dlopen error : dlopen(/usr/local/lib/libjack.0.dylib, 0x0001): tried: '/usr/local/lib/libjack.0.dylib' (no such file), '/System/Volumes/Preboot/Cryptexes/OS/usr/local/lib/libjack.0.dylib' (no such file), '/usr/local/lib/libjack.0.dylib' (no such file) 
+libjack not found, so do not try to load  jack_client_open ffs  !
+debug [Main] Pa_CountDevices found 5 devices
+debug [Main] Pa_GetHostApiCount returns 1
+debug [Main] Pa_GetDeviceInfo on 0 0x8b9da6d00
+debug [Main] Pa_GetDeviceInfo on 1 0x8b9da6d48
+debug [Main] Pa_GetDeviceInfo on 2 0x8b9da6d90
+debug [Main] Pa_GetDeviceInfo on 3 0x8b9da6dd8
+debug [Main] Pa_GetDeviceInfo on 4 0x8b9da6e20
+debug [Main] SoundManager::queryDevices()
+debug [Main] EngineNetworkStream - addWorker: worker added
+debug [Main] EngineNetworkStream - worker slots used: "1 out of 16"
+debug [Main] BroadcastManager - addConnection: created connection for profile "Connection 1"
+warning [Main] "AUMultibandCompressor" specified in list of effect chain presets in effects.xml but no such preset was found.
+warning [Main] "AUHighShelfFilter" specified in list of effect chain presets in effects.xml but no such preset was found.
+warning [Main] "Белый шум" specified in list of effect chain presets in effects.xml but no such preset was found.
+warning [Main] "Дисторшн" specified in list of effect chain presets in effects.xml but no such preset was found.
+warning [Main] "AUHipass" specified in list of effect chain presets in effects.xml but no such preset was found.
+warning [Main] "AUNewPitch" specified in list of effect chain presets in effects.xml but no such preset was found.
+warning [Main] "AUPeakLimiter" specified in list of effect chain presets in effects.xml but no such preset was found.
+warning [Main] "AUParametricEQ" specified in list of effect chain presets in effects.xml but no such preset was found.
+warning [Main] "AULowpass" specified in list of effect chain presets in effects.xml but no such preset was found.
+warning [Main] "AULowShelfFilter" specified in list of effect chain presets in effects.xml but no such preset was found.
+warning [Main] "Громкость" specified in list of effect chain presets in effects.xml but no such preset was found.
+warning [Main] "Тремоло" specified in list of effect chain presets in effects.xml but no such preset was found.
+warning [Main] "AUSampleDelay" specified in list of effect chain presets in effects.xml but no such preset was found.
+warning [Main] "AUMatrixReverb" specified in list of effect chain presets in effects.xml but no such preset was found.
+warning [Main] "Сдвиг питча" specified in list of effect chain presets in effects.xml but no such preset was found.
+warning [Main] "Автопанорамирование" specified in list of effect chain presets in effects.xml but no such preset was found.
+warning [Main] "AURogerBeep" specified in list of effect chain presets in effects.xml but no such preset was found.
+warning [Main] "Фэйзер" specified in list of effect chain presets in effects.xml but no such preset was found.
+warning [Main] "AUBandpass" specified in list of effect chain presets in effects.xml but no such preset was found.
+warning [Main] "AUFilter" specified in list of effect chain presets in effects.xml but no such preset was found.
+warning [Main] "AUDelay" specified in list of effect chain presets in effects.xml but no such preset was found.
+warning [Main] "Эхо" specified in list of effect chain presets in effects.xml but no such preset was found.
+warning [Main] "AUReverb2" specified in list of effect chain presets in effects.xml but no such preset was found.
+warning [Main] "AUDistortion" specified in list of effect chain presets in effects.xml but no such preset was found.
+warning [Main] "AUDynamicsProcessor" specified in list of effect chain presets in effects.xml but no such preset was found.
+warning [Main] "AUGraphicEQ" specified in list of effect chain presets in effects.xml but no such preset was found.
+warning [Main] "Реверберация" specified in list of effect chain presets in effects.xml but no such preset was found.
+warning [Main] "Флэнджер" specified in list of effect chain presets in effects.xml but no such preset was found.
+warning [Main] "Фильтр Moog" specified in list of effect chain presets in effects.xml but no such preset was found.
+warning [Main] "AURoundTripAAC" specified in list of effect chain presets in effects.xml but no such preset was found.
+warning [Main] "Фильтр" specified in list of effect chain presets in effects.xml but no such preset was found.
+warning [Main] "Баланс" specified in list of effect chain presets in effects.xml but no such preset was found.
+warning [Main] "AUNBandEQ" specified in list of effect chain presets in effects.xml but no such preset was found.
+warning [Main] "AUSoundIsolation" specified in list of effect chain presets in effects.xml but no such preset was found.
+warning [Main] "AUPitch" specified in list of effect chain presets in effects.xml but no such preset was found.
+warning [Main] "AUMultibandCompressor" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "AUHighShelfFilter" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "Белый шум" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "Дисторшн" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "AUHipass" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "AUNewPitch" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "AUPeakLimiter" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "AUParametricEQ" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "AULowpass" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "AULowShelfFilter" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "Громкость" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "Тремоло" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "AUSampleDelay" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "AUMatrixReverb" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "Сдвиг питча" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "Автопанорамирование" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "AURogerBeep" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "Фэйзер" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "AUBandpass" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "AUFilter" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "AUDelay" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "Эхо" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "AUReverb2" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "AUDistortion" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "AUDynamicsProcessor" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "AUGraphicEQ" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "Реверберация" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "Флэнджер" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "Фильтр Moog" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "AURoundTripAAC" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "Фильтр" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "Баланс" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "AUNBandEQ" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "AUSoundIsolation" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "AUPitch" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "Autopan" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "Balance" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "Bitcrusher" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "Distortion" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "Echo" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "Filter" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "Flanger" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "Loudness" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "Moog Filter" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "Phaser" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "Pitch Shift" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "Reverb" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "Tremolo" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+warning [Main] "White Noise" specified in list of QuickEffect chain presets in effects.xml but no such preset was found.
+debug [Main] IOKit screensaver inhibited  33698
+info [Main] GlobalTrackCache - Creating instance
+debug [Main] DbConnectionPooled - Found thread-local database connection "MIXXX-1" QSqlDatabase(driver="QSQLITE", database="file:///tmp/mixxx-perf/mixxxdb.sqlite", host="", port=-1, user="mixxx", open=true)
+info [Main] TrackCollection - Connecting database
+info [Main] TrackCollectionManager - Starting library scanner thread
+debug [LibraryScanner 1] LibraryScanner - Entering thread
+debug [LibraryScanner 1] DbConnection - Opening database connection "MIXXX-2" QSqlDatabase(driver="QSQLITE", database="file:///tmp/mixxx-perf/mixxxdb.sqlite", host="", port=-1, user="mixxx", open=false)
+info [LibraryScanner 1] DbConnectionPool - Cloned thread-local database connection "MIXXX-2" QSqlDatabase(driver="QSQLITE", database="file:///tmp/mixxx-perf/mixxxdb.sqlite", host="", port=-1, user="mixxx", open=true)
+debug [LibraryScanner 1] DbConnectionPooled - Found thread-local database connection "MIXXX-2" QSqlDatabase(driver="QSQLITE", database="file:///tmp/mixxx-perf/mixxxdb.sqlite", host="", port=-1, user="mixxx", open=true)
+info [Main] TrackCollection - Connecting track source
+debug [Main] Rolling back transaction on "MIXXX-1" result: true
+debug [LibraryScanner 1] LibraryScanner - Event loop starting
+debug [Main] PlaylistTableModel(0x8b8a8f000) select() returned 0 results in 0 ms
+debug [Main] CrateFeature::rebuildChildModel() -1
+debug [Main] Default quick links: QList("/Users/andrey/Music/set/", "/Users/andrey/Music/zzz/", "/Users/andrey/Music/", "/Users/andrey/Downloads/", "/Users/andrey/Desktop/", "/Users/andrey/Documents/")
+debug [Main] Appending Quick Link:  "set" --- "/Users/andrey/Music/set/"
+debug [Main] Appending Quick Link:  "zzz" --- "/Users/andrey/Music/zzz/"
+debug [Main] Appending Quick Link:  "Music" --- "/Users/andrey/Music/"
+debug [Main] Appending Quick Link:  "Downloads" --- "/Users/andrey/Downloads/"
+debug [Main] Appending Quick Link:  "Desktop" --- "/Users/andrey/Desktop/"
+debug [Main] Appending Quick Link:  "Documents" --- "/Users/andrey/Documents/"
+info [Main] Prepared deletion of 1 playlists of type 2 that contain fewer than 1 tracks
+info [Main] Deleting 1 playlists
+debug [Main] Committing transaction successfully on "MIXXX-1"
+info [Main] Deleting 1 playlists
+debug [Main] Committing transaction successfully on "MIXXX-1"
+debug [Main] Committing transaction successfully on "MIXXX-1"
+debug [Main] Traktor Library Location=[ "/Users/andrey/collection.nml" ]
+debug [Main] Dropping Rekordbox table:  "rekordbox_playlist_tracks"
+debug [Main] Dropping Rekordbox table:  "rekordbox_playlists"
+debug [Main] Dropping Rekordbox table:  "rekordbox_library"
+debug [Main] Creating Rekordbox library table:  "rekordbox_library"
+debug [Main] Creating Rekordbox playlists table:  "rekordbox_playlists"
+debug [Main] Creating Rekordbox playlist tracks table:  "rekordbox_playlist_tracks"
+debug [Main] Committing transaction successfully on "MIXXX-1"
+debug [Main] Dropping Serato table:  "serato_playlist_tracks"
+debug [Main] Dropping Serato table:  "serato_playlists"
+debug [Main] Dropping Serato table:  "serato_library"
+debug [Main] Creating Serato library table:  "serato_library"
+debug [Main] Creating Serato playlists table:  "serato_playlists"
+debug [Main] Creating Serato playlist tracks table:  "serato_playlist_tracks"
+debug [Main] Committing transaction successfully on "MIXXX-1"
+info [Main] Library - Access to directory QFileInfo(/Users/andrey/Music/set) from sandbox granted
+info [Main] Library - Access to directory QFileInfo(/Users/andrey/Music/zzz) from sandbox granted
+debug [Main] TrackAnalysisScheduler - Starting 7 worker threads. Priority:  normal
+debug [AnalyzerThread 0 #1] AnalyzerThread 0 - Running
+debug [AnalyzerThread 3 #3] AnalyzerThread 3 - Running
+debug [AnalyzerThread 0 #1] DbConnection - Opening database connection "MIXXX-3" QSqlDatabase(driver="QSQLITE", database="file:///tmp/mixxx-perf/mixxxdb.sqlite", host="", port=-1, user="mixxx", open=false)
+debug [AnalyzerThread 2 #4] AnalyzerThread 2 - Running
+debug [AnalyzerThread 5 #6] AnalyzerThread 5 - Running
+debug [AnalyzerThread 3 #3] DbConnection - Opening database connection "MIXXX-4" QSqlDatabase(driver="QSQLITE", database="file:///tmp/mixxx-perf/mixxxdb.sqlite", host="", port=-1, user="mixxx", open=false)
+debug [AnalyzerThread 4 #5] AnalyzerThread 4 - Running
+debug [AnalyzerThread 1 #2] AnalyzerThread 1 - Running
+debug [AnalyzerThread 6 #7] AnalyzerThread 6 - Running
+info [AnalyzerThread 0 #1] DbConnectionPool - Cloned thread-local database connection "MIXXX-3" QSqlDatabase(driver="QSQLITE", database="file:///tmp/mixxx-perf/mixxxdb.sqlite", host="", port=-1, user="mixxx", open=true)
+debug [AnalyzerThread 2 #4] DbConnection - Opening database connection "MIXXX-5" QSqlDatabase(driver="QSQLITE", database="file:///tmp/mixxx-perf/mixxxdb.sqlite", host="", port=-1, user="mixxx", open=false)
+info [AnalyzerThread 3 #3] DbConnectionPool - Cloned thread-local database connection "MIXXX-4" QSqlDatabase(driver="QSQLITE", database="file:///tmp/mixxx-perf/mixxxdb.sqlite", host="", port=-1, user="mixxx", open=true)
+debug [AnalyzerThread 3 #3] DbConnectionPooled - Found thread-local database connection "MIXXX-4" QSqlDatabase(driver="QSQLITE", database="file:///tmp/mixxx-perf/mixxxdb.sqlite", host="", port=-1, user="mixxx", open=true)
+debug [AnalyzerThread 0 #1] DbConnectionPooled - Found thread-local database connection "MIXXX-3" QSqlDatabase(driver="QSQLITE", database="file:///tmp/mixxx-perf/mixxxdb.sqlite", host="", port=-1, user="mixxx", open=true)
+debug [AnalyzerThread 5 #6] DbConnection - Opening database connection "MIXXX-6" QSqlDatabase(driver="QSQLITE", database="file:///tmp/mixxx-perf/mixxxdb.sqlite", host="", port=-1, user="mixxx", open=false)
+debug [AnalyzerThread 6 #7] DbConnection - Opening database connection "MIXXX-7" QSqlDatabase(driver="QSQLITE", database="file:///tmp/mixxx-perf/mixxxdb.sqlite", host="", port=-1, user="mixxx", open=false)
+debug [AnalyzerThread 0 #1] AnalyzerThread - Activated 5 analyzers
+debug [AnalyzerThread 3 #3] AnalyzerThread - Activated 5 analyzers
+debug [AnalyzerThread 4 #5] DbConnection - Opening database connection "MIXXX-8" QSqlDatabase(driver="QSQLITE", database="file:///tmp/mixxx-perf/mixxxdb.sqlite", host="", port=-1, user="mixxx", open=false)
+info [AnalyzerThread 5 #6] DbConnectionPool - Cloned thread-local database connection "MIXXX-6" QSqlDatabase(driver="QSQLITE", database="file:///tmp/mixxx-perf/mixxxdb.sqlite", host="", port=-1, user="mixxx", open=true)
+debug [AnalyzerThread 5 #6] DbConnectionPooled - Found thread-local database connection "MIXXX-6" QSqlDatabase(driver="QSQLITE", database="file:///tmp/mixxx-perf/mixxxdb.sqlite", host="", port=-1, user="mixxx", open=true)
+debug [AnalyzerThread 1 #2] DbConnection - Opening database connection "MIXXX-9" QSqlDatabase(driver="QSQLITE", database="file:///tmp/mixxx-perf/mixxxdb.sqlite", host="", port=-1, user="mixxx", open=false)
+debug [AnalyzerThread 5 #6] AnalyzerThread - Activated 5 analyzers
+info [AnalyzerThread 2 #4] DbConnectionPool - Cloned thread-local database connection "MIXXX-5" QSqlDatabase(driver="QSQLITE", database="file:///tmp/mixxx-perf/mixxxdb.sqlite", host="", port=-1, user="mixxx", open=true)
+info [AnalyzerThread 6 #7] DbConnectionPool - Cloned thread-local database connection "MIXXX-7" QSqlDatabase(driver="QSQLITE", database="file:///tmp/mixxx-perf/mixxxdb.sqlite", host="", port=-1, user="mixxx", open=true)
+info [AnalyzerThread 4 #5] DbConnectionPool - Cloned thread-local database connection "MIXXX-8" QSqlDatabase(driver="QSQLITE", database="file:///tmp/mixxx-perf/mixxxdb.sqlite", host="", port=-1, user="mixxx", open=true)
+debug [AnalyzerThread 4 #5] DbConnectionPooled - Found thread-local database connection "MIXXX-8" QSqlDatabase(driver="QSQLITE", database="file:///tmp/mixxx-perf/mixxxdb.sqlite", host="", port=-1, user="mixxx", open=true)
+info [AnalyzerThread 1 #2] DbConnectionPool - Cloned thread-local database connection "MIXXX-9" QSqlDatabase(driver="QSQLITE", database="file:///tmp/mixxx-perf/mixxxdb.sqlite", host="", port=-1, user="mixxx", open=true)
+debug [AnalyzerThread 6 #7] DbConnectionPooled - Found thread-local database connection "MIXXX-7" QSqlDatabase(driver="QSQLITE", database="file:///tmp/mixxx-perf/mixxxdb.sqlite", host="", port=-1, user="mixxx", open=true)
+debug [AnalyzerThread 2 #4] DbConnectionPooled - Found thread-local database connection "MIXXX-5" QSqlDatabase(driver="QSQLITE", database="file:///tmp/mixxx-perf/mixxxdb.sqlite", host="", port=-1, user="mixxx", open=true)
+debug [AnalyzerThread 1 #2] DbConnectionPooled - Found thread-local database connection "MIXXX-9" QSqlDatabase(driver="QSQLITE", database="file:///tmp/mixxx-perf/mixxxdb.sqlite", host="", port=-1, user="mixxx", open=true)
+debug [AnalyzerThread 4 #5] AnalyzerThread - Activated 5 analyzers
+debug [AnalyzerThread 6 #7] AnalyzerThread - Activated 5 analyzers
+debug [AnalyzerThread 2 #4] AnalyzerThread - Activated 5 analyzers
+debug [AnalyzerThread 1 #2] AnalyzerThread - Activated 5 analyzers
+debug [Main] Creating ControllerManager
+debug [ControllerManager] ControllerManager:slotInitialize
+debug [ControllerManager] Extension .midi.xml total 0 mappings
+debug [ControllerManager] Extension .hid.xml total 0 mappings
+debug [ControllerManager] Extension .bulk.xml total 0 mappings
+warning [Main] Could not read sampler bank file "/tmp/mixxx-perf/samplers.xml"
+debug [Main] GlobalTrackCache - Resolving track by id 2
+debug [Main] GlobalTrackCache - Resolving track by canonical location "/Users/andrey/Music/set/chillstep/Tritonal ft. Cristina Soto - Still With Me (Seven Lions Remix).mp3"
+debug [Main] GlobalTrackCache - Cache miss - allocating track  TrackRef {"/Users/andrey/Music/set/chillstep/Tritonal ft. Cristina Soto - Still With Me (Seven Lions Remix).mp3","/Users/andrey/Music/set/chillstep/Tritonal ft. Cristina Soto - Still With Me (Seven Lions Remix).mp3",2}
+debug [Main] GlobalTrackCache - Cache miss - inserting new track into cache  TrackRef {"/Users/andrey/Music/set/chillstep/Tritonal ft. Cristina Soto - Still With Me (Seven Lions Remix).mp3","/Users/andrey/Music/set/chillstep/Tritonal ft. Cristina Soto - Still With Me (Seven Lions Remix).mp3",2} QObject(0x0)
+debug [Main] Successfully deserialized Beats ("BeatGrid-2.0")
+debug [Main] Successfully deserialized KeyMap
+debug [Main] SoundSourceProxy - SoundSourceProvider "Apple CoreAudio Version 26.3.1 (a) (Build 25D771280a)" created a SoundSource for file "/Users/andrey/Music/set/chillstep/Tritonal ft. Cristina Soto - Still With Me (Seven Lions Remix).mp3" of type "mp3"
+debug [Main] BaseTrackCache(0x8c0584c00) updateIndexWithQuery took 0 ms
+debug [Main] GlobalTrackCache - Resolving track by id 3
+debug [Main] GlobalTrackCache - Resolving track by canonical location "/Users/andrey/Music/set/chillstep/MitiS - Born.mp3"
+debug [Main] GlobalTrackCache - Cache miss - allocating track  TrackRef {"/Users/andrey/Music/set/chillstep/MitiS - Born.mp3","/Users/andrey/Music/set/chillstep/MitiS - Born.mp3",3}
+debug [Main] GlobalTrackCache - Cache miss - inserting new track into cache  TrackRef {"/Users/andrey/Music/set/chillstep/MitiS - Born.mp3","/Users/andrey/Music/set/chillstep/MitiS - Born.mp3",3} QObject(0x0)
+debug [Main] Successfully deserialized Beats ("BeatGrid-2.0")
+debug [Main] Successfully deserialized KeyMap
+debug [Main] SoundSourceProxy - SoundSourceProvider "Apple CoreAudio Version 26.3.1 (a) (Build 25D771280a)" created a SoundSource for file "/Users/andrey/Music/set/chillstep/MitiS - Born.mp3" of type "mp3"
+debug [Main] BaseTrackCache(0x8c0584c00) updateIndexWithQuery took 0 ms
+info [ControllerManager] MIDI product info parsing not yet implemented
+info [ControllerManager] MIDI product info parsing not yet implemented
+debug [Main] QOpenGLContext created: cocoa QSurfaceFormat::OpenGL V2.1 QSurfaceFormat::NoProfile
+info [ControllerManager] MIDI product info parsing not yet implemented
+info [ControllerManager] MIDI product info parsing not yet implemented
+info [ControllerManager] MIDI product info parsing not yet implemented
+info [ControllerManager] MIDI product info parsing not yet implemented
+info [ControllerManager] MIDI product info parsing not yet implemented
+debug [ControllerManager] Extension .midi.xml total 144 mappings
+debug [ControllerManager] Extension .hid.xml total 18 mappings
+debug [ControllerManager] Extension .bulk.xml total 2 mappings
+debug [Main] OpenGL driver version string "2.1 Metal - 90.5", vendor "Apple", renderer "Apple M5 Pro"
+debug [Main] Supported OpenGL version: 2.1
+warning [Main] Already setting window visible!
+debug [Main] ControllerManager::getControllerList
+debug [ControllerManager] Processing QEvent::MetaCall for object ControllerManager(0x8b9cfe358) running in thread: "ControllerManager" took 640 ms
+debug [Main] DbConnectionPooled - Found thread-local database connection "MIXXX-1" QSqlDatabase(driver="QSQLITE", database="file:///tmp/mixxx-perf/mixxxdb.sqlite", host="", port=-1, user="mixxx", open=true)
+debug [Main] Key plugin ID: "qm-keydetector:2"
+debug [Main] LegacySkinParser loading skin: "/Users/andrey/www/ai/mixxx/res/skins/LateNight"
+info [Main] Creating skin control object: "[Skin],show_waveforms"
+info [Main] Creating skin control object: "[Skin],timing_shift_buttons"
+info [Main] Creating skin control object: "[Skin],show_4decks"
+info [Main] Creating skin control object: "[Skin],show_hotcues"
+info [Main] Creating skin control object: "[Skin],show_8_hotcues"
+info [Main] Creating skin control object: "[Skin],show_intro_outro_cues"
+info [Main] Creating skin control object: "[Skin],show_loop_controls"
+info [Main] Creating skin control object: "[Skin],show_beatjump_controls"
+info [Main] Creating skin control object: "[LateNight],deck_size_without_mixer"
+info [Main] Creating skin control object: "[Skin],show_rate_controls"
+info [Main] Creating skin control object: "[Skin],show_rate_control_buttons"
+info [Main] Creating skin control object: "[Skin],show_beatgrid_controls"
+info [Main] Creating skin control object: "[Skin],show_rate_controls_compact"
+info [Main] Creating skin control object: "[Skin],show_loop_controls_compact"
+info [Main] Creating skin control object: "[Skin],show_beatjump_controls_compact"
+info [Main] Creating skin control object: "[Skin],show_sync_button_compact"
+info [Main] Creating skin control object: "[Skin],show_key_controls"
+info [Main] Creating skin control object: "[Skin],show_key_controls_compact"
+info [Main] Creating skin control object: "[Skin],show_vumeters_compact"
+info [Main] Creating skin control object: "[Skin],show_main_head_mixer"
+info [Main] Creating skin control object: "[Skin],show_eq_knobs"
+info [Main] Creating skin control object: "[Skin],show_eq_kill_buttons"
+info [Main] Creating skin control object: "[Skin],show_xfader"
+info [Main] Creating skin control object: "[LateNight],show_vumeters_compact"
+info [Main] Creating skin control object: "[Skin],show_superknobs"
+info [Main] Creating skin control object: "[LateNight],sampler_rows"
+info [Main] Creating skin control object: "[LateNight],expand_samplers_1-4"
+info [Main] Creating skin control object: "[LateNight],expand_samplers_1-8"
+info [Main] Creating skin control object: "[LateNight],expand_samplers_9-16"
+info [Main] Creating skin control object: "[LateNight],max_lib_show_decks"
+debug [Main] Skin is a >=1.12.0 style skin.
+debug [Thread (pooled)] SoundSourceProxy - SoundSourceProvider "Apple CoreAudio Version 26.3.1 (a) (Build 25D771280a)" created a SoundSource for file "/Users/andrey/Music/set/chillstep/Tritonal ft. Cristina Soto - Still With Me (Seven Lions Remix).mp3" of type "mp3"
+warning [Main] Populating font family aliases took 60 ms. Replace uses of missing font family "Open Sans Semibold" with one that exists to avoid this cost. 
+debug [Main] Processing QEvent::Polish for object WCueMenuPopup(0x8c425df00, name = "WCueMenuPopup") running in thread: "Main" took 61 ms
+info [Main] Creating skin control object: "[LateNight],show_sync_button_compact"
+info [Main] Creating skin control object: "[LateNight],show_mini_deck"
+info [Main] Creating skin control object: "[LateNight],show_compact_deck"
+info [Main] Creating skin control object: "[LateNight],show_full_deck"
+debug [Thread (pooled)] SoundSourceProxy - SoundSourceProvider "Apple CoreAudio Version 26.3.1 (a) (Build 25D771280a)" created a SoundSource for file "/Users/andrey/Music/set/chillstep/MitiS - Born.mp3" of type "mp3"
+debug [Main] WSearchLineEdit - Background color: QColor(ARGB 1, 0, 0, 0)
+debug [Main] WTrackTableView::loadTrackModel() HiddenTableModel(0x8b34dfc00)
+debug [Main] BaseTrackCache(0x8c0584c00) updateIndexWithQuery took 3 ms
+debug [Main] HiddenTableModel(0x8b34dfc00) select() returned 94 results in 6 ms
+debug [Main] WTrackTableView::loadTrackModel() MissingTableModel(0x8c6a89800)
+debug [Main] MissingTableModel(0x8c6a89800) select() returned 142 results in 1 ms
+debug [Main] WTrackTableView::loadTrackModel() PlaylistTableModel(0x8b8a8f000)
+debug [Main] Failed to create folder "/Users/gsgemployee/Music/Mixxx/Recordings" for recordings: "Permission denied"
+debug [Main] Recordings folder set to "/Users/gsgemployee/Music/Mixxx/Recordings"
+debug [Main] WTrackTableView::loadTrackModel() ProxyTrackModel(0x8c66993e0)
+warning [BrowseThread] Skipping QFileInfo()
+debug [Main] Failed to create folder "/Users/gsgemployee/Music/Mixxx/Recordings" for recordings: "Permission denied"
+debug [Main] Recordings folder set to "/Users/gsgemployee/Music/Mixxx/Recordings"
+warning [BrowseThread] Skipping QFileInfo()
+debug [Main] WTrackTableView::loadTrackModel() AnalysisLibraryTableModel(0x8b3749800)
+debug [Main] AnalysisLibraryTableModel(0x8b3749800) select() returned 0 results in 1 ms
+info [Main] Creating skin control object: "[LateNight],show_4samplers"
+info [Main] Creating skin control object: "[LateNight],show_8samplers"
+info [Main] Creating skin control object: "[LateNight],show_16samplers"
+info [Main] Creating skin control object: "[Skin],show_sampler_fx"
+info [Main] Creating skin control object: "[Master],skin_settings"
+info [Main] Creating skin control object: "[Skin],show_stem_controls"
+info [Main] Creating skin control object: "[Channel3_Stem1],mute_toggle"
+info [Main] Creating skin control object: "[Channel3_Stem2],mute_toggle"
+info [Main] Creating skin control object: "[Channel3_Stem3],mute_toggle"
+info [Main] Creating skin control object: "[Channel3_Stem4],mute_toggle"
+info [Main] Creating skin control object: "[Skin],keep_consistent_waveform_heights"
+debug [Main] WaveformWidgetFactory::setWaveformWidget - waveform widget added in factory, index 0
+info [Main] Creating skin control object: "[Channel1_Stem1],mute_toggle"
+info [Main] Creating skin control object: "[Channel1_Stem2],mute_toggle"
+info [Main] Creating skin control object: "[Channel1_Stem3],mute_toggle"
+info [Main] Creating skin control object: "[Channel1_Stem4],mute_toggle"
+debug [Main] WaveformWidgetFactory::setWaveformWidget - waveform widget added in factory, index 1
+info [Main] Creating skin control object: "[Channel2_Stem1],mute_toggle"
+info [Main] Creating skin control object: "[Channel2_Stem2],mute_toggle"
+info [Main] Creating skin control object: "[Channel2_Stem3],mute_toggle"
+info [Main] Creating skin control object: "[Channel2_Stem4],mute_toggle"
+debug [Main] WaveformWidgetFactory::setWaveformWidget - waveform widget added in factory, index 2
+info [Main] Creating skin control object: "[Channel4_Stem1],mute_toggle"
+info [Main] Creating skin control object: "[Channel4_Stem2],mute_toggle"
+info [Main] Creating skin control object: "[Channel4_Stem3],mute_toggle"
+info [Main] Creating skin control object: "[Channel4_Stem4],mute_toggle"
+debug [Main] WaveformWidgetFactory::setWaveformWidget - waveform widget added in factory, index 3
+debug [Main] KeyboardEventFilter - update widget shortcuts
+info [Main] Loaded skin "LateNight" from "/Users/andrey/www/ai/mixxx/res/skins/LateNight"
+debug [Main] Processing QEvent::PolishRequest for object WWidgetGroup(0x8b5143d40, name = "Mixxx") running in thread: "Main" took 24 ms
+debug [Main] WTrackTableView::loadTrackModel() LibraryTableModel(0x8b8520000)
+debug [Main] LibraryTableModel(0x8b8520000) select() returned 1610 results in 2 ms
+debug [Main] SoundManager::setupDevices()
+warning [Main] Output sound device clock reference not set! Using "Network stream"
+debug [Main] SoundDeviceNetwork - open: "Network stream"
+debug [Main] SoundDeviceNetwork - Clock Reference with: 512 frames/buffer @ 44100 Hz Hz = "11 ms"
+debug [Main] Using "Network stream" as output sound device clock reference
+debug [Main] 1 output sound devices opened
+debug [Main] 0 input sound devices opened
+debug [0x8c85a6100] aarch64 FPCR: setting bit 24 to 1 to enable Flush-to-zero
+debug [0x8c85a6100] Network Sound: Denormals to zero mode is working
+debug [CachingReaderWorker 1] SoundSourceProxy - SoundSourceProvider "Apple CoreAudio Version 26.3.1 (a) (Build 25D771280a)" created a SoundSource for file "/Users/andrey/Music/set/chillstep/Tritonal ft. Cristina Soto - Still With Me (Seven Lions Remix).mp3" of type "mp3"
+debug [Main] Processing QEvent::Resize for object OpenGLWindow(0x8c050b480) running in thread: "Main" took 2391 ms
+debug [CachingReaderWorker 2] SoundSourceProxy - SoundSourceProvider "Apple CoreAudio Version 26.3.1 (a) (Build 25D771280a)" created a SoundSource for file "/Users/andrey/Music/set/chillstep/MitiS - Born.mp3" of type "mp3"
+debug [Main] Processing QEvent::Show for object QWindowContainer(0x8b59f93e0) running in thread: "Main" took 2392 ms
+debug [Main] Processing QEvent::Show for object WInitialGLWidget(0x8b9b70240) running in thread: "Main" took 2392 ms
+debug [Main] Displaying main window
+debug [Main] Running Mixxx
+debug [ControllerManager] ControllerManager: Setting up devices
+debug [ControllerManager] Scanning PortMIDI devices:
+debug [ControllerManager] Scanning HSS1394 devices:
+debug [ControllerManager]    Nodes detected: 0
+debug [ControllerManager] Scanning USB Bulk devices:
+info [ControllerManager] Scanning USB HID devices
+info [ControllerManager] Excluding HID device { VID:05AC PID:8104 | Physical: Unknown | Usage-Page: FF00 Vendor-defined | Usage: 0005 Vendor-defined | Manufacturer: Apple |  }
+info [ControllerManager] Found HID device: { VID:0000 PID:0000 | Physical: Unknown | Usage-Page: 000C Consumer | Usage: 0001 Consumer Control | Manufacturer: Apple | Product: Headset |  }
+info [ControllerManager] Found HID device: { VID:0000 PID:0000 | Physical: Unknown | Usage-Page: 0001 Generic Desktop | Usage: 0006 Keyboard | Manufacturer: Apple | Product: Apple Internal Keyboard / Trackpad |  }
+info [ControllerManager] Duplicate HID device, excluding { VID:0000 PID:0000 | Physical: Unknown | Usage-Page: 000C Consumer | Usage: 0001 Consumer Control | Manufacturer: Apple | Product: Apple Internal Keyboard / Trackpad |  }
+info [ControllerManager] Duplicate HID device, excluding { VID:0000 PID:0000 | Physical: Unknown | Usage-Page: FF00 Vendor-defined | Usage: 0006 Vendor-defined | Manufacturer: Apple | Product: Apple Internal Keyboard / Trackpad |  }
+info [ControllerManager] Excluding HID device { VID:05AC PID:8104 | Physical: Unknown | Usage-Page: FF00 Vendor-defined | Usage: 0009 Vendor-defined | Manufacturer: Apple | S/N: e08872c1eb68056d07093a23 }
+info [ControllerManager] Found HID device: { VID:0000 PID:0000 | Physical: Unknown | Usage-Page: FF00 Vendor-defined | Usage: 0003 Vendor-defined | Manufacturer: Apple | Product: Apple Internal Keyboard / Trackpad |  }
+info [ControllerManager] Found HID device: { VID:0000 PID:0000 | Physical: Unknown | Usage-Page: FF00 Vendor-defined | Usage: 000D Vendor-defined | Manufacturer: Apple | Product: Apple Internal Keyboard / Trackpad |  }
+info [ControllerManager] Found HID device: { VID:0000 PID:0000 | Physical: Unknown | Usage-Page: FF00 Vendor-defined | Usage: 005F Vendor-defined | Manufacturer: Apple | Product: Apple Internal Keyboard / Trackpad |  }
+info [ControllerManager] Excluding HID device { VID:05AC PID:8104 | Physical: Unknown | Usage-Page: FF00 Vendor-defined | Usage: 0003 Vendor-defined | Manufacturer: Apple | S/N: e08872c1eb68056d07093a23 }
+info [ControllerManager] Found HID device: { VID:0000 PID:0000 | Physical: Unknown | Usage-Page: FF00 Vendor-defined | Usage: 000B Vendor-defined | Manufacturer: Apple | Product: Apple Internal Keyboard / Trackpad |  }
+info [ControllerManager] Found HID device: { VID:0000 PID:0000 | Physical: Unknown | Usage-Page: FF0C Vendor-defined | Usage: 0005 Vendor-defined | Manufacturer: Apple |  }
+info [ControllerManager] Found HID device: { VID:0000 PID:0000 | Physical: Unknown | Usage-Page: 0001 Generic Desktop | Usage: 0002 Mouse | Manufacturer: Apple | Product: Apple Internal Keyboard / Trackpad |  }
+info [ControllerManager] Duplicate HID device, excluding { VID:0000 PID:0000 | Physical: Unknown | Usage-Page: 0001 Generic Desktop | Usage: 0001 Pointer | Manufacturer: Apple | Product: Apple Internal Keyboard / Trackpad |  }
+info [ControllerManager] Duplicate HID device, excluding { VID:0000 PID:0000 | Physical: Unknown | Usage-Page: 000D Digitizers | Usage: 0005 Touch Pad | Manufacturer: Apple | Product: Apple Internal Keyboard / Trackpad |  }
+info [ControllerManager] Duplicate HID device, excluding { VID:0000 PID:0000 | Physical: Unknown | Usage-Page: FF00 Vendor-defined | Usage: 000C Vendor-defined | Manufacturer: Apple | Product: Apple Internal Keyboard / Trackpad |  }
+info [ControllerManager] Excluding HID device { VID:05AC PID:0000 | Physical: USB | Usage-Page: FF00 Vendor-defined | Usage: 000F Vendor-defined | Product: Keyboard Backlight |  }
+info [ControllerManager] Found HID device: { VID:0000 PID:0000 | Physical: Unknown | Usage-Page: FF00 Vendor-defined | Usage: 0048 Vendor-defined | Manufacturer: APPL | Product: BTM |  }
+info [ControllerManager] Excluding HID device { VID:004C PID:026C | Physical: Bluetooth | Usage-Page: 0001 Generic Desktop | Usage: 0006 Keyboard | Manufacturer: Apple Inc. | Product: Andrey Smelov’s Keyboard | S/N: 80:4A:14:6C:B1:EA }
+info [ControllerManager] Duplicate HID device, excluding { VID:004C PID:026C | Physical: Bluetooth | Usage-Page: 000C Consumer | Usage: 0001 Consumer Control | Manufacturer: Apple Inc. | Product: Andrey Smelov’s Keyboard | S/N: 80:4A:14:6C:B1:EA }
+info [ControllerManager] Duplicate HID device, excluding { VID:004C PID:026C | Physical: Bluetooth | Usage-Page: FF00 Vendor-defined | Usage: 0006 Vendor-defined | Manufacturer: Apple Inc. | Product: Andrey Smelov’s Keyboard | S/N: 80:4A:14:6C:B1:EA }
+info [ControllerManager] Excluding HID device { VID:05AC PID:8104 | Physical: Unknown | Usage-Page: 0020 Sensors | Usage: 008A Orientation: Device Orientation | Manufacturer: Apple |  }
+info [ControllerManager] Excluding HID device { VID:004C PID:026C | Physical: Bluetooth | Usage-Page: FF00 Vendor-defined | Usage: 000B Vendor-defined | Manufacturer: Apple Inc. | Product: Andrey Smelov’s Keyboard | S/N: 80:4A:14:6C:B1:EA }
+info [ControllerManager] Duplicate HID device, excluding { VID:004C PID:026C | Physical: Bluetooth | Usage-Page: FF00 Vendor-defined | Usage: 0014 Vendor-defined | Manufacturer: Apple Inc. | Product: Andrey Smelov’s Keyboard | S/N: 80:4A:14:6C:B1:EA }
+info [ControllerManager] Found HID device: { VID:0000 PID:0000 | Physical: Unknown | Usage-Page: FF00 Vendor-defined | Usage: 00FF Vendor-defined | Manufacturer: Apple |  }
+info [ControllerManager] Excluding HID device { VID:004C PID:026C | Physical: Bluetooth | Usage-Page: FF00 Vendor-defined | Usage: 0012 Vendor-defined | Manufacturer: Apple Inc. | Product: Andrey Smelov’s Keyboard | S/N: 80:4A:14:6C:B1:EA }
+info [ControllerManager] Excluding HID device { VID:004C PID:0265 | Physical: Bluetooth | Usage-Page: FF00 Vendor-defined | Usage: 0003 Vendor-defined | Manufacturer: Apple Inc. | Product: Andrey Smelov’s Trackpad | S/N: 14:C2:13:EF:20:BE }
+info [ControllerManager] Found HID device: { VID:0000 PID:0000 | Physical: Unknown | Usage-Page: FF0C Vendor-defined | Usage: 0001 Vendor-defined | Manufacturer: Apple |  }
+info [ControllerManager] Excluding HID device { VID:004C PID:0265 | Physical: Bluetooth | Usage-Page: FF00 Vendor-defined | Usage: 000D Vendor-defined | Manufacturer: Apple Inc. | Product: Andrey Smelov’s Trackpad | S/N: 14:C2:13:EF:20:BE }
+info [ControllerManager] Excluding HID device { VID:004C PID:0265 | Physical: Bluetooth | Usage-Page: 0001 Generic Desktop | Usage: 0002 Mouse | Manufacturer: Apple Inc. | Product: Andrey Smelov’s Trackpad | S/N: 14:C2:13:EF:20:BE }
+info [ControllerManager] Duplicate HID device, excluding { VID:004C PID:0265 | Physical: Bluetooth | Usage-Page: 0001 Generic Desktop | Usage: 0001 Pointer | Manufacturer: Apple Inc. | Product: Andrey Smelov’s Trackpad | S/N: 14:C2:13:EF:20:BE }
+info [ControllerManager] Duplicate HID device, excluding { VID:004C PID:0265 | Physical: Bluetooth | Usage-Page: 000D Digitizers | Usage: 0005 Touch Pad | Manufacturer: Apple Inc. | Product: Andrey Smelov’s Trackpad | S/N: 14:C2:13:EF:20:BE }
+info [ControllerManager] Duplicate HID device, excluding { VID:004C PID:0265 | Physical: Bluetooth | Usage-Page: FF00 Vendor-defined | Usage: 000C Vendor-defined | Manufacturer: Apple Inc. | Product: Andrey Smelov’s Trackpad | S/N: 14:C2:13:EF:20:BE }
+info [ControllerManager] Excluding HID device { VID:004C PID:0265 | Physical: Bluetooth | Usage-Page: FF00 Vendor-defined | Usage: 000B Vendor-defined | Manufacturer: Apple Inc. | Product: Andrey Smelov’s Trackpad | S/N: 14:C2:13:EF:20:BE }
+info [ControllerManager] Duplicate HID device, excluding { VID:004C PID:0265 | Physical: Bluetooth | Usage-Page: FF00 Vendor-defined | Usage: 0014 Vendor-defined | Manufacturer: Apple Inc. | Product: Andrey Smelov’s Trackpad | S/N: 14:C2:13:EF:20:BE }
+info [ControllerManager] Found HID device: { VID:0000 PID:0000 | Physical: Unknown | Usage-Page: FF00 Vendor-defined | Usage: 0004 Vendor-defined | Manufacturer: Apple |  }
+info [ControllerManager] Excluding HID device { VID:004C PID:0265 | Physical: Bluetooth | Usage-Page: FF00 Vendor-defined | Usage: 0012 Vendor-defined | Manufacturer: Apple Inc. | Product: Andrey Smelov’s Trackpad | S/N: 14:C2:13:EF:20:BE }
+debug [ControllerManager] ControllerManager::getControllerList
+debug [ControllerManager] Controller polling stopped.
+debug [Main] Processing QEvent::Resize for object OpenGLWindow(0x8c55fe300) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::Show for object QWindowContainer(0x8b2986070) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::Show for object WVuMeterGLSL(0x8c6aa9e00) running in thread: "Main" took 12 ms
+debug [Engine] RubberBandWrapper::setup - using 2 channel(s) per task
+debug [CachingReaderWorker 1] First sound found at the previously stored position
+debug [Engine] RubberBandWrapper::setup - using 2 channel(s) per task
+debug [CachingReaderWorker 2] First sound found at the previously stored position
+debug [Main] Processing QEvent::Show for object WSingletonContainer(0x8b3e2d380, name = "Deck1_Full") running in thread: "Main" took 47 ms
+debug [Main] Processing QEvent::UpdateRequest for object MixxxMainWindow(0x16b07e000) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::Show for object WWidgetStack(0x8c565aa00, name = "WidgetStack") running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::Show for object WSingletonContainer(0x8b2c51b00, name = "Deck1_Src") running in thread: "Main" took 106 ms
+debug [Main] Processing QEvent::Show for object WSingletonContainer(0x8b38c6880, name = "Deck2_Full") running in thread: "Main" took 50 ms
+debug [Main] Processing QEvent::Show for object WSingletonContainer(0x8b2c52e80, name = "Deck2_Src") running in thread: "Main" took 107 ms
+debug [Main] Processing QEvent::Show for object WSingletonContainer(0x8b1192100, name = "LibrarySingleton") running in thread: "Main" took 59 ms
+debug [Main] WaveformRendererTextured::loadShaders
+debug [Main] WaveformRendererTextured::loadShaders
+debug [Main] WaveformRendererTextured::loadShaders
+debug [Main] WaveformRendererTextured::loadShaders
+debug [Main] Processing QEvent::MetaCall for object WWidgetGroup(0x8b5143d40, name = "Mixxx") running in thread: "Main" took 335 ms
+debug [Main] ControllerManager::getControllerList
+debug [Main] ControllerManager::getControllerList
+warning [Main] HID controller is not open.
+warning [Main] HID controller is not open.
+warning [Main] HID controller is not open.
+warning [Main] HID controller is not open.
+warning [Main] HID controller is not open.
+warning [Main] HID controller is not open.
+warning [Main] HID controller is not open.
+warning [Main] HID controller is not open.
+warning [Main] HID controller is not open.
+warning [Main] HID controller is not open.
+warning [Main] HID controller is not open.
+warning [Main] HID controller is not open.
+warning [Main] HID controller is not open.
+warning [Main] HID controller is not open.
+warning [Main] HID controller is not open.
+warning [Main] HID controller is not open.
+warning [Main] HID controller is not open.
+warning [Main] HID controller is not open.
+warning [Main] HID controller is not open.
+warning [Main] HID controller is not open.
+warning [Main] HID controller is not open.
+warning [Main] HID controller is not open.
+debug [Main] Processing QEvent::MetaCall for object DlgPrefControllers(0x8b8b3e700, name = "DlgPrefControllersDlg") running in thread: "Main" took 265 ms
+debug [Main] Processing QEvent::UpdateRequest for object MixxxMainWindow(0x16b07e000) running in thread: "Main" took 28 ms
+debug [Main] Processing QEvent::MetaCall for object ControlProxy(0x8b3c53da0) running in thread: "Main" took 31 ms
+debug [Main] TrackAnalysisScheduler - Resuming
+debug [Main] WaveformRendererTextured::loadTexture - m_textureId 29 error 1280
+debug [Thread (pooled)] SoundSourceProxy - SoundSourceProvider "Apple CoreAudio Version 26.3.1 (a) (Build 25D771280a)" created a SoundSource for file "/Users/andrey/Music/set/chillstep/Tritonal ft. Cristina Soto - Still With Me (Seven Lions Remix).mp3" of type "mp3"
+debug [Main] TrackAnalysisScheduler - Resuming
+debug [Thread (pooled)] SoundSourceProxy - SoundSourceProvider "Apple CoreAudio Version 26.3.1 (a) (Build 25D771280a)" created a SoundSource for file "/Users/andrey/Music/set/chillstep/MitiS - Born.mp3" of type "mp3"
+debug [Main] AnalyzerThread - Enqueueing next track 2
+debug [Main] AnalyzerThread - Enqueueing next track 3
+debug [AnalyzerThread 0 #1] AnalyzerThread - Dequeued next track 2
+debug [AnalyzerThread 5 #6] AnalyzerThread - Dequeued next track 3
+debug [AnalyzerThread 0 #1] AnalyzerThread - Analyzing "/Users/andrey/Music/set/chillstep/Tritonal ft. Cristina Soto - Still With Me (Seven Lions Remix).mp3"
+debug [AnalyzerThread 5 #6] AnalyzerThread - Analyzing "/Users/andrey/Music/set/chillstep/MitiS - Born.mp3"
+debug [AnalyzerThread 0 #1] SoundSourceProxy - SoundSourceProvider "Apple CoreAudio Version 26.3.1 (a) (Build 25D771280a)" created a SoundSource for file "/Users/andrey/Music/set/chillstep/Tritonal ft. Cristina Soto - Still With Me (Seven Lions Remix).mp3" of type "mp3"
+debug [AnalyzerThread 5 #6] SoundSourceProxy - SoundSourceProvider "Apple CoreAudio Version 26.3.1 (a) (Build 25D771280a)" created a SoundSource for file "/Users/andrey/Music/set/chillstep/MitiS - Born.mp3" of type "mp3"
+debug [Main] Processing QEvent::UpdateRequest for object MixxxMainWindow(0x16b07e000) running in thread: "Main" took 14 ms
+debug [AnalyzerThread 0 #1] AnalysisDAO fetched 3 analyses, 4561578 bytes for track 2 in 20 ms
+debug [AnalyzerThread 0 #1] Reading waveform from byte array: allSignalSize 3840 visualSampleRate 6.1962 audioVisualRatio 7117.26 stemSignalSize 0
+debug [AnalyzerThread 5 #6] AnalysisDAO fetched 3 analyses, 4067425 bytes for track 3 in 19 ms
+debug [AnalyzerThread 5 #6] Reading waveform from byte array: allSignalSize 3842 visualSampleRate 7.22927 audioVisualRatio 6100.2 stemSignalSize 0
+debug [AnalyzerThread 5 #6] Reading waveform from byte array: allSignalSize 234248 visualSampleRate 441 audioVisualRatio 100 stemSignalSize 0
+debug [AnalyzerThread 0 #1] Reading waveform from byte array: allSignalSize 273304 visualSampleRate 441 audioVisualRatio 100 stemSignalSize 0
+debug [AnalyzerThread 5 #6] AnalyzerWaveform - loadStored - Stored waveform loaded
+debug [AnalyzerThread 5 #6] Skipping AnalyzerEbur128
+debug [AnalyzerThread 5 #6] AnalyzerBeats preference settings: 
+Plugin: "qm-tempotracker:0" 
+Fixed tempo assumption: true 
+Re-analyze when settings change: false 
+Re-analyze imported from other software: false 
+Fast analysis: false
+debug [AnalyzerThread 5 #6] AnalyzerKey preference settings: 
+Plugin: "qm-keydetector:2" 
+Re-analyze when settings change: false 
+Fast analysis: false
+debug [AnalyzerThread 5 #6] Track has previous key detection result that is not up to date with latest settings but user preferences indicate we should not re-analyze it.
+debug [AnalyzerThread 5 #6] AnalyzerThread - Skipping track analysis because no analyzer initialized.
+debug [AnalyzerThread 0 #1] AnalyzerWaveform - loadStored - Stored waveform loaded
+debug [AnalyzerThread 0 #1] Skipping AnalyzerEbur128
+debug [AnalyzerThread 0 #1] AnalyzerBeats preference settings: 
+Plugin: "qm-tempotracker:0" 
+Fixed tempo assumption: true 
+Re-analyze when settings change: false 
+Re-analyze imported from other software: false 
+Fast analysis: false
+debug [AnalyzerThread 0 #1] AnalyzerKey preference settings: 
+Plugin: "qm-keydetector:2" 
+Re-analyze when settings change: false 
+Fast analysis: false
+debug [AnalyzerThread 0 #1] Keys version/sub-version unchanged since previous analysis. Not analyzing.
+debug [AnalyzerThread 0 #1] AnalyzerThread - Skipping track analysis because no analyzer initialized.
+debug [Main] VSyncThread: PLL locked to 16666.7 us (display reports 16666.7 us)
+debug [Main] WAVEPERF frames=1 fps="0.3" samples=0 dropsTotal=0 dropsDelta=0 meanMs="0.00" p50Ms="0.00" p95Ms="0.00" p99Ms="0.00" maxMs="0.00" widgets=4 type=16 targetFps=120 wLogical=-1 hLogical=-1 dpr="1.00" totalDevicePx=608098 preRenderMs="0.001" renderMs="15.975" extrasMs="0.488" swapMs="3.635" dispatchMs="0.031" renderedPerFrame="2.00" swappedPerFrame="2.00" tickMs="0.000" visualsMs="0.000" updateMs="0.001" pllDeltaUs=8333
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 25 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [VSyncThread] DROP
+debug [VSyncThread] DROP
+debug [Main] BENCHSCREEN reason="geometry" window=1400x932+-1460+118 screen="Built-in Retina Display" refreshHz=120 dpr=2
+debug [Main] BENCHSCREENS name="DELL U2518D" geometry=2048x1152+0+0 refreshHz=60 dpr=2
+debug [Main] BENCHSCREENS name="Built-in Retina Display" geometry=1512x982+-1512+107 refreshHz=120 dpr=2
+debug [Main] BENCHSCREENS name="DELL U2417H" geometry=1920x1080+2048+0 refreshHz=60 dpr=2
+debug [Main] Processing QEvent::Timer for object 0x8b0ecd1c0 took 14 ms
+debug [Main] Processing QEvent::Paint for object QWidget(0x8c6a71c80, name = "qt_scrollarea_viewport") running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::UpdateRequest for object MixxxMainWindow(0x16b07e000) running in thread: "Main" took 40 ms
+debug [Main] WAVEPERF frames=55 fps="54.6" samples=55 dropsTotal=2 dropsDelta=2 meanMs="18.57" p50Ms="16.74" p95Ms="19.87" p99Ms="40.75" maxMs="93.81" widgets=4 type=16 targetFps=120 wLogical=-1 hLogical=-1 dpr="1.00" totalDevicePx=920666 preRenderMs="0.003" renderMs="0.412" extrasMs="0.145" swapMs="1.258" dispatchMs="1.212" renderedPerFrame="2.00" swappedPerFrame="2.00" tickMs="0.000" visualsMs="0.172" updateMs="0.026" pllDeltaUs=8333
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 22 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 17 ms
+debug [VSyncThread] DROP
+debug [VSyncThread] DROP
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] WAVEPERF frames=59 fps="58.9" samples=59 dropsTotal=4 dropsDelta=2 meanMs="16.98" p50Ms="16.63" p95Ms="19.30" p99Ms="20.32" maxMs="33.40" widgets=4 type=16 targetFps=120 wLogical=-1 hLogical=-1 dpr="1.00" totalDevicePx=920666 preRenderMs="0.001" renderMs="4.181" extrasMs="0.110" swapMs="1.347" dispatchMs="0.061" renderedPerFrame="2.00" swappedPerFrame="2.00" tickMs="0.000" visualsMs="0.070" updateMs="0.042" pllDeltaUs=8333
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 14 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] BENCHSCREEN reason="startup" window=1400x932+-1460+140 screen="Built-in Retina Display" refreshHz=120 dpr=2
+debug [Main] BENCHSCREENS name="DELL U2518D" geometry=2048x1152+0+0 refreshHz=60 dpr=2
+debug [Main] BENCHSCREENS name="Built-in Retina Display" geometry=1512x982+-1512+107 refreshHz=120 dpr=2
+debug [Main] BENCHSCREENS name="DELL U2417H" geometry=1920x1080+2048+0 refreshHz=60 dpr=2
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] WAVEPERF frames=61 fps="60.1" samples=61 dropsTotal=4 dropsDelta=0 meanMs="16.64" p50Ms="16.69" p95Ms="19.65" p99Ms="19.89" maxMs="20.38" widgets=4 type=16 targetFps=120 wLogical=-1 hLogical=-1 dpr="1.00" totalDevicePx=920666 preRenderMs="0.001" renderMs="4.462" extrasMs="0.133" swapMs="3.818" dispatchMs="0.024" renderedPerFrame="2.00" swappedPerFrame="2.00" tickMs="0.000" visualsMs="0.073" updateMs="0.035" pllDeltaUs=8333
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 14 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 14 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] WAVEPERF frames=61 fps="60.8" samples=61 dropsTotal=4 dropsDelta=0 meanMs="16.47" p50Ms="16.63" p95Ms="21.32" p99Ms="21.84" maxMs="23.66" widgets=4 type=16 targetFps=120 wLogical=-1 hLogical=-1 dpr="1.00" totalDevicePx=920666 preRenderMs="0.001" renderMs="4.314" extrasMs="0.131" swapMs="1.669" dispatchMs="0.023" renderedPerFrame="2.00" swappedPerFrame="2.00" tickMs="0.000" visualsMs="0.070" updateMs="0.035" pllDeltaUs=8333
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] WAVEPERF frames=61 fps="60.3" samples=61 dropsTotal=4 dropsDelta=0 meanMs="16.58" p50Ms="16.60" p95Ms="17.37" p99Ms="17.79" maxMs="20.69" widgets=4 type=16 targetFps=120 wLogical=-1 hLogical=-1 dpr="1.00" totalDevicePx=920666 preRenderMs="0.002" renderMs="4.558" extrasMs="0.124" swapMs="1.609" dispatchMs="0.032" renderedPerFrame="2.00" swappedPerFrame="2.00" tickMs="0.000" visualsMs="0.067" updateMs="0.038" pllDeltaUs=8333
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 14 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] WAVEPERF frames=61 fps="60.6" samples=61 dropsTotal=4 dropsDelta=0 meanMs="16.49" p50Ms="16.70" p95Ms="17.75" p99Ms="20.66" maxMs="23.76" widgets=4 type=16 targetFps=120 wLogical=-1 hLogical=-1 dpr="1.00" totalDevicePx=920666 preRenderMs="0.001" renderMs="4.586" extrasMs="0.146" swapMs="1.723" dispatchMs="0.022" renderedPerFrame="2.00" swappedPerFrame="2.00" tickMs="0.000" visualsMs="0.076" updateMs="0.033" pllDeltaUs=8333
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 14 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] WAVEPERF frames=61 fps="60.5" samples=61 dropsTotal=4 dropsDelta=0 meanMs="16.50" p50Ms="16.57" p95Ms="18.52" p99Ms="24.28" maxMs="24.71" widgets=4 type=16 targetFps=120 wLogical=-1 hLogical=-1 dpr="1.00" totalDevicePx=920666 preRenderMs="0.001" renderMs="4.601" extrasMs="0.134" swapMs="1.930" dispatchMs="0.025" renderedPerFrame="2.00" swappedPerFrame="2.00" tickMs="0.000" visualsMs="0.055" updateMs="0.038" pllDeltaUs=8333
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] WAVEPERF frames=61 fps="60.5" samples=61 dropsTotal=4 dropsDelta=0 meanMs="16.57" p50Ms="16.58" p95Ms="17.97" p99Ms="19.14" maxMs="19.18" widgets=4 type=16 targetFps=120 wLogical=-1 hLogical=-1 dpr="1.00" totalDevicePx=920666 preRenderMs="0.001" renderMs="4.970" extrasMs="0.139" swapMs="1.308" dispatchMs="0.026" renderedPerFrame="2.00" swappedPerFrame="2.00" tickMs="0.000" visualsMs="0.074" updateMs="0.039" pllDeltaUs=8333
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] WAVEPERF frames=61 fps="60.9" samples=61 dropsTotal=4 dropsDelta=0 meanMs="16.43" p50Ms="16.42" p95Ms="17.58" p99Ms="19.57" maxMs="20.80" widgets=4 type=16 targetFps=120 wLogical=-1 hLogical=-1 dpr="1.00" totalDevicePx=920666 preRenderMs="0.002" renderMs="4.420" extrasMs="0.133" swapMs="2.273" dispatchMs="0.022" renderedPerFrame="2.00" swappedPerFrame="2.00" tickMs="0.000" visualsMs="0.069" updateMs="0.031" pllDeltaUs=8333
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 26 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [VSyncThread] DROP
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] phase-locked-loop: 13403862 16511.4 -6789.7
+debug [Main] WAVEPERF frames=60 fps="59.8" samples=60 dropsTotal=5 dropsDelta=1 meanMs="16.74" p50Ms="16.50" p95Ms="19.98" p99Ms="22.03" maxMs="31.20" widgets=4 type=16 targetFps=120 wLogical=-1 hLogical=-1 dpr="1.00" totalDevicePx=920666 preRenderMs="0.001" renderMs="4.666" extrasMs="0.150" swapMs="2.514" dispatchMs="0.023" renderedPerFrame="2.00" swappedPerFrame="2.00" tickMs="0.000" visualsMs="0.075" updateMs="0.031" pllDeltaUs=8333
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] WAVEPERF frames=61 fps="60.9" samples=61 dropsTotal=5 dropsDelta=0 meanMs="16.42" p50Ms="16.40" p95Ms="17.69" p99Ms="18.17" maxMs="20.08" widgets=4 type=16 targetFps=120 wLogical=-1 hLogical=-1 dpr="1.00" totalDevicePx=920666 preRenderMs="0.001" renderMs="4.439" extrasMs="0.135" swapMs="2.018" dispatchMs="0.026" renderedPerFrame="2.00" swappedPerFrame="2.00" tickMs="0.000" visualsMs="0.072" updateMs="0.034" pllDeltaUs=8333
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] WAVEPERF frames=61 fps="60.6" samples=61 dropsTotal=5 dropsDelta=0 meanMs="16.52" p50Ms="16.42" p95Ms="18.68" p99Ms="19.66" maxMs="21.01" widgets=4 type=16 targetFps=120 wLogical=-1 hLogical=-1 dpr="1.00" totalDevicePx=920666 preRenderMs="0.001" renderMs="4.554" extrasMs="0.142" swapMs="1.979" dispatchMs="0.025" renderedPerFrame="2.00" swappedPerFrame="2.00" tickMs="0.000" visualsMs="0.073" updateMs="0.036" pllDeltaUs=8333
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 14 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 17 ms
+debug [VSyncThread] DROP
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] WAVEPERF frames=60 fps="60.0" samples=60 dropsTotal=6 dropsDelta=1 meanMs="16.68" p50Ms="16.49" p95Ms="19.49" p99Ms="23.01" maxMs="26.33" widgets=4 type=16 targetFps=120 wLogical=-1 hLogical=-1 dpr="1.00" totalDevicePx=920666 preRenderMs="0.001" renderMs="4.579" extrasMs="0.128" swapMs="2.030" dispatchMs="0.025" renderedPerFrame="2.00" swappedPerFrame="2.00" tickMs="0.000" visualsMs="0.077" updateMs="0.036" pllDeltaUs=8333
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 14 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 14 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 15 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 14 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 15 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 14 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 14 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 15 ms
+debug [Main] WAVEPERF frames=61 fps="60.8" samples=61 dropsTotal=6 dropsDelta=0 meanMs="16.46" p50Ms="16.53" p95Ms="21.18" p99Ms="23.17" maxMs="24.34" widgets=4 type=16 targetFps=120 wLogical=-1 hLogical=-1 dpr="1.00" totalDevicePx=920666 preRenderMs="0.001" renderMs="4.488" extrasMs="0.142" swapMs="1.702" dispatchMs="0.095" renderedPerFrame="2.00" swappedPerFrame="2.00" tickMs="0.000" visualsMs="0.061" updateMs="0.036" pllDeltaUs=8333
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 15 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 14 ms
+debug [Main] WAVEPERF frames=61 fps="60.9" samples=61 dropsTotal=6 dropsDelta=0 meanMs="16.42" p50Ms="16.43" p95Ms="21.65" p99Ms="23.57" maxMs="23.67" widgets=4 type=16 targetFps=120 wLogical=-1 hLogical=-1 dpr="1.00" totalDevicePx=920666 preRenderMs="0.001" renderMs="4.535" extrasMs="0.130" swapMs="1.574" dispatchMs="0.027" renderedPerFrame="2.00" swappedPerFrame="2.00" tickMs="0.000" visualsMs="0.067" updateMs="0.035" pllDeltaUs=8333
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 14 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 14 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] WAVEPERF frames=61 fps="60.8" samples=61 dropsTotal=6 dropsDelta=0 meanMs="16.44" p50Ms="16.40" p95Ms="17.42" p99Ms="20.49" maxMs="20.79" widgets=4 type=16 targetFps=120 wLogical=-1 hLogical=-1 dpr="1.00" totalDevicePx=920666 preRenderMs="0.002" renderMs="4.487" extrasMs="0.139" swapMs="2.489" dispatchMs="0.024" renderedPerFrame="2.00" swappedPerFrame="2.00" tickMs="0.000" visualsMs="0.064" updateMs="0.036" pllDeltaUs=8333
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 14 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 15 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] WAVEPERF frames=61 fps="61.0" samples=61 dropsTotal=6 dropsDelta=0 meanMs="16.43" p50Ms="16.41" p95Ms="18.33" p99Ms="22.73" maxMs="24.33" widgets=4 type=16 targetFps=120 wLogical=-1 hLogical=-1 dpr="1.00" totalDevicePx=920666 preRenderMs="0.002" renderMs="4.634" extrasMs="0.132" swapMs="2.039" dispatchMs="0.097" renderedPerFrame="2.00" swappedPerFrame="2.00" tickMs="0.000" visualsMs="0.070" updateMs="0.037" pllDeltaUs=8333
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] WAVEPERF frames=61 fps="60.8" samples=61 dropsTotal=6 dropsDelta=0 meanMs="16.45" p50Ms="16.34" p95Ms="18.75" p99Ms="18.91" maxMs="18.92" widgets=4 type=16 targetFps=120 wLogical=-1 hLogical=-1 dpr="1.00" totalDevicePx=920666 preRenderMs="0.001" renderMs="4.368" extrasMs="0.123" swapMs="1.950" dispatchMs="0.024" renderedPerFrame="2.00" swappedPerFrame="2.00" tickMs="0.000" visualsMs="0.051" updateMs="0.031" pllDeltaUs=8333
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 14 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 14 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 15 ms
+debug [Main] WAVEPERF frames=60 fps="59.4" samples=60 dropsTotal=6 dropsDelta=0 meanMs="16.84" p50Ms="16.61" p95Ms="18.72" p99Ms="22.07" maxMs="30.56" widgets=4 type=16 targetFps=120 wLogical=-1 hLogical=-1 dpr="1.00" totalDevicePx=920666 preRenderMs="0.002" renderMs="4.707" extrasMs="0.137" swapMs="2.897" dispatchMs="0.077" renderedPerFrame="2.00" swappedPerFrame="2.00" tickMs="0.000" visualsMs="0.074" updateMs="0.038" pllDeltaUs=8333
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [VSyncThread] DROP
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] phase-locked-loop: 23402131 16500 -5680.7
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] WAVEPERF frames=61 fps="61.0" samples=61 dropsTotal=7 dropsDelta=1 meanMs="16.40" p50Ms="16.52" p95Ms="17.66" p99Ms="18.70" maxMs="24.55" widgets=4 type=16 targetFps=120 wLogical=-1 hLogical=-1 dpr="1.00" totalDevicePx=920666 preRenderMs="0.002" renderMs="4.295" extrasMs="0.109" swapMs="1.450" dispatchMs="0.076" renderedPerFrame="2.00" swappedPerFrame="2.00" tickMs="0.000" visualsMs="0.054" updateMs="0.031" pllDeltaUs=8333
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 14 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 14 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] WAVEPERF frames=62 fps="61.1" samples=62 dropsTotal=7 dropsDelta=0 meanMs="16.37" p50Ms="16.44" p95Ms="18.44" p99Ms="23.14" maxMs="24.70" widgets=4 type=16 targetFps=120 wLogical=-1 hLogical=-1 dpr="1.00" totalDevicePx=920666 preRenderMs="0.002" renderMs="4.387" extrasMs="0.126" swapMs="1.563" dispatchMs="0.025" renderedPerFrame="2.00" swappedPerFrame="2.00" tickMs="0.000" visualsMs="0.070" updateMs="0.035" pllDeltaUs=8333
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 15 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 14 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] WAVEPERF frames=61 fps="60.8" samples=61 dropsTotal=7 dropsDelta=0 meanMs="16.45" p50Ms="16.59" p95Ms="18.28" p99Ms="21.91" maxMs="24.05" widgets=4 type=16 targetFps=120 wLogical=-1 hLogical=-1 dpr="1.00" totalDevicePx=920666 preRenderMs="0.002" renderMs="4.583" extrasMs="0.132" swapMs="2.178" dispatchMs="0.151" renderedPerFrame="2.00" swappedPerFrame="2.00" tickMs="0.000" visualsMs="0.057" updateMs="0.035" pllDeltaUs=8333
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 14 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 14 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 14 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 14 ms
+debug [Main] WAVEPERF frames=61 fps="60.9" samples=61 dropsTotal=7 dropsDelta=0 meanMs="16.45" p50Ms="16.55" p95Ms="18.73" p99Ms="20.15" maxMs="20.53" widgets=4 type=16 targetFps=120 wLogical=-1 hLogical=-1 dpr="1.00" totalDevicePx=920666 preRenderMs="0.001" renderMs="4.767" extrasMs="0.136" swapMs="2.381" dispatchMs="0.046" renderedPerFrame="2.00" swappedPerFrame="2.00" tickMs="0.000" visualsMs="0.066" updateMs="0.038" pllDeltaUs=8333
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] WAVEPERF frames=61 fps="60.8" samples=61 dropsTotal=7 dropsDelta=0 meanMs="16.43" p50Ms="16.51" p95Ms="20.23" p99Ms="20.39" maxMs="20.47" widgets=4 type=16 targetFps=120 wLogical=-1 hLogical=-1 dpr="1.00" totalDevicePx=920666 preRenderMs="0.002" renderMs="4.462" extrasMs="0.136" swapMs="2.196" dispatchMs="0.025" renderedPerFrame="2.00" swappedPerFrame="2.00" tickMs="0.000" visualsMs="0.072" updateMs="0.035" pllDeltaUs=8333
+debug [Main] Processing QEvent::UpdateRequest for object OpenGLWindow(0x8c050b480) running in thread: "Main" took 17 ms
+debug [VSyncThread] DROP
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] WAVEPERF frames=60 fps="59.8" samples=60 dropsTotal=8 dropsDelta=1 meanMs="16.75" p50Ms="16.50" p95Ms="18.21" p99Ms="25.58" maxMs="26.44" widgets=4 type=16 targetFps=120 wLogical=-1 hLogical=-1 dpr="1.00" totalDevicePx=920666 preRenderMs="0.002" renderMs="4.456" extrasMs="0.143" swapMs="1.725" dispatchMs="0.168" renderedPerFrame="2.00" swappedPerFrame="2.00" tickMs="0.000" visualsMs="0.059" updateMs="0.038" pllDeltaUs=8333
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] WAVEPERF frames=61 fps="60.9" samples=61 dropsTotal=8 dropsDelta=0 meanMs="16.40" p50Ms="16.40" p95Ms="17.83" p99Ms="18.90" maxMs="19.14" widgets=4 type=16 targetFps=120 wLogical=-1 hLogical=-1 dpr="1.00" totalDevicePx=920666 preRenderMs="0.002" renderMs="4.794" extrasMs="0.142" swapMs="2.006" dispatchMs="0.025" renderedPerFrame="2.00" swappedPerFrame="2.00" tickMs="0.000" visualsMs="0.077" updateMs="0.036" pllDeltaUs=8333
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] WAVEPERF frames=61 fps="60.5" samples=61 dropsTotal=8 dropsDelta=0 meanMs="16.56" p50Ms="16.59" p95Ms="18.57" p99Ms="20.50" maxMs="20.91" widgets=4 type=16 targetFps=120 wLogical=-1 hLogical=-1 dpr="1.00" totalDevicePx=920666 preRenderMs="0.003" renderMs="4.504" extrasMs="0.124" swapMs="2.466" dispatchMs="0.025" renderedPerFrame="2.00" swappedPerFrame="2.00" tickMs="0.000" visualsMs="0.074" updateMs="0.036" pllDeltaUs=8333
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 14 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 15 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 16 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 14 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] WAVEPERF frames=61 fps="61.0" samples=61 dropsTotal=8 dropsDelta=0 meanMs="16.42" p50Ms="16.56" p95Ms="18.65" p99Ms="19.39" maxMs="21.47" widgets=4 type=16 targetFps=120 wLogical=-1 hLogical=-1 dpr="1.00" totalDevicePx=920666 preRenderMs="0.001" renderMs="4.729" extrasMs="0.131" swapMs="1.671" dispatchMs="0.029" renderedPerFrame="2.00" swappedPerFrame="2.00" tickMs="0.000" visualsMs="0.070" updateMs="0.033" pllDeltaUs=8333
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] WAVEPERF frames=62 fps="61.1" samples=62 dropsTotal=8 dropsDelta=0 meanMs="16.40" p50Ms="16.46" p95Ms="18.25" p99Ms="19.10" maxMs="23.34" widgets=4 type=16 targetFps=120 wLogical=-1 hLogical=-1 dpr="1.00" totalDevicePx=920666 preRenderMs="0.001" renderMs="4.001" extrasMs="0.109" swapMs="1.917" dispatchMs="0.022" renderedPerFrame="2.00" swappedPerFrame="2.00" tickMs="0.000" visualsMs="0.043" updateMs="0.029" pllDeltaUs=8333
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 14 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 28 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [VSyncThread] DROP
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] phase-locked-loop: 33416977 16500 -8895.24
+debug [Main] WAVEPERF frames=60 fps="59.6" samples=60 dropsTotal=9 dropsDelta=1 meanMs="16.75" p50Ms="16.57" p95Ms="18.79" p99Ms="21.61" maxMs="29.14" widgets=4 type=16 targetFps=120 wLogical=-1 hLogical=-1 dpr="1.00" totalDevicePx=920666 preRenderMs="0.002" renderMs="4.064" extrasMs="0.121" swapMs="2.322" dispatchMs="0.022" renderedPerFrame="2.00" swappedPerFrame="2.00" tickMs="0.000" visualsMs="0.066" updateMs="0.034" pllDeltaUs=8333
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 15 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 16 ms
+debug [VSyncThread] DROP
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 14 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 16 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 17 ms
+debug [VSyncThread] DROP
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 14 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 16 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] WAVEPERF frames=59 fps="58.8" samples=59 dropsTotal=11 dropsDelta=2 meanMs="17.01" p50Ms="16.67" p95Ms="20.64" p99Ms="30.21" maxMs="32.08" widgets=4 type=16 targetFps=120 wLogical=-1 hLogical=-1 dpr="1.00" totalDevicePx=920666 preRenderMs="0.001" renderMs="4.425" extrasMs="0.126" swapMs="3.369" dispatchMs="0.200" renderedPerFrame="2.00" swappedPerFrame="2.00" tickMs="0.000" visualsMs="0.075" updateMs="0.032" pllDeltaUs=8333
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] WAVEPERF frames=61 fps="60.3" samples=61 dropsTotal=11 dropsDelta=0 meanMs="16.53" p50Ms="16.53" p95Ms="19.25" p99Ms="19.78" maxMs="22.16" widgets=4 type=16 targetFps=120 wLogical=-1 hLogical=-1 dpr="1.00" totalDevicePx=920666 preRenderMs="0.002" renderMs="4.618" extrasMs="0.146" swapMs="2.064" dispatchMs="0.024" renderedPerFrame="2.00" swappedPerFrame="2.00" tickMs="0.000" visualsMs="0.071" updateMs="0.039" pllDeltaUs=8333
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 17 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 16 ms
+debug [VSyncThread] DROP
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [VSyncThread] DROP
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 18 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [VSyncThread] DROP
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] WAVEPERF frames=59 fps="58.2" samples=59 dropsTotal=14 dropsDelta=3 meanMs="17.25" p50Ms="16.56" p95Ms="21.80" p99Ms="30.26" maxMs="35.08" widgets=4 type=16 targetFps=120 wLogical=-1 hLogical=-1 dpr="1.00" totalDevicePx=920666 preRenderMs="0.002" renderMs="4.618" extrasMs="0.138" swapMs="1.606" dispatchMs="0.029" renderedPerFrame="2.00" swappedPerFrame="2.00" tickMs="0.000" visualsMs="0.080" updateMs="0.041" pllDeltaUs=8333
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 14 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 14 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 14 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] WAVEPERF frames=61 fps="60.8" samples=61 dropsTotal=14 dropsDelta=0 meanMs="16.48" p50Ms="16.46" p95Ms="19.57" p99Ms="21.14" maxMs="22.26" widgets=4 type=16 targetFps=120 wLogical=-1 hLogical=-1 dpr="1.00" totalDevicePx=920666 preRenderMs="0.001" renderMs="4.651" extrasMs="0.145" swapMs="2.000" dispatchMs="0.023" renderedPerFrame="2.00" swappedPerFrame="2.00" tickMs="0.000" visualsMs="0.065" updateMs="0.035" pllDeltaUs=8333
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::UpdateRequest for object OpenGLWindow(0x8c050b480) running in thread: "Main" took 16 ms
+debug [Main] Processing QEvent::UpdateRequest for object OpenGLWindow(0x8c050b480) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::UpdateRequest for object OpenGLWindow(0x8c050b480) running in thread: "Main" took 19 ms
+debug [VSyncThread] DROP
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 10 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 14 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 16 ms
+debug [VSyncThread] DROP
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 13 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 14 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 12 ms
+debug [Main] Processing QEvent::MetaCall for object WaveformWidgetFactory(0x8bb27a440) running in thread: "Main" took 11 ms
