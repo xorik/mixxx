@@ -38,10 +38,17 @@ constexpr float kSubColumnSamples = 2.0f;
 constexpr float kSoftEdgeFraction = 0.0f;
 constexpr float kSoftEdgePixels = 1.0f;
 
-/// Minimum visible half height of a column that carries any signal. In Traktor
-/// quiet columns sit on a plateau of 0.214 of the half height whatever their
-/// loudness; this reproduces it (measured 0.209 on our own frames).
-constexpr float kAmplitudeFloor = 0.19f;
+/// Minimum visible half height of a column that carries any signal, as a
+/// fraction of the half height of the widget.
+///
+/// ZERO ON PURPOSE, AND NOT BECAUSE NOBODY MEASURED IT. Traktor does have such
+/// a plateau: quiet columns there stop following the amplitude and sit at 0.214
+/// of the half height whatever their loudness, and this constant used to be
+/// 0.19 to reproduce that. The user was shown both, was told that without the
+/// floor very quiet passages shrink to a thread, and chose without it. That is
+/// a decision about the product, not a disagreement with the measurement, so
+/// please do not restore the floor "to match Traktor".
+constexpr float kAmplitudeFloor = 0.0f;
 
 /// Compression of the band values before they become a colour. Traktor stores
 /// the square root of the band magnitude, but the error against the reference

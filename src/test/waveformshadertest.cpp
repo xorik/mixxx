@@ -499,7 +499,10 @@ TEST_F(WaveformShaderTest, HeightFollowsTheAmplitude) {
         EXPECT_GT(lit, previous) << "amplitude " << all << " was not drawn taller than the one below";
         previous = lit;
     }
-    // And the floor really is a floor: the quietest bin still has a body.
+    // A barely audible bin is drawn barely at all: there is no floor lifting
+    // quiet material, by the choice of the user, who was shown both and picked
+    // this. It still has to be drawn rather than dropped, so the check is that
+    // it is there and small.
     const QImage quiet = render(uniformBins(Bin{4, 3, 2, 1}), 128, 200);
     int lit = 0;
     for (int y = 0; y < 100; ++y) {
@@ -507,12 +510,9 @@ TEST_F(WaveformShaderTest, HeightFollowsTheAmplitude) {
             lit++;
         }
     }
-    // Deliberately not written in terms of kAmplitudeFloor: an expectation
-    // computed from the value under test moves together with it and cannot
-    // fail. Twelve rows out of a hundred is well below the 19 the floor gives
-    // and well above the two or three a bin of this level would get without it.
-    EXPECT_GE(lit, 12) << "a barely audible bin was drawn " << lit
-                       << " pixels tall, the floor did not apply";
+    EXPECT_GT(lit, 0) << "a quiet bin was not drawn at all";
+    EXPECT_LT(lit, 12) << "a barely audible bin was drawn " << lit
+                       << " pixels tall, something is lifting quiet material";
 }
 
 TEST_F(WaveformShaderTest, HeightDoesNotDependOnTheColourBalance) {
