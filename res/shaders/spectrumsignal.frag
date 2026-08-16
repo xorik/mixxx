@@ -35,10 +35,12 @@ uniform highp float lastVisualIndex;
 // disables the smoothing, which gives the color grid of the stock RGB
 // waveform.
 uniform highp float colorSmoothBins;
-// How many sub columns are sampled inside one framebuffer pixel. Within a
-// single pixel the signal has time to rise and fall, so the alpha of that pixel
-// is the share of it the waveform covers, not a yes or no about its centre.
+// How many sub columns are sampled inside one SCREEN pixel, and how many
+// framebuffer pixels one screen pixel is made of. Within a single screen pixel
+// the signal has time to rise and fall, so its alpha is the share of it the
+// waveform covers, not a yes or no about its centre.
 uniform highp float subColumnSamples;
+uniform highp float pixelsPerScreenPixel;
 // Width over which the edge of a column fades, as a fraction of the half height
 // of the widget. With the coverage supersampled across the pixel the edge is
 // already antialiased from the data, so this is now only a floor under that: it
@@ -241,8 +243,27 @@ void main(void) {
         // but the effect does fade out, and the reason is worth knowing before
         // hunting for a bug. The bench this was measured on had about 3000
         // peaks per second of audio to work with; Mixxx stores 441.
-        highp float indicesPerPixel = indexRange / max(framebufferSize.x, 1.0);
-        highp float centreIndex = firstVisualIndex + uv.x * indexRange;
+        // The span to average over is a SCREEN pixel, not a framebuffer pixel.
+        // The frame buffer is several times denser than the screen, so a
+        // framebuffer pixel can hold less than one bin - at the zoom the user
+        // works at it holds about three quarters of one - and sub columns
+        // inside it all land on the same bin, which averages nothing. The
+        // filtering that turns the buffer into the picture then keeps only some
+        // of those pixels, so what little was there is thrown away too.
+        //
+        // Averaging over the screen pixel instead makes every framebuffer pixel
+        // inside it carry the same, correct coverage, and the filtering has
+        // nothing left to lose.
+        highp float scale = max(pixelsPerScreenPixel, 1.0);
+        highp float indicesPerPixel = indexRange / max(framebufferSize.x, 1.0) * scale;
+        // Snap to the middle of the screen pixel this fragment belongs to.
+        // Centring the window on the fragment instead would make every
+        // framebuffer pixel average a different, overlapping window - a running
+        // average that smears detail across neighbouring screen pixels rather
+        // than an average of each one.
+        highp float screenPixel = floor(uv.x * framebufferSize.x / scale);
+        highp float centreIndex =
+                firstVisualIndex + (screenPixel + 0.5) * indicesPerPixel;
         highp float softness = max(softEdgeFraction,
                 max(softEdgePixels * 2.0 / framebufferSize.y, 1e-6));
         highp float samples = max(subColumnSamples, 1.0);

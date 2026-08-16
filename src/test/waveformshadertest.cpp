@@ -32,6 +32,7 @@
 
 #include <QColor>
 #include <QImage>
+#include <QFile>
 #include <QOffscreenSurface>
 #include <QPainter>
 #include <QOpenGLContext>
@@ -202,6 +203,7 @@ class WaveformShaderTest : public testing::Test {
         // in the middle of every image. Tests that compare the mask itself turn
         // it off rather than work around it.
         bool axis = true;
+        float pixelsPerScreenPixel = 1.0f;
     };
     Overrides m_overrides;
 
@@ -231,6 +233,9 @@ class WaveformShaderTest : public testing::Test {
         m_pProgram->setUniformValue("softEdgePixels", m_overrides.softEdgePixels);
         m_pProgram->setUniformValue("amplitudeFloor", m_overrides.amplitudeFloor);
         m_pProgram->setUniformValue("subColumnSamples", m_overrides.subColumnSamples);
+        // The test renders at the size of the picture, so one framebuffer pixel
+        // is one screen pixel. The oversampled case sets this to four.
+        m_pProgram->setUniformValue("pixelsPerScreenPixel", m_overrides.pixelsPerScreenPixel);
         m_pProgram->setUniformValue("colorGamma", kColorGamma);
         m_pProgram->setUniformValue("colorLevelFloor", kColorLevelFloor);
         m_pProgram->setUniformValue("bandColorGain",
@@ -660,6 +665,7 @@ TEST_F(WaveformShaderTest, TheShippedSubColumnCountReachesTheReference) {
     // One row of the finished picture, in the units of the oversampled buffer.
     m_overrides.softEdgePixels = kOversampling;
     m_overrides.subColumnSamples = kSubColumnSamples;
+    m_overrides.pixelsPerScreenPixel = kOversampling;
     m_overrides.axis = false;
 
     std::vector<Bin> bins;
@@ -736,6 +742,43 @@ std::vector<Bin> mixedCharacterBins(int columns) {
 ///       --gtest_filter='*ComparisonSheet*'
 ///
 /// The file goes to MIXXX_WF_SHEET or to /tmp/wfsheet.png.
+/// Renders the shader on the data of the approved reference and writes the
+/// picture out, so that it can be put next to the reference itself. Disabled;
+/// run it with
+///   mixxx-test --gtest_also_run_disabled_tests --gtest_filter='*GoldenRender*'
+/// MIXXX_WF_BINS points at the bins (low, mid, high, all as bytes per bin) and
+/// MIXXX_WF_OUT at the file to write.
+TEST_F(WaveformShaderTest, DISABLED_GoldenRender) {
+    const QString binsPath = qEnvironmentVariable("MIXXX_WF_BINS");
+    QFile file(binsPath);
+    ASSERT_TRUE(file.open(QIODevice::ReadOnly)) << "cannot read " << binsPath.toStdString();
+    const QByteArray raw = file.readAll();
+    ASSERT_EQ(raw.size() % 4, 0);
+    const int count = static_cast<int>(raw.size() / 4);
+
+    std::vector<Bin> bins;
+    bins.reserve(count);
+    for (int i = 0; i < count; ++i) {
+        const unsigned char* p = reinterpret_cast<const unsigned char*>(raw.constData()) + 4 * i;
+        bins.push_back(Bin{p[3], p[0], p[1], p[2]});
+    }
+
+    const int width = qEnvironmentVariableIntValue("MIXXX_WF_WIDTH");
+    const int height = qEnvironmentVariableIntValue("MIXXX_WF_HEIGHT");
+    // The reference is drawn on the background of the skin rather than on
+    // nothing, so the picture has to be composited over it before comparing.
+    const QImage rendered = render(bins, width, height);
+    QImage over(width, height, QImage::Format_ARGB32);
+    over.fill(QColor(26, 26, 26));
+    QPainter painter(&over);
+    painter.drawImage(0, 0, rendered);
+    painter.end();
+
+    const QString out = qEnvironmentVariable("MIXXX_WF_OUT");
+    ASSERT_TRUE(over.save(out)) << "cannot write " << out.toStdString();
+    printf("rendered %d bins into %s (%dx%d)\n", count, out.toStdString().c_str(), width, height);
+}
+
 TEST_F(WaveformShaderTest, DISABLED_ComparisonSheet) {
     constexpr int kWidth = 880;
     constexpr int kSmall = 120;

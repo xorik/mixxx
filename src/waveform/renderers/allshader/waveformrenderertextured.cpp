@@ -406,6 +406,7 @@ void WaveformRendererTextured::paintGL() {
                                 static_cast<::WaveformRendererSignalBase::Options::Int>(
                                         m_options))),
                 QStringLiteral("shader=") + m_fragShader,
+                QStringLiteral("subColumnSamples=") + QString::number(kSubColumnSamples),
                 QStringLiteral("softEdgePixels=") + QString::number(kSoftEdgePixels),
                 QStringLiteral("amplitudeFloor=") + QString::number(kAmplitudeFloor),
                 QStringLiteral("colorLevelFloor=") +
@@ -462,6 +463,8 @@ void WaveformRendererTextured::paintGL() {
             // The shader works in frame buffer pixels, the tunable is in
             // device pixels.
             m_frameShaderProgram->setUniformValue("subColumnSamples", kSubColumnSamples);
+            m_frameShaderProgram->setUniformValue("pixelsPerScreenPixel",
+                    static_cast<float>(kOversamplingFactor));
             m_frameShaderProgram->setUniformValue("softEdgeFraction", kSoftEdgeFraction);
             m_frameShaderProgram->setUniformValue("softEdgePixels",
                     kSoftEdgePixels * static_cast<float>(kOversamplingFactor));

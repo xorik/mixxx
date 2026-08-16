@@ -18,11 +18,17 @@ namespace spectrumwaveform {
 /// orange between red and green and washes out the saturation.
 constexpr float kColorSmoothBins = 4.0f;
 
-/// How many sub columns are sampled inside one FRAMEBUFFER pixel to work out
-/// how much of it the column covers. The frame buffer is already oversampled
-/// four times relative to the screen, so two here is eight per screen pixel,
-/// which is the density the reference was measured at.
-constexpr float kSubColumnSamples = 2.0f;
+/// How many sub columns are sampled inside one SCREEN pixel to work out how
+/// much of it the column covers. Eight is the density the approved reference
+/// was measured at.
+///
+/// Per screen pixel, not per framebuffer pixel, and the difference is not
+/// academic: the buffer is four times denser than the screen, at the zoom the
+/// user works at a framebuffer pixel holds about three quarters of a bin, and
+/// sub columns spread inside it all land on the same bin. That is how the
+/// antialiasing came to be measured as working in the test bench, which renders
+/// at the size of the picture, and to be absent on screen.
+constexpr float kSubColumnSamples = 8.0f;
 
 /// Width over which the edge of a column fades. The coverage is supersampled
 /// across the pixel, so the edge is antialiased from the data already and this
