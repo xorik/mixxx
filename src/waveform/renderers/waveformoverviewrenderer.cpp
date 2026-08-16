@@ -10,44 +10,27 @@
 
 namespace {
 
-/// Balance between the three bands of the Spectrum overview, applied to the
-/// colour only, never to the height. The same numbers as the Spectrum waveform
-/// of the deck uses: the formula that turns the three bands into a colour is
-/// the same here, so the bias of the mid band is the same too. The RGB
-/// overview keeps a neutral gain and is untouched.
+/// Balance between the three bands, applied to the colour only, never to the
+/// height. The Spectrum overview uses the same numbers as the Spectrum
+/// waveform of the deck, because the formula that turns the three bands into a
+/// colour is the same: the high band raised by 17 dB as measured in Traktor,
+/// the mid band held back to 0.7 to keep the share of yellow-green columns
+/// near the measured one. The RGB overview keeps a neutral gain and is exactly
+/// what it always was.
 ///
 /// The colour smoothing of the deck is deliberately NOT carried over. One
 /// column of the overview is about 190 ms of audio (the summary is stored at
-/// about 5.3 columns per second against 441 in the deck), so it is already an
-/// average; the four bin window of the deck would be 760 ms here and would
+/// about 5.3 columns per second against 441 in the deck), so it is an average
+/// already; the four bin window of the deck would be 760 ms here and would
 /// turn the picture into porridge.
-///
-/// Overridable as MIXXX_WF_BAND_GAIN_OVERVIEW="low,mid,high", separately from
-/// the deck: the overview normalizes each track to its own peak and the deck
-/// does not, so the two do not have to agree.
 struct BandColorGain {
     float low;
     float mid;
     float high;
 };
 
-const BandColorGain& bandColorGain() {
-    static const BandColorGain value = []() -> BandColorGain {
-        const QStringList parts =
-                qEnvironmentVariable("MIXXX_WF_BAND_GAIN_OVERVIEW").split(QChar(','));
-        if (parts.size() == 3) {
-            bool okLow = false, okMid = false, okHigh = false;
-            const float low = parts.at(0).toFloat(&okLow);
-            const float mid = parts.at(1).toFloat(&okMid);
-            const float high = parts.at(2).toFloat(&okHigh);
-            if (okLow && okMid && okHigh) {
-                return {low, mid, high};
-            }
-        }
-        return {1.068f, 0.7f, 7.111f};
-    }();
-    return value;
-}
+constexpr BandColorGain kSpectrumBandColorGain{1.068f, 0.7f, 7.111f};
+constexpr BandColorGain kNeutralBandColorGain{1.0f, 1.0f, 1.0f};
 
 } // namespace
 
@@ -257,7 +240,7 @@ void drawWaveformPartRGB(
         const WaveformSignalColors& signalColors,
         bool mono) {
     drawWaveformPartRGBWithGain(
-            pPainter, pWaveform, start, end, signalColors, mono, BandColorGain{1.0f, 1.0f, 1.0f});
+            pPainter, pWaveform, start, end, signalColors, mono, kNeutralBandColorGain);
 }
 
 void drawWaveformPartSpectrum(
@@ -268,7 +251,7 @@ void drawWaveformPartSpectrum(
         const WaveformSignalColors& signalColors,
         bool mono) {
     drawWaveformPartRGBWithGain(
-            pPainter, pWaveform, start, end, signalColors, mono, bandColorGain());
+            pPainter, pWaveform, start, end, signalColors, mono, kSpectrumBandColorGain);
 }
 
 void drawWaveformPartLMH(

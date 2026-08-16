@@ -20,144 +20,99 @@ const QString kPassthroughShaderPath = QStringLiteral(":/shaders/passthrough.ver
 // itself to "oversample" the texture relative to the surface we're drawing on.
 constexpr int kOversamplingFactor = 4;
 
-float tunable(const char* name, float defaultValue) {
-    bool ok = false;
-    const float value = qEnvironmentVariable(name).toFloat(&ok);
-    return ok ? value : defaultValue;
-}
+// Everything below was chosen by comparing frames against Traktor, on the test
+// files where the comparison goes by segment and on music. The reasoning is
+// kept next to each number, because it is the only thing that explains why a
+// different value would be worse.
 
-// Radius of the window the color of a column is averaged over, in visual bins
-// (441 bins per second). The amplitude is not affected, it keeps the full
-// detail. Four bins is about 9 ms, which is the grid Traktor appears to use.
-//
-// A wider window scores better on every number we could think of - the colour
-// jitter between neighbouring columns and the sharpness of the transitions
-// both keep improving up to about 12 bins - and looks worse: averaging over
-// 27 ms mixes neighbouring columns into each other, which invents orange
-// between red and green and washes the saturation out. The numbers measured
-// how fast the colour changes, not which colours appear, so they never saw it.
-// The eye did.
-float colorSmoothBins() {
-    static const float value =
-            std::clamp(tunable("MIXXX_WF_COLOR_SMOOTH_BINS", 4.0f), 0.0f, 20.0f);
-    return value;
-}
+// Radius of the window the colour of a column is averaged over, in visual bins
+// (441 bins per second), so four bins is about 9 ms - the grid Traktor appears
+// to use. Wider windows score better on every number we could measure (colour
+// jitter between neighbouring columns keeps falling up to about 12 bins, the
+// sharpness of transitions keeps improving) and look worse: averaging over
+// 27 ms mixes neighbouring columns together, invents orange between red and
+// green and washes out the saturation. The numbers measured how fast the
+// colour changes, not which colours appear.
+constexpr float kColorSmoothBins = 4.0f;
 
-// Width of the soft edge of the waveform, in device pixels. Traktor fades out
-// over 3-4 device pixels.
-float softEdgePixels() {
-    static const float value = std::max(tunable("MIXXX_WF_SOFT_EDGE_PX", 3.0f), 0.0f);
-    return value;
-}
+// Width of the soft edge. Traktor fades out over 3-4 device pixels, but that
+// was measured on a waveform 174 pixels tall, i.e. about 4% of its half-height,
+// and the proportion is what has to be carried over rather than the pixels: on
+// a deck twice as tall the same three pixels look like a hard cut. The floor in
+// device pixels keeps the fade from disappearing on a small deck.
+constexpr float kSoftEdgeFraction = 0.04f;
+constexpr float kSoftEdgePixels = 2.0f;
 
-// Minimum visible half-height of bins that carry any signal, as a fraction of
-// the half-height of the widget. Measured in Traktor: quiet columns stop
-// following the amplitude and sit on a plateau of 0.214 of the half-height,
-// whatever their loudness.
-float amplitudeFloor() {
-    static const float value =
-            std::clamp(tunable("MIXXX_WF_AMP_FLOOR", 0.19f), 0.0f, 0.9f);
-    return value;
-}
+// Minimum visible half-height of a column that carries any signal. In Traktor
+// quiet columns stop following the amplitude and sit on a plateau: measured
+// over three loudness buckets below 20% it is 0.214 of the half-height. This
+// value reproduces it - the median height of our own quiet columns comes out
+// at 0.209.
+constexpr float kAmplitudeFloor = 0.19f;
 
-// Compression applied to the band values before they become a color. Traktor
-// stores the square root of the band magnitude, Mixxx stores it as is, so 0.5
-// imitates Traktor on the data we have today.
-float colorGamma() {
-    static const float value = std::clamp(tunable("MIXXX_WF_COLOR_GAMMA", 1.0f), 0.05f, 4.0f);
-    return value;
-}
+// Compression of the band values before they become a colour. Traktor stores
+// the square root of the band magnitude, so 0.5 would imitate it, but the
+// error against the reference turns out to be flat in this parameter: over
+// nine tracks the spread between 0.40 and 1.00 is 0.2 to 2.8 degrees of hue
+// against a median error of 16, i.e. noise. One operation less.
+constexpr float kColorGamma = 1.0f;
 
-// Level below which the color of a column is no longer normalized to full
-// brightness, in band units. Keeps quiet passages dark instead of letting the
-// normalization turn their noise into a fully saturated color.
-float colorLevelFloor() {
-    static const float value =
-            std::clamp(tunable("MIXXX_WF_COLOR_LEVEL_FLOOR", 0.01f), 0.0f, 1.0f);
-    return value;
-}
+// Level below which the colour of a column is no longer normalized to full
+// brightness. Without it a column that carries almost nothing is divided by
+// its own maximum and comes out fully saturated with a hue decided by noise -
+// a silent intro turned into a solid bright green stripe. This value keeps the
+// brightness of quiet columns relative to loud ones at 1.26 against the 1.23
+// measured in Traktor; the next value we tried, 0.08, gave 0.48, i.e. quiet
+// material twice as dark as loud where it should be slightly brighter.
+constexpr float kColorLevelFloor = 0.01f;
 
-// How strongly a column is shaded from its centre to its edge. 0 draws the
-// flat fill of the other types; the default is deliberately mild, enough to
-// give the waveform a texture without emptying its middle.
-float verticalStrength() {
-    static const float value =
-            std::clamp(tunable("MIXXX_WF_VERT_STRENGTH", 0.35f), 0.0f, 1.0f);
-    return value;
-}
+// Balance between the three bands, applied to the colour only, never to the
+// height. The high band is raised by 17 dB, which is what the measurement of
+// Traktor says and what the RMS band magnitudes of the analyzer need: without
+// it the share of blue columns on our material is 0.4%. The mid band is held
+// back to 0.7, which takes the share of yellow-green columns from 6.1% to
+// 1.2% and the columns where green dominates from 11% to 2.7%, against 3.0%
+// and 7.5% measured in Traktor.
+constexpr float kBandColorGainLow = 1.068f;
+constexpr float kBandColorGainMid = 0.7f;
+constexpr float kBandColorGainHigh = 7.111f;
 
-// Shape of that shading.
-float verticalSharpness() {
-    static const float value =
-            std::clamp(tunable("MIXXX_WF_VERT_SHARPNESS", 1.5f), 0.1f, 8.0f);
-    return value;
-}
+// Vertical shading of a column, see verticalProfile() in the shader.
+constexpr float kVerticalStrength = 0.6f;
+constexpr float kVerticalSharpness = 1.5f;
 
 // The crest factor at which a column is drawn flat, and how fast the shading
-// follows it away from there. A sine sits at 1.41 and percussive material goes
-// well above it.
-float crestNeutral() {
-    static const float value = std::clamp(tunable("MIXXX_WF_CREST_NEUTRAL", 1.6f), 0.5f, 8.0f);
-    return value;
-}
+// follows it away from there.
+//
+// These two are calibrated on data, not on theory, and the difference matters.
+// A sine has a crest factor of 1.41, so that looked like the natural neutral
+// point - but the crest factor we compute divides the stored peak by the
+// stored bands, and the bands are shaped by the frequency responses of the
+// analyzer, which makes the ratio systematically larger than the acoustic one.
+// Measured over the whole of seven analysed tracks (between 53 000 and 351 000
+// bins each): the median is 2.11 to 2.51 with a mean of 2.24, the fifth
+// percentile 1.28 to 1.56 and the ninety fifth 2.94 to 3.25. Stable enough to
+// take 2.3 as the point where a column is drawn flat, and 1.1 as the scale, so
+// that the extremes of that distribution reach the full profile.
+//
+// If the shading ever looks one sided on other material, this is the number to
+// recompute, and the way to do it is to read the analysis files rather than to
+// reason about waveforms.
+constexpr float kCrestNeutral = 2.3f;
+constexpr float kCrestScale = 1.1f;
 
-float crestScale() {
-    static const float value = std::clamp(tunable("MIXXX_WF_CREST_SCALE", 0.6f), 0.0f, 5.0f);
-    return value;
-}
+// Below this band level the crest factor is a ratio of a few units of one byte
+// each, i.e. noise, and the column is drawn flat instead.
+constexpr float kCrestLevelFloor = 0.02f;
 
-// Below this band level the crest factor is noise (one byte per band), so the
-// column is drawn flat instead.
-float crestLevelFloor() {
-    static const float value =
-            std::clamp(tunable("MIXXX_WF_CREST_LEVEL_FLOOR", 0.02f), 0.0f, 1.0f);
-    return value;
-}
+// The knobs of the mixer do not reach this waveform: it draws the file, the
+// way Traktor does, and not the current position of the EQ knobs, their kill
+// switches or the gain knob. The ReplayGain of the track does reach it,
+// because it is a property of the file rather than a knob, and with it the
+// height answers "how loud will this sound" instead of "what is in the file".
+constexpr bool kEqAffectsDrawing = false;
+constexpr bool kReplayGainAffectsHeight = true;
 
-// Whether the EQ knobs of the deck are allowed to change what the Spectrum
-// waveform draws. They are not, by default: the waveform shows what is in the
-// file, as it does in Traktor, and not the current position of the knobs.
-// MIXXX_WF_EQ_AFFECTS=1 restores the behaviour of the other waveform types.
-bool eqAffectsDrawing() {
-    static const bool value = qEnvironmentVariableIntValue("MIXXX_WF_EQ_AFFECTS") > 0;
-    return value;
-}
-
-// Whether the height follows the ReplayGain of the track. It does by default:
-// ReplayGain is not a knob but a property of the file, constant for the whole
-// track, and with it the waveform answers "how loud will this sound" instead
-// of "what is in the file". MIXXX_WF_TRACK_GAIN=0 makes the height depend on
-// the file alone.
-bool replayGainAffectsHeight() {
-    static const bool value = qEnvironmentVariable("MIXXX_WF_TRACK_GAIN") != QStringLiteral("0");
-    return value;
-}
-
-// Balance between the three bands, applied to the color only. The high band is
-// raised by 17 dB, which is what the measurement of Traktor says and what the
-// band magnitudes of the analyzer need. The mid band is held back to 0.7:
-// measured on the same material, that takes the share of yellow-green columns
-// from 6.1% down to 1.2% and the columns where green dominates from 11% to
-// 2.7%, against 3.0% and 7.5% in Traktor. Overridable as
-// MIXXX_WF_BAND_GAIN="low,mid,high", so 1.068,1,7.111 restores the plain
-// measured balance for comparison.
-QVector3D bandColorGain() {
-    static const QVector3D value = []() {
-        const QStringList parts =
-                qEnvironmentVariable("MIXXX_WF_BAND_GAIN").split(QChar(','));
-        if (parts.size() == 3) {
-            bool okLow = false, okMid = false, okHigh = false;
-            const float low = parts.at(0).toFloat(&okLow);
-            const float mid = parts.at(1).toFloat(&okMid);
-            const float high = parts.at(2).toFloat(&okHigh);
-            if (okLow && okMid && okHigh) {
-                return QVector3D(low, mid, high);
-            }
-        }
-        return QVector3D(1.068f, 0.7f, 7.111f);
-    }();
-    return value;
-}
 } // namespace
 
 namespace allshader {
@@ -479,7 +434,7 @@ void WaveformRendererTextured::paintGL() {
     }
 
     float lowGain(1.0), midGain(1.0), highGain(1.0), allGain(1.0);
-    if (m_type == ::WaveformWidgetType::Spectrum && !eqAffectsDrawing()) {
+    if (m_type == ::WaveformWidgetType::Spectrum && !kEqAffectsDrawing) {
         // The Spectrum waveform draws the file, not the mixer. None of the
         // knobs of the deck reach it: neither the three EQ knobs and their
         // kill switches, nor the gain knob. What is left is the ReplayGain of
@@ -492,7 +447,7 @@ void WaveformRendererTextured::paintGL() {
         // and two controls for the same thing only confuse. The overall visual
         // gain still applies.
         allGain = m_allChannelVisualGain;
-        if (replayGainAffectsHeight()) {
+        if (kReplayGainAffectsHeight) {
             if (!m_pReplayGain) {
                 m_pReplayGain = std::make_unique<ControlProxy>(
                         m_waveformRenderer->getGroup(), QStringLiteral("replaygain"));
@@ -524,31 +479,31 @@ void WaveformRendererTextured::paintGL() {
 
     if (!m_paintLogged) {
         m_paintLogged = true;
-        // Reported in the BENCHHIT convention of the performance harness: what
-        // is logged is what the shader actually received, not what was asked
-        // for. A knob that silently did not arrive, or a waveform type that was
-        // silently replaced, is the mistake that has cost this project the most
-        // time so far.
-        const QVector3D gain = bandColorGain();
+        // What is logged is what the shader actually received, not what the
+        // code above says it should be. A value that silently did not arrive,
+        // or a waveform type that was silently replaced by another, is the
+        // mistake that has cost this project the most time so far, and this
+        // line is how both were caught.
+        const QVector3D gain(kBandColorGainLow, kBandColorGainMid, kBandColorGainHigh);
         const QStringList applied = {
-                QStringLiteral("BENCHHIT MIXXX_WF_COLOR_SMOOTH_BINS=") +
-                        QString::number(colorSmoothBins()),
+                QStringLiteral("BENCHHIT colorSmoothBins=") +
+                        QString::number(kColorSmoothBins),
                 QStringLiteral("type=") + QString::number(static_cast<int>(m_type)),
                 QStringLiteral("options=") +
                         QString::number(static_cast<int>(
                                 static_cast<::WaveformRendererSignalBase::Options::Int>(
                                         m_options))),
                 QStringLiteral("shader=") + m_fragShader,
-                QStringLiteral("MIXXX_WF_SOFT_EDGE_PX=") + QString::number(softEdgePixels()),
-                QStringLiteral("MIXXX_WF_AMP_FLOOR=") + QString::number(amplitudeFloor()),
-                QStringLiteral("MIXXX_WF_COLOR_LEVEL_FLOOR=") +
-                        QString::number(colorLevelFloor()),
-                QStringLiteral("MIXXX_WF_COLOR_GAMMA=") + QString::number(colorGamma()),
-                QStringLiteral("MIXXX_WF_VERT_STRENGTH=") + QString::number(verticalStrength()),
-                QStringLiteral("MIXXX_WF_VERT_SHARPNESS=") + QString::number(verticalSharpness()),
-                QStringLiteral("MIXXX_WF_CREST_NEUTRAL=") + QString::number(crestNeutral()),
-                QStringLiteral("MIXXX_WF_CREST_SCALE=") + QString::number(crestScale()),
-                QStringLiteral("MIXXX_WF_BAND_GAIN=") + QString::number(gain.x()) +
+                QStringLiteral("softEdgePixels=") + QString::number(kSoftEdgePixels),
+                QStringLiteral("amplitudeFloor=") + QString::number(kAmplitudeFloor),
+                QStringLiteral("colorLevelFloor=") +
+                        QString::number(kColorLevelFloor),
+                QStringLiteral("colorGamma=") + QString::number(kColorGamma),
+                QStringLiteral("verticalStrength=") + QString::number(kVerticalStrength),
+                QStringLiteral("verticalSharpness=") + QString::number(kVerticalSharpness),
+                QStringLiteral("crestNeutral=") + QString::number(kCrestNeutral),
+                QStringLiteral("crestScale=") + QString::number(kCrestScale),
+                QStringLiteral("bandColorGain=") + QString::number(gain.x()) +
                         QChar(',') + QString::number(gain.y()) + QChar(',') +
                         QString::number(gain.z()),
         };
@@ -595,20 +550,22 @@ void WaveformRendererTextured::paintGL() {
         }
 
         if (m_type == ::WaveformWidgetType::Spectrum) {
-            m_frameShaderProgram->setUniformValue("colorSmoothBins", colorSmoothBins());
+            m_frameShaderProgram->setUniformValue("colorSmoothBins", kColorSmoothBins);
             // The shader works in frame buffer pixels, the tunable is in
             // device pixels.
+            m_frameShaderProgram->setUniformValue("softEdgeFraction", kSoftEdgeFraction);
             m_frameShaderProgram->setUniformValue("softEdgePixels",
-                    softEdgePixels() * static_cast<float>(kOversamplingFactor));
-            m_frameShaderProgram->setUniformValue("amplitudeFloor", amplitudeFloor());
-            m_frameShaderProgram->setUniformValue("bandColorGain", bandColorGain());
-            m_frameShaderProgram->setUniformValue("colorGamma", colorGamma());
-            m_frameShaderProgram->setUniformValue("colorLevelFloor", colorLevelFloor());
-            m_frameShaderProgram->setUniformValue("verticalStrength", verticalStrength());
-            m_frameShaderProgram->setUniformValue("verticalSharpness", verticalSharpness());
-            m_frameShaderProgram->setUniformValue("crestNeutral", crestNeutral());
-            m_frameShaderProgram->setUniformValue("crestScale", crestScale());
-            m_frameShaderProgram->setUniformValue("crestLevelFloor", crestLevelFloor());
+                    kSoftEdgePixels * static_cast<float>(kOversamplingFactor));
+            m_frameShaderProgram->setUniformValue("amplitudeFloor", kAmplitudeFloor);
+            m_frameShaderProgram->setUniformValue("bandColorGain",
+                    QVector3D(kBandColorGainLow, kBandColorGainMid, kBandColorGainHigh));
+            m_frameShaderProgram->setUniformValue("colorGamma", kColorGamma);
+            m_frameShaderProgram->setUniformValue("colorLevelFloor", kColorLevelFloor);
+            m_frameShaderProgram->setUniformValue("verticalStrength", kVerticalStrength);
+            m_frameShaderProgram->setUniformValue("verticalSharpness", kVerticalSharpness);
+            m_frameShaderProgram->setUniformValue("crestNeutral", kCrestNeutral);
+            m_frameShaderProgram->setUniformValue("crestScale", kCrestScale);
+            m_frameShaderProgram->setUniformValue("crestLevelFloor", kCrestLevelFloor);
         }
 
         m_frameShaderProgram->setUniformValue("axesColor",

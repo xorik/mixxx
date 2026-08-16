@@ -34,9 +34,13 @@ uniform highp float lastVisualIndex;
 // disables the smoothing, which gives the color grid of the stock RGB
 // waveform.
 uniform highp float colorSmoothBins;
-// Width of the soft edge, in framebuffer pixels (the caller multiplies the
-// wanted amount of device pixels by the oversampling factor). 0.0 gives the
-// hard edge of the stock RGB waveform.
+// Width of the soft edge as a fraction of the half-height of the widget, so
+// that it keeps its proportion whatever the deck is scaled to.
+uniform highp float softEdgeFraction;
+// Lower bound for that width, in framebuffer pixels (the caller multiplies the
+// wanted amount of device pixels by the oversampling factor), so the fade does
+// not disappear on a small deck. Both at 0.0 give the hard edge of the stock
+// RGB waveform.
 uniform highp float softEdgePixels;
 // Minimum visible half-height for bins that carry any signal at all, in
 // [0, 1] (0.19 reproduces the plateau of 0.214 measured in Traktor).
@@ -246,7 +250,10 @@ void main(void) {
         // Analytic soft edge instead of a binary inside/outside test. Besides
         // the fade this gives the waveform a subpixel height, so small ripples
         // stop snapping to whole pixels.
-        highp float softness = max(softEdgePixels * 2.0 / framebufferSize.y, 1e-6);
+        // ourDistance runs from 0 at the centre to 1 at the top of the widget,
+        // so a fraction of the half-height is already in its units.
+        highp float softness = max(softEdgeFraction,
+                max(softEdgePixels * 2.0 / framebufferSize.y, 1e-6));
         signalCoverage = clamp((signalDistance - ourDistance) / softness + 0.5, 0.0, 1.0);
         shadowCoverage = clamp((shadowDistance - ourDistance) / softness + 0.5, 0.0, 1.0);
 
