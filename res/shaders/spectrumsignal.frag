@@ -55,9 +55,12 @@ uniform highp float colorGamma;
 // How strongly the column is shaded from its centre to its edge, in [0, 1].
 // 0 gives the flat fill of the other waveform types.
 uniform highp float verticalStrength;
-// Shape of that shading. Larger values concentrate it closer to the centre or
-// to the edge, smaller values spread it out.
-uniform highp float verticalSharpness;
+// Where the thinning sits inside the column, as a distance from the centre in
+// units of the half height of the column, for tonal and for percussive
+// material, and how wide it is.
+uniform highp float dipCenterTonal;
+uniform highp float dipCenterImpulsive;
+uniform highp float dipWidth;
 // The crest factor (peak over RMS) at which the column is drawn flat. A sine
 // sits at 1.41, impulsive material goes to 3 and beyond, and a square wave
 // approaches 1.
@@ -156,17 +159,26 @@ highp float verticalProfile(highp float inside, highp float peak, highp vec3 ban
     highp float crest = peak / rms;
     highp float shape = clamp((crest - crestNeutral) * crestScale, -1.0, 1.0);
     highp float t = clamp(inside, 0.0, 1.0);
-    highp float profile;
-    if (shape >= 0.0) {
-        // Impulsive: most of the time the signal is well below its peak, so
-        // the column is dense near the centre and fades towards the edge.
-        profile = mix(1.0, pow(max(1.0 - t * t, 0.0), verticalSharpness), shape);
-    } else {
-        // Tonal: the signal spends most of its time near its extremes, so the
-        // edge is dense and the middle is thinner.
-        profile = mix(1.0, pow(t, verticalSharpness), -shape);
-    }
-    return mix(1.0, profile, verticalStrength);
+
+    // The thinning is a band inside the body of the column, and the crest
+    // factor moves it: tonal columns are thinner closer to the centre,
+    // percussive ones closer to the rim.
+    //
+    // It deliberately touches neither end. The first version of this was
+    // monotonic - fully opaque at one end, fully transparent at the other -
+    // and both ends are already spoken for: the centre carries the axis line,
+    // which showed through the hole and gave a white stripe down the middle of
+    // the waveform, and the rim is already fading under the soft edge, where
+    // any extra transparency is invisible. Half of the columns produced an
+    // artefact and the other half produced nothing.
+    //
+    // A band also gives the eye something to compare: neighbouring columns of
+    // different character are thin in different places. A monotonic profile
+    // shades every column the same way and reads as flat.
+    highp float dipCenter = mix(dipCenterTonal, dipCenterImpulsive, 0.5 * (shape + 1.0));
+    highp float dip = exp(-pow((t - dipCenter) / dipWidth, 2.0));
+    highp float depth = verticalStrength * (0.5 + 0.5 * abs(shape));
+    return 1.0 - depth * dip;
 }
 
 // Linearly combine the low, mid, and high colors according to the low, mid,
@@ -197,6 +209,7 @@ void main(void) {
     // the waveform an EQ knob has cut away), both in [0, 1].
     highp float signalCoverage = 0.0;
     highp float shadowCoverage = 0.0;
+    highp float bodyCoverage = 0.0;
     highp vec3 signalRgb = vec3(0.0);
     highp vec3 shadowRgb = vec3(0.0);
 
@@ -262,6 +275,11 @@ void main(void) {
         // visible column that is hollow inside would defeat it.
         highp float inside = ourDistance / max(signalDistance, 1e-4);
         highp float shading = verticalProfile(inside, dataUnscaled.w, dataUnscaled.xyz);
+        // How much of this fragment the waveform covers geometrically, before
+        // the shading makes parts of it translucent. The axis line below hides
+        // behind that, not behind the shaded alpha, so that making the body
+        // more transparent never brings the axis back out through it.
+        bodyCoverage = max(signalCoverage, shadowCoverage);
         signalCoverage *= shading;
         shadowCoverage *= shading;
 
@@ -278,12 +296,13 @@ void main(void) {
     }
 
     highp vec4 base = vec4(0.0, 0.0, 0.0, 0.0);
-    if (abs(framebufferSize.y / 2.0 - pixelY) <= 4.0) {
+    if (bodyCoverage < 1.0 && abs(framebufferSize.y / 2.0 - pixelY) <= 4.0) {
         // Draw the axes color as the lowest item on the screen.
         // TODO(owilliams): The "4" in this line makes sure the axis gets
         // rendered even when the waveform is fairly short.  Really this
         // value should be based on the size of the widget.
         base = axesColor;
+        base.a *= 1.0 - bodyCoverage;
     }
 
     highp float outAlpha = waveformAlpha + base.a * (1.0 - waveformAlpha);

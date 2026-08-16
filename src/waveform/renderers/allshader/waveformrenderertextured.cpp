@@ -77,9 +77,19 @@ constexpr float kBandColorGainLow = 1.068f;
 constexpr float kBandColorGainMid = 0.7f;
 constexpr float kBandColorGainHigh = 7.111f;
 
-// Vertical shading of a column, see verticalProfile() in the shader.
+// Vertical shading of a column, see verticalProfile() in the shader. The
+// thinning is a band inside the body: at these positions, measured from the
+// centre of the column in units of its own half height, and this wide. Tonal
+// columns are thinned closer to the centre, percussive ones closer to the rim.
+//
+// The band deliberately reaches neither end of the column. A monotonic profile
+// was tried first and failed twice over: at the centre it opened a hole
+// through which the axis line showed as a white stripe, and at the rim it fell
+// where the soft edge already fades, so it was invisible.
 constexpr float kVerticalStrength = 0.6f;
-constexpr float kVerticalSharpness = 1.5f;
+constexpr float kDipCenterTonal = 0.35f;
+constexpr float kDipCenterImpulsive = 0.75f;
+constexpr float kDipWidth = 0.25f;
 
 // The crest factor at which a column is drawn flat, and how fast the shading
 // follows it away from there.
@@ -500,7 +510,8 @@ void WaveformRendererTextured::paintGL() {
                         QString::number(kColorLevelFloor),
                 QStringLiteral("colorGamma=") + QString::number(kColorGamma),
                 QStringLiteral("verticalStrength=") + QString::number(kVerticalStrength),
-                QStringLiteral("verticalSharpness=") + QString::number(kVerticalSharpness),
+                QStringLiteral("dipCenterTonal=") + QString::number(kDipCenterTonal),
+                QStringLiteral("dipCenterImpulsive=") + QString::number(kDipCenterImpulsive),
                 QStringLiteral("crestNeutral=") + QString::number(kCrestNeutral),
                 QStringLiteral("crestScale=") + QString::number(kCrestScale),
                 QStringLiteral("bandColorGain=") + QString::number(gain.x()) +
@@ -562,7 +573,9 @@ void WaveformRendererTextured::paintGL() {
             m_frameShaderProgram->setUniformValue("colorGamma", kColorGamma);
             m_frameShaderProgram->setUniformValue("colorLevelFloor", kColorLevelFloor);
             m_frameShaderProgram->setUniformValue("verticalStrength", kVerticalStrength);
-            m_frameShaderProgram->setUniformValue("verticalSharpness", kVerticalSharpness);
+            m_frameShaderProgram->setUniformValue("dipCenterTonal", kDipCenterTonal);
+            m_frameShaderProgram->setUniformValue("dipCenterImpulsive", kDipCenterImpulsive);
+            m_frameShaderProgram->setUniformValue("dipWidth", kDipWidth);
             m_frameShaderProgram->setUniformValue("crestNeutral", kCrestNeutral);
             m_frameShaderProgram->setUniformValue("crestScale", kCrestScale);
             m_frameShaderProgram->setUniformValue("crestLevelFloor", kCrestLevelFloor);
