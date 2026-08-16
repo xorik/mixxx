@@ -8,6 +8,7 @@
 #include "waveform/waveform.h"
 #include "waveform/widgets/waveformwidgettype.h"
 
+class ControlProxy;
 class QOpenGLFramebufferObject;
 class QOpenGLShaderProgram;
 
@@ -77,6 +78,8 @@ class allshader::WaveformRendererTextured final : public allshader::WaveformRend
     WaveformWidgetType::Type m_type;
     const QString m_fragShader;
     bool m_paintLogged{false};
+    // Only used by the Spectrum type, see paintGL().
+    std::unique_ptr<ControlProxy> m_pReplayGain;
     std::unique_ptr<QOpenGLShaderProgram> m_frameShaderProgram;
 };
 

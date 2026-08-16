@@ -8,6 +8,7 @@
 #include <QVector3D>
 #include <algorithm>
 
+#include "control/controlproxy.h"
 #include "moc_waveformrenderertextured.cpp"
 #include "track/track.h"
 #include "waveform/renderers/waveformwidgetrenderer.h"
@@ -73,6 +74,25 @@ float colorGamma() {
 float colorLevelFloor() {
     static const float value =
             std::clamp(tunable("MIXXX_WF_COLOR_LEVEL_FLOOR", 0.01f), 0.0f, 1.0f);
+    return value;
+}
+
+// Whether the EQ knobs of the deck are allowed to change what the Spectrum
+// waveform draws. They are not, by default: the waveform shows what is in the
+// file, as it does in Traktor, and not the current position of the knobs.
+// MIXXX_WF_EQ_AFFECTS=1 restores the behaviour of the other waveform types.
+bool eqAffectsDrawing() {
+    static const bool value = qEnvironmentVariableIntValue("MIXXX_WF_EQ_AFFECTS") > 0;
+    return value;
+}
+
+// Whether the height follows the ReplayGain of the track. It does by default:
+// ReplayGain is not a knob but a property of the file, constant for the whole
+// track, and with it the waveform answers "how loud will this sound" instead
+// of "what is in the file". MIXXX_WF_TRACK_GAIN=0 makes the height depend on
+// the file alone.
+bool replayGainAffectsHeight() {
+    static const bool value = qEnvironmentVariable("MIXXX_WF_TRACK_GAIN") != QStringLiteral("0");
     return value;
 }
 
@@ -421,9 +441,34 @@ void WaveformRendererTextured::paintGL() {
         m_textureRenderedWaveformCompletion = currentCompletion;
     }
 
-    // Per-band gain from the EQ knobs.
     float lowGain(1.0), midGain(1.0), highGain(1.0), allGain(1.0);
-    getGains(&allGain, &lowGain, &midGain, &highGain);
+    if (m_type == ::WaveformWidgetType::Spectrum && !eqAffectsDrawing()) {
+        // The Spectrum waveform draws the file, not the mixer. None of the
+        // knobs of the deck reach it: neither the three EQ knobs and their
+        // kill switches, nor the gain knob. What is left is the ReplayGain of
+        // the track, which is a property of the file rather than a knob.
+        //
+        // NOTE for whoever reads this next: this also means the per band
+        // visual gains of Preferences -> Waveforms (low, mid, high) do nothing
+        // for this type. That is deliberate, not a bug: the balance between
+        // the bands here is the measured one and lives in bandColorGain above,
+        // and two controls for the same thing only confuse. The overall visual
+        // gain still applies.
+        allGain = m_allChannelVisualGain;
+        if (replayGainAffectsHeight()) {
+            if (!m_pReplayGain) {
+                m_pReplayGain = std::make_unique<ControlProxy>(
+                        m_waveformRenderer->getGroup(), QStringLiteral("replaygain"));
+            }
+            const double replayGain = m_pReplayGain->get();
+            if (replayGain > 0.0) {
+                allGain *= static_cast<float>(replayGain);
+            }
+        }
+    } else {
+        // Per-band gain from the EQ knobs.
+        getGains(&allGain, &lowGain, &midGain, &highGain);
+    }
 
     const auto firstVisualIndex = static_cast<GLfloat>(
             m_waveformRenderer->getFirstDisplayedPosition(positionType) * trackSamples /

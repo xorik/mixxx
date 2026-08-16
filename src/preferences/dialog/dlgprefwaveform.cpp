@@ -517,6 +517,9 @@ void DlgPrefWaveform::slotSetWaveformType(int index) {
     updateWaveformTypeOptions(true, backend, currentOptions);
     updateEnableUntilMark();
     updateStemOptionsEnabled();
+    // The per band gains do nothing for the Spectrum type, so their enabled
+    // state depends on the type that was just chosen.
+    updateWaveformGainEnabled();
 }
 
 void DlgPrefWaveform::slotSetWaveformEnabled(bool checked) {
@@ -684,10 +687,15 @@ void DlgPrefWaveform::updateStemOptionsEnabled() {
 void DlgPrefWaveform::updateWaveformGainEnabled() {
     bool waveformsEnabled = useWaveformCheckBox->isChecked();
     bool allGainEnabled = waveformsEnabled || overview_scale_allReplayGain->isChecked();
+    // The Spectrum waveform uses the measured balance between the bands and
+    // ignores these three, so they are greyed out rather than left looking
+    // like they do something.
+    const bool perBandGainUsed =
+            WaveformWidgetFactory::instance()->getType() != WaveformWidgetType::Spectrum;
     allVisualGain->setEnabled(allGainEnabled);
-    lowVisualGain->setEnabled(waveformsEnabled);
-    midVisualGain->setEnabled(waveformsEnabled);
-    highVisualGain->setEnabled(waveformsEnabled);
+    lowVisualGain->setEnabled(waveformsEnabled && perBandGainUsed);
+    midVisualGain->setEnabled(waveformsEnabled && perBandGainUsed);
+    highVisualGain->setEnabled(waveformsEnabled && perBandGainUsed);
 }
 
 void DlgPrefWaveform::slotSetWaveformOverviewType() {
