@@ -5,8 +5,9 @@
 //     keeps the full detail (in Traktor the color comes from a precomputed
 //     coarse analysis, roughly 60 cells per second, stretched over the screen
 //     columns by interpolation);
-//   * the edge of the waveform fades out analytically over a few pixels
-//     instead of being a binary inside/outside test;
+//   * the edge of the waveform is antialiased from the data: a pixel spans
+//     several bins, so its coverage is worked out from the sub columns inside
+//     it rather than from a single yes or no;
 //   * quiet parts do not collapse to nothing, they keep a minimum height.
 // The per band color gain is the measured balance between the three bands. It
 // is applied to the color only, never to the height: in Traktor the height
@@ -38,8 +39,13 @@ uniform highp float colorSmoothBins;
 // single pixel the signal has time to rise and fall, so the alpha of that pixel
 // is the share of it the waveform covers, not a yes or no about its centre.
 uniform highp float subColumnSamples;
-// Width of the soft edge as a fraction of the half-height of the widget, so
-// that it keeps its proportion whatever the deck is scaled to.
+// Width over which the edge of a column fades, as a fraction of the half height
+// of the widget. With the coverage supersampled across the pixel the edge is
+// already antialiased from the data, so this is now only a floor under that: it
+// exists so a column drawn on a tall deck does not end in a single hard row of
+// pixels, and it is deliberately small. It used to be four percent, which on a
+// tall deck is eight pixels of deliberate blur on top of the antialiasing - a
+// gradient rather than an edge.
 uniform highp float softEdgeFraction;
 // Lower bound for that width, in framebuffer pixels (the caller multiplies the
 // wanted amount of device pixels by the oversampling factor), so the fade does
@@ -56,13 +62,6 @@ uniform highp vec3 bandColorGain;
 // stores the square root of the band magnitude, so 0.5 imitates its
 // compression on top of the data Mixxx has today. 1.0 leaves the data as is.
 uniform highp float colorGamma;
-// How strongly the column is shaded from its centre to its edge, in [0, 1].
-// 0 gives the flat fill of the other waveform types.
-uniform highp float verticalStrength;
-// Level below which the crest factor is not trusted and the column is drawn
-// flat: the bands are stored in one byte each, so on quiet columns peak and
-// RMS are a few units and their ratio is noise.
-uniform highp float crestLevelFloor;
 // Level below which the color is no longer normalized to full brightness.
 // Without it a column that carries almost nothing (the noise of a quiet
 // passage) is divided by its own maximum and comes out as a fully saturated
@@ -153,59 +152,6 @@ highp vec3 smoothedBands(highp float visualIndex, highp float stereoOffset) {
     return acc / weightSum;
 }
 
-// Complementary error function, Abramowitz and Stegun 7.1.26, for x >= 0.
-// Error below 1.5e-7, far under anything visible in eight bit alpha.
-highp float erfc(highp float x) {
-    highp float t = 1.0 / (1.0 + 0.3275911 * x);
-    highp float poly = t *
-            (0.254829592 +
-                    t *
-                            (-0.284496736 +
-                                    t * (1.421413741 + t * (-1.453152027 + t * 1.061405429))));
-    return poly * exp(-x * x);
-}
-
-// Vertical shading of a column: the alpha at distance `inside` from its centre,
-// where 0 is the centre line and 1 the tip of the envelope.
-//
-// This is the distribution of the amplitude inside the column - the share of
-// the samples in this bin whose magnitude reaches a given level - which is what
-// the alpha channel of Traktor was measured to follow. A steady tone spends
-// most of its time near its extremes, so the share stays high all the way out;
-// impulsive material sits far below its peak almost always, so it falls away
-// quickly. Which of the two a column is comes from its crest factor, and we
-// have that: `all` is the peak of the bin and the three bands are RMS values.
-//
-//   tone         (2/pi) * acos(t)      the arcsine distribution
-//   noise-like   erfc(t * crest / √2)  a Gaussian with that crest factor
-//   between      linear in the crest factor from 1.41 (a sine) to 3.0
-//
-// Two properties come out of the model rather than being arranged: the centre
-// is always fully opaque, so the axis line underneath can never show through,
-// and the shading spreads over the whole height instead of sitting at one end.
-// An earlier version used a band of thinning inside the body, a shape that
-// exists nowhere in a signal, and it read as uniform haze.
-//
-// It only works because the analyzer scales all four stored values - the peak
-// and the three bands - with the SAME factor. If bands are ever normalized on
-// their own, the ratio silently stops meaning anything. There is a warning
-// about this in analyzerwaveform.h as well.
-highp float verticalProfile(highp float inside, highp float peak, highp vec3 bands) {
-    if (verticalStrength <= 0.0) {
-        return 1.0;
-    }
-    highp float rms = length(bands);
-    if (rms < crestLevelFloor || peak <= 0.0) {
-        return 1.0;
-    }
-    highp float crest = peak / rms;
-    highp float t = clamp(inside, 0.0, 1.0);
-    highp float tone = 0.636619772 * acos(t);
-    highp float noiseLike = erfc(t * crest * 0.707106781);
-    highp float weight = clamp((crest - 1.41) / (3.0 - 1.41), 0.0, 1.0);
-    return mix(1.0, mix(tone, noiseLike, weight), verticalStrength);
-}
-
 // Linearly combine the low, mid, and high colors according to the low, mid,
 // and high components, then normalize to the brightest component.
 highp vec3 bandColor(highp vec3 data) {
@@ -241,7 +187,6 @@ void main(void) {
     highp float signalCoverage = 0.0;
     highp float shadowCoverage = 0.0;
     highp float bodyCoverage = 0.0;
-    highp float verticalShading = 1.0;
     highp vec3 signalRgb = vec3(0.0);
     highp vec3 shadowRgb = vec3(0.0);
 
@@ -323,31 +268,11 @@ void main(void) {
         // more transparent never brings the axis back out through it.
         bodyCoverage = max(signalCoverage, shadowCoverage);
 
-        // The shading belongs to the column, not to the layers it is built
-        // from, so it is applied to the finished composite below rather than to
-        // the signal and the shadow one by one. Shading them separately lets
-        // the shadow, which sits under the signal at 40%, show through wherever
-        // the signal was made translucent: that added up to a tenth of alpha in
-        // the middle of a column and pulled the profile away from the
-        // distribution it is meant to follow.
-        //
-        // The profile is measured against the column as drawn, including the
-        // amplitude floor: the floor exists to make quiet parts visible, and a
-        // visible column that is hollow inside would defeat it.
-        highp vec2 centreDistances = binDistances(visualIndex, stereoOffset);
-        verticalShading = verticalProfile(ourDistance / max(centreDistances.x, 1e-4),
-                dataUnscaled.w,
-                dataUnscaled.xyz);
-
         signalRgb = bandColor(colorScaled);
         shadowRgb = bandColor(colorUnscaled);
     }
 
-    // The signal is composited over the shadow, the shadow over the axes. The
-    // colour is mixed with the coverage the two layers have on their own and
-    // only the finished alpha is shaded: dividing the colour by an alpha that
-    // already carries the shading scales it up and clips it, which showed as
-    // hues drifting by up to fourteen degrees in the middle of a column.
+    // The signal is composited over the shadow, the shadow over the axes.
     // The shadow is only what the EQ removed, so it is the difference between
     // the two coverages rather than whatever the signal leaves uncovered. With
     // the knobs at neutral the two are equal and the shadow contributes
@@ -359,7 +284,7 @@ void main(void) {
     if (bodyAlpha > 0.0) {
         waveformRgb = (signalRgb * signalCoverage + shadowRgb * shadowAlpha) / bodyAlpha;
     }
-    highp float waveformAlpha = bodyAlpha * verticalShading;
+    highp float waveformAlpha = bodyAlpha;
 
     highp vec4 base = vec4(0.0, 0.0, 0.0, 0.0);
     if (bodyCoverage < 1.0 && abs(framebufferSize.y / 2.0 - pixelY) <= 4.0) {

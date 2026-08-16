@@ -24,18 +24,19 @@ constexpr float kColorSmoothBins = 4.0f;
 /// which is the density the reference was measured at.
 constexpr float kSubColumnSamples = 2.0f;
 
-/// Width of the soft edge as a fraction of the half height of the widget, with
-/// a floor in device pixels so it does not disappear on a small deck. Traktor
-/// fades over 3-4 device pixels, but that was measured on a waveform 174 pixels
-/// tall, i.e. about 4% of its half height: the proportion is what carries over,
-/// not the pixels.
-constexpr float kSoftEdgeFraction = 0.04f;
-/// The floor is three device pixels rather than two because two made the fade
-/// on a small deck NARROWER than the fixed three pixels it replaced: at a
-/// height of 120 pixels four percent of the half height is 2.4. Moving from an
-/// absolute value to a proportion has to be checked at both ends of the range,
-/// not only at the end where the problem was noticed.
-constexpr float kSoftEdgePixels = 3.0f;
+/// Width over which the edge of a column fades. The coverage is supersampled
+/// across the pixel, so the edge is antialiased from the data already and this
+/// is only a floor under it - one device pixel, which is what antialiasing
+/// needs and no more.
+///
+/// It used to be four percent of the half height, which on a tall deck is eight
+/// pixels of deliberate blur on top of the antialiasing, and that reads as a
+/// gradient rather than as an edge. The measurement it came from (Traktor fades
+/// over 3-4 device pixels on a waveform 174 pixels tall) described a waveform
+/// whose edge was NOT antialiased from the data; with the supersampling in
+/// place the same softness is arrived at by drawing what is there.
+constexpr float kSoftEdgeFraction = 0.0f;
+constexpr float kSoftEdgePixels = 1.0f;
 
 /// Minimum visible half height of a column that carries any signal. In Traktor
 /// quiet columns sit on a plateau of 0.214 of the half height whatever their
@@ -63,16 +64,6 @@ constexpr float kColorLevelFloor = 0.01f;
 constexpr float kBandColorGainLow = 1.068f;
 constexpr float kBandColorGainMid = 0.7f;
 constexpr float kBandColorGainHigh = 7.111f;
-
-/// How far the vertical shading is taken towards the distribution of the
-/// amplitude inside a column, see verticalProfile() in the shader. One means
-/// the profile is that distribution itself. The model is physical rather than
-/// invented, so there is no reason to hold it back.
-constexpr float kVerticalStrength = 1.0f;
-
-/// Below this band level the crest factor is a ratio of a few units of one byte
-/// each, i.e. noise, and the column is drawn flat instead.
-constexpr float kCrestLevelFloor = 0.02f;
 
 /// The knobs of the mixer do not reach this waveform: it draws the file, the
 /// way Traktor does. The ReplayGain of the track does, because it is a property

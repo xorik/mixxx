@@ -193,7 +193,6 @@ class WaveformShaderTest : public testing::Test {
     struct Overrides {
         float softEdgeFraction = kSoftEdgeFraction;
         float softEdgePixels = kSoftEdgePixels;
-        float verticalStrength = kVerticalStrength;
         float amplitudeFloor = kAmplitudeFloor;
         // One sub column per screen pixel would be no supersampling at all;
         // the frame buffer of the test is not oversampled, so the count here is
@@ -236,8 +235,6 @@ class WaveformShaderTest : public testing::Test {
         m_pProgram->setUniformValue("colorLevelFloor", kColorLevelFloor);
         m_pProgram->setUniformValue("bandColorGain",
                 QVector3D(kBandColorGainLow, kBandColorGainMid, kBandColorGainHigh));
-        m_pProgram->setUniformValue("verticalStrength", m_overrides.verticalStrength);
-        m_pProgram->setUniformValue("crestLevelFloor", kCrestLevelFloor);
     }
 
     /// A block of identical bins wide enough that the colour smoothing, which
@@ -355,22 +352,17 @@ TEST_F(WaveformShaderTest, EqualBandsAreBlueNotGrey) {
     EXPECT_GT(color.saturationF(), 0.5) << "equal bands came out unsaturated";
 }
 
-TEST_F(WaveformShaderTest, SoftEdgeKeepsItsProportionAtEverySize) {
-    // The width of the fade is a fraction of the half height, so a taller
-    // widget gets a proportionally wider fade. Carrying over the absolute
-    // number of pixels instead is exactly how the edge came out looking hard
-    // on a large deck while the small frames of the test bench looked right.
+TEST_F(WaveformShaderTest, TheEdgeIsAntialiasedAndNotABlur) {
+    // The edge has to be soft enough not to stair-step and hard enough to still
+    // read as an edge. Both halves of that matter and the second one was got
+    // wrong: a fade of four percent of the half height is over two pixels on a
+    // small deck and eight on a large one, which is a gradient painted on top
+    // of the antialiasing rather than an edge.
     //
-    // The fade is measured as the distance over which the alpha climbs from a
-    // tenth to nine tenths of the value just inside the column. Counting every
-    // partly transparent row instead would measure the vertical shading too,
-    // which thins most of the body on purpose.
-    // The vertical shading is switched off for this measurement. It varies the
-    // alpha over the whole height of the column by design, so with it on there
-    // is no way to tell where the fade at the rim ends and the profile begins.
+    // What softens it now is the coverage itself, worked out from the sub
+    // columns inside each pixel, so the fade should stay about a pixel wide
+    // whatever the deck is scaled to.
     const auto bins = uniformBins(Bin{120, 90, 20, 5});
-    m_overrides.verticalStrength = 0.0f;
-    std::vector<int> fades;
     for (const int height : {120, 400}) {
         const QImage image = render(bins, 128, height);
         const int centre = height / 2;
@@ -381,80 +373,20 @@ TEST_F(WaveformShaderTest, SoftEdgeKeepsItsProportionAtEverySize) {
                 break;
             }
         }
-        ASSERT_GT(firstLit, 0) << "the column reached the top of the image at height " << height;
+        ASSERT_GT(firstLit, 0) << "nothing was drawn at height " << height;
 
-        const double expected = kSoftEdgeFraction * (height / 2.0);
-        const int inside = std::min(centre - 1, firstLit + static_cast<int>(3 * expected) + 3);
-        const double reference = image.pixelColor(64, inside).alphaF();
-        ASSERT_GT(reference, 0.3) << "no solid part found below the edge at height " << height;
-
-        int low = -1;
-        int high = -1;
-        for (int y = firstLit; y <= inside; ++y) {
+        int partial = 0;
+        for (int y = firstLit; y < centre; ++y) {
             const double alpha = image.pixelColor(64, y).alphaF();
-            if (low < 0 && alpha >= 0.1 * reference) {
-                low = y;
-            }
-            if (high < 0 && alpha >= 0.9 * reference) {
-                high = y;
-                break;
+            if (alpha > 0.02 && alpha < 0.98) {
+                partial++;
             }
         }
-        ASSERT_GE(low, 0);
-        ASSERT_GE(high, low);
-        const int fade = high - low + 1;
-        fades.push_back(fade);
-        EXPECT_GE(fade, std::max(1, static_cast<int>(expected * 0.5)))
-                << "at height " << height << " the fade is " << fade
-                << " rows, expected about " << expected;
-        EXPECT_LE(fade, static_cast<int>(expected * 2.5) + 2)
-                << "at height " << height << " the fade is " << fade
-                << " rows, expected about " << expected;
+        EXPECT_GE(partial, 1) << "at height " << height
+                              << " the edge is a hard step, it will stair-step as it scrolls";
+        EXPECT_LE(partial, 3) << "at height " << height << " the edge fades over " << partial
+                              << " rows, which is a gradient rather than an edge";
     }
-    // And the proportion itself: a widget three times taller must fade over
-    // roughly three times as many rows. This is the part that a fade of a
-    // fixed number of pixels cannot satisfy, whatever the tolerances above
-    // happen to allow.
-    m_overrides = Overrides{};
-    ASSERT_EQ(fades.size(), 2u);
-    EXPECT_GE(fades[1], 2 * fades[0])
-            << "the fade did not grow with the widget: " << fades[0] << " rows at 120 and "
-            << fades[1] << " at 400, so it is a fixed number of pixels rather than a fraction";
-}
-
-TEST_F(WaveformShaderTest, TheSoftEdgeHasAFloorOnASmallDeck) {
-    // The proportion alone gets very small on a short widget - four percent of
-    // a half height of thirty is barely a pixel - so a floor in device pixels
-    // keeps the fade from vanishing there. Without it the change from an
-    // absolute width to a proportion improves the large end and makes the small
-    // end worse, which is what happened once already.
-    //
-    // A deliberately short widget, because that is where the floor decides the
-    // result: at the sizes of the proportionality test above the two are close
-    // enough that nothing would notice the floor being lowered.
-    constexpr int kHeight = 60;
-    m_overrides.verticalStrength = 0.0f;
-    const QImage image = render(uniformBins(Bin{120, 90, 20, 5}), 128, kHeight);
-    m_overrides = Overrides{};
-
-    const int centre = kHeight / 2;
-    int firstLit = -1;
-    for (int y = 0; y < centre; ++y) {
-        if (image.pixelColor(64, y).alphaF() > 0.02f) {
-            firstLit = y;
-            break;
-        }
-    }
-    ASSERT_GT(firstLit, 0) << "the column reached the top of the image";
-    int partial = 0;
-    for (int y = firstLit; y < centre; ++y) {
-        const double alpha = image.pixelColor(64, y).alphaF();
-        if (alpha > 0.02 && alpha < 0.98) {
-            partial++;
-        }
-    }
-    EXPECT_GE(partial, 3) << "the fade on a short widget is " << partial
-                          << " rows, i.e. the floor under it is not doing its job";
 }
 
 TEST_F(WaveformShaderTest, TheCentreOfAColumnIsOpaque) {
@@ -500,26 +432,35 @@ TEST_F(WaveformShaderTest, TheAxisDoesNotShowThroughTheWaveform) {
     }
 }
 
-TEST_F(WaveformShaderTest, TonalAndPercussiveColumnsLookDifferent) {
-    // The vertical shading only reads as texture if columns of different
-    // character are thinned in different places. It was once present in the
-    // arithmetic and invisible on screen, because the profile shaded every
-    // column the same way.
-    //
-    // Same peak, different band magnitudes: a low crest factor is a tone, a
-    // high one is a hit.
-    const QImage tonal = render(uniformBins(Bin{255, 150, 100, 20}), 128, 200);
-    const QImage percussive = render(uniformBins(Bin{255, 40, 25, 5}), 128, 200);
-
-    double largestDifference = 0.0;
-    for (int y = 20; y < 100; ++y) {
-        largestDifference = std::max(largestDifference,
-                std::fabs(static_cast<double>(tonal.pixelColor(64, y).alphaF()) -
-                        static_cast<double>(percussive.pixelColor(64, y).alphaF())));
+TEST_F(WaveformShaderTest, NoPartOfAColumnComesOutWhite) {
+    // "and do not turn the middle white". The axis line under the waveform is
+    // white in the skin of the user, and anything that makes the body of a
+    // column translucent lets it through; so does dividing the colour by an
+    // alpha smaller than itself, which drives all three channels into clipping.
+    // Both have happened here. The check is on the finished pixel, over the
+    // whole height of the column, because that is where the complaint was.
+    // Peaks below full scale, so the tip of each column is inside the image.
+    for (const Bin& bin : {Bin{200, 160, 30, 8},
+                 Bin{200, 50, 50, 50},
+                 Bin{160, 120, 60, 15},
+                 Bin{120, 100, 90, 80}}) {
+        const QImage image = render(uniformBins(bin), 128, 200);
+        const int centre = 100;
+        int firstLit = -1;
+        for (int y = 0; y < centre; ++y) {
+            if (image.pixelColor(64, y).alphaF() > 0.5f) {
+                firstLit = y;
+                break;
+            }
+        }
+        ASSERT_GT(firstLit, 0) << "nothing was drawn, so the absence of white proves nothing";
+        for (int y = firstLit + 1; y <= centre; ++y) {
+            const QColor color = image.pixelColor(64, y);
+            EXPECT_GT(color.saturationF(), 0.25)
+                    << "row " << y << " of the column is nearly white (saturation "
+                    << color.saturationF() << ")";
+        }
     }
-    EXPECT_GT(largestDifference, 0.15)
-            << "a tonal and a percussive column differ by at most " << largestDifference
-            << " in alpha, which is not visible";
 }
 
 TEST_F(WaveformShaderTest, SilenceDrawsNothing) {
@@ -652,63 +593,6 @@ constexpr double kVisibleBrightnessStep = 18.0;
 
 } // namespace
 
-TEST_F(WaveformShaderTest, TheVerticalProfileMatchesTheAmplitudeDistribution) {
-    // THE REFERENCE HERE COMES FROM OUTSIDE THE SHADER. These numbers were not
-    // read off this renderer: they are the model the user approved before any
-    // of it was written, the distribution of the amplitude inside a column -
-    // the share of samples whose magnitude reaches a given level - for material
-    // of a given crest factor.
-    //
-    //   tone         (2/pi) * acos(t)
-    //   noise-like   erfc(t * crest / sqrt(2))
-    //   between      linear in the crest factor from 1.41 to 3.0
-    //
-    // That distinction matters more than it sounds. The first version of this
-    // test compared the shader against a table computed FROM the shader, which
-    // guards the implementation against accidental edits but cannot notice that
-    // the model itself has drifted - and that is exactly what had happened: the
-    // shading had become a band inside the column, a shape that exists nowhere
-    // in a signal, and the test was green throughout.
-    //
-    // If the shader ever misses these numbers, that is a finding. Widening the
-    // tolerance to make it pass would restore precisely the situation this test
-    // exists to prevent.
-    struct Row {
-        double crest;
-        double alpha[11];
-    };
-    constexpr double kSamples[11] = {
-            0.00, 0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 0.95};
-    constexpr Row kGolden[] = {
-            {1.41, {1.000, 0.936, 0.872, 0.806, 0.738, 0.667, 0.590, 0.506, 0.410, 0.287, 0.202}},
-            {1.80, {1.000, 0.917, 0.835, 0.753, 0.673, 0.594, 0.515, 0.434, 0.346, 0.243, 0.174}},
-            {2.30, {1.000, 0.870, 0.745, 0.630, 0.526, 0.434, 0.354, 0.284, 0.218, 0.148, 0.105}},
-            {2.80, {1.000, 0.799, 0.613, 0.452, 0.323, 0.225, 0.156, 0.108, 0.074, 0.046, 0.032}},
-            {3.50, {1.000, 0.726, 0.484, 0.294, 0.162, 0.080, 0.036, 0.014, 0.005, 0.002, 0.001}},
-            {5.00, {1.000, 0.617, 0.317, 0.134, 0.046, 0.012, 0.003, 0.000, 0.000, 0.000, 0.000}},
-    };
-    constexpr double kTolerance = 0.05;
-    constexpr int kHeight = 400;
-
-    for (const Row& row : kGolden) {
-        // A column at full height, so that its own half height is the half
-        // height of the image and the sample positions are exact. The crest
-        // factor is the stored peak over the length of the band vector, so a
-        // single band of 255 / crest gives the value we want.
-        const int band = static_cast<int>(std::lround(255.0 / row.crest));
-        const QImage image = render(uniformBins(Bin{255, band, 0, 0}), 128, kHeight);
-        const int centre = kHeight / 2;
-
-        for (int i = 0; i < 11; ++i) {
-            const int y = centre - static_cast<int>(std::lround(kSamples[i] * centre));
-            const double alpha = image.pixelColor(64, y).alphaF();
-            EXPECT_NEAR(alpha, row.alpha[i], kTolerance)
-                    << "crest " << row.crest << " at t=" << kSamples[i] << ": the shader gives "
-                    << alpha << " where the amplitude distribution gives " << row.alpha[i];
-        }
-    }
-}
-
 TEST_F(WaveformShaderTest, TheCoverageMatchesAnEightBySupersampledMask) {
     // THE REFERENCE HERE COMES FROM OUTSIDE THE SHADER. It is the antialiasing
     // the user approved: the mask of the waveform sampled eight times across
@@ -730,7 +614,6 @@ TEST_F(WaveformShaderTest, TheCoverageMatchesAnEightBySupersampledMask) {
     // The shading and the amplitude floor are switched off, and the soft edge
     // is set to exactly one pixel row: what is left is the coverage itself,
     // which is what this reference describes.
-    m_overrides.verticalStrength = 0.0f;
     m_overrides.amplitudeFloor = 0.0f;
     m_overrides.softEdgeFraction = 0.0f;
     m_overrides.softEdgePixels = 1.0f;
@@ -772,7 +655,6 @@ TEST_F(WaveformShaderTest, TheShippedSubColumnCountReachesTheReference) {
     constexpr int kOversampling = 4;
     constexpr double kTolerance = 0.05;
 
-    m_overrides.verticalStrength = 0.0f;
     m_overrides.amplitudeFloor = 0.0f;
     m_overrides.softEdgeFraction = 0.0f;
     // One row of the finished picture, in the units of the oversampled buffer.
@@ -807,53 +689,6 @@ TEST_F(WaveformShaderTest, TheShippedSubColumnCountReachesTheReference) {
                     << alpha << " where the supersampled mask covers "
                     << kGoldenAlpha[row][column];
         }
-    }
-}
-
-TEST_F(WaveformShaderTest, TheVerticalShadingIsVisibleNotJustPresent) {
-    // Every other check here answers "is it doing what we designed". This one
-    // answers "can it be seen", which is the question the user actually asks
-    // and the one we failed twice: the shading was in the arithmetic, and he
-    // reported that no transparency had appeared.
-    struct Case {
-        const char* what;
-        Bin bin;
-    };
-    // Same peak, different band magnitudes, so the two differ in crest factor:
-    // one is tonal, the other is a hit.
-    // Half height, so the tip of the column is inside the image: with a peak of
-    // 255 the column fills the frame and there is no edge to find.
-    constexpr Case kCases[] = {
-            {"tonal", Bin{130, 75, 50, 10}},
-            {"percussive", Bin{130, 20, 12, 3}},
-    };
-
-    for (const Case& c : kCases) {
-        const QImage image = render(uniformBins(c.bin), 128, 200);
-        const int centre = 100;
-        // The tip of the column, not the point where it becomes solid: on
-        // percussive material the alpha is already well under a half a tenth of
-        // the way in, and that faint part is most of what the eye compares.
-        int firstLit = -1;
-        for (int y = 0; y < centre; ++y) {
-            if (image.pixelColor(64, y).alphaF() > 0.02f) {
-                firstLit = y;
-                break;
-            }
-        }
-        ASSERT_GT(firstLit, 0) << c.what << ": nothing was drawn";
-
-        double darkest = 255.0;
-        double brightest = 0.0;
-        for (int y = firstLit + 2; y < centre - 2; ++y) {
-            const double brightness =
-                    brightnessOverBackground(image.pixelColor(64, y), kSkinBackground);
-            darkest = std::min(darkest, brightness);
-            brightest = std::max(brightest, brightness);
-        }
-        EXPECT_GE(brightest - darkest, kVisibleBrightnessStep)
-                << c.what << " column: the brightness varies by only "
-                << (brightest - darkest) << " over its height, which is not visible";
     }
 }
 
@@ -913,9 +748,12 @@ TEST_F(WaveformShaderTest, DISABLED_ComparisonSheet) {
 
     const auto bins = mixedCharacterBins(220);
 
-    // "Before": the soft edge was a fixed three device pixels with no relation
-    // to the height of the widget, and there was no vertical shading at all.
-    m_overrides = Overrides{0.0f, 3.0f, 0.0f};
+    // "Before": one sample per pixel, i.e. the edge decided by the single bin
+    // under the centre of the pixel, which is the hard mask the user compared
+    // against.
+    m_overrides.subColumnSamples = 1.0f;
+    m_overrides.softEdgeFraction = 0.0f;
+    m_overrides.softEdgePixels = 0.0f;
     const QImage beforeSmall = render(bins, kWidth, kSmall);
     const QImage beforeLarge = render(bins, kWidth, kLarge);
     m_overrides = Overrides{};
@@ -936,10 +774,10 @@ TEST_F(WaveformShaderTest, DISABLED_ComparisonSheet) {
         painter.drawText(6, y + 14, label);
         y += image.height() + kGap;
     };
-    place(beforeSmall, QStringLiteral("before, 120 px"));
-    place(afterSmall, QStringLiteral("after, 120 px"));
-    place(beforeLarge, QStringLiteral("before, 400 px (deck height of the user)"));
-    place(afterLarge, QStringLiteral("after, 400 px (deck height of the user)"));
+    place(beforeSmall, QStringLiteral("hard mask, 120 px"));
+    place(afterSmall, QStringLiteral("supersampled, 120 px"));
+    place(beforeLarge, QStringLiteral("hard mask, 400 px"));
+    place(afterLarge, QStringLiteral("supersampled, 400 px"));
     painter.end();
 
     const QString path = qEnvironmentVariable("MIXXX_WF_SHEET", QStringLiteral("/tmp/wfsheet.png"));

@@ -411,7 +411,6 @@ void WaveformRendererTextured::paintGL() {
                 QStringLiteral("colorLevelFloor=") +
                         QString::number(kColorLevelFloor),
                 QStringLiteral("colorGamma=") + QString::number(kColorGamma),
-                QStringLiteral("verticalStrength=") + QString::number(kVerticalStrength),
                 QStringLiteral("bandColorGain=") + QString::number(gain.x()) +
                         QChar(',') + QString::number(gain.y()) + QChar(',') +
                         QString::number(gain.z()),
@@ -471,8 +470,6 @@ void WaveformRendererTextured::paintGL() {
                     QVector3D(kBandColorGainLow, kBandColorGainMid, kBandColorGainHigh));
             m_frameShaderProgram->setUniformValue("colorGamma", kColorGamma);
             m_frameShaderProgram->setUniformValue("colorLevelFloor", kColorLevelFloor);
-            m_frameShaderProgram->setUniformValue("verticalStrength", kVerticalStrength);
-            m_frameShaderProgram->setUniformValue("crestLevelFloor", kCrestLevelFloor);
         }
 
         m_frameShaderProgram->setUniformValue("axesColor",
