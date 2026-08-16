@@ -349,6 +349,7 @@ TEST_F(WaveformShaderTest, EqualBandsAreBlueNotGrey) {
     // "fixing" it would quietly undo the colour model.
     const QImage image = render(uniformBins(Bin{255, 120, 120, 120}), 256, 200);
     const QColor color = image.pixelColor(128, 60);
+    ASSERT_GT(color.alphaF(), 0.5) << "nothing was drawn, there is no colour to judge";
     EXPECT_LT(hueDistance(color.hueF() * 360.0, 243.4), 2.0)
             << "equal bands gave hue " << color.hueF() * 360.0;
     EXPECT_GT(color.saturationF(), 0.5) << "equal bands came out unsaturated";
@@ -490,6 +491,8 @@ TEST_F(WaveformShaderTest, TheAxisDoesNotShowThroughTheWaveform) {
     // The same thing seen from the other side: with a white axis colour, no
     // pixel in the middle of a column may come out white.
     const QImage image = render(uniformBins(Bin{255, 200, 40, 10}), 128, 200);
+    ASSERT_GT(image.pixelColor(64, 100).alphaF(), 0.5)
+            << "the column was not drawn, so nothing being white proves nothing";
     for (int y = 96; y <= 104; ++y) {
         const QColor color = image.pixelColor(64, y);
         EXPECT_FALSE(color.saturationF() < 0.2 && color.valueF() > 0.9)
@@ -522,6 +525,14 @@ TEST_F(WaveformShaderTest, TonalAndPercussiveColumnsLookDifferent) {
 TEST_F(WaveformShaderTest, SilenceDrawsNothing) {
     // A bin with no signal at all must stay empty: the amplitude floor lifts
     // quiet material, not silence.
+    // This is the one check here that an empty picture satisfies by itself, so
+    // it starts by showing that the same setup does draw when there is
+    // something to draw. Otherwise a shader that renders nothing at all would
+    // look like a shader that handles silence correctly.
+    const QImage loud = render(uniformBins(Bin{200, 150, 80, 20}), 128, 200);
+    ASSERT_GT(loud.pixelColor(64, 60).alphaF(), 0.5)
+            << "nothing is drawn even for a loud bin, so silence proves nothing";
+
     const QImage image = render(uniformBins(Bin{0, 0, 0, 0}), 128, 200);
     for (int y = 0; y < 200; ++y) {
         const QColor color = image.pixelColor(64, y);
@@ -579,6 +590,7 @@ TEST_F(WaveformShaderTest, HeightDoesNotDependOnTheColourBalance) {
     };
     const int bass = measureHeight(Bin{200, 250, 10, 5});
     const int treble = measureHeight(Bin{200, 5, 10, 250});
+    ASSERT_GT(bass, 10) << "no column was drawn, so two equal heights prove nothing";
     EXPECT_LE(std::abs(bass - treble), 2)
             << "the same peak was drawn " << bass << " pixels tall for bass and " << treble
             << " for treble";
