@@ -18,6 +18,12 @@ namespace spectrumwaveform {
 /// orange between red and green and washes out the saturation.
 constexpr float kColorSmoothBins = 4.0f;
 
+/// How many sub columns are sampled inside one FRAMEBUFFER pixel to work out
+/// how much of it the column covers. The frame buffer is already oversampled
+/// four times relative to the screen, so two here is eight per screen pixel,
+/// which is the density the reference was measured at.
+constexpr float kSubColumnSamples = 2.0f;
+
 /// Width of the soft edge as a fraction of the half height of the widget, with
 /// a floor in device pixels so it does not disappear on a small deck. Traktor
 /// fades over 3-4 device pixels, but that was measured on a waveform 174 pixels

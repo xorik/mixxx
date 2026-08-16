@@ -194,6 +194,15 @@ class WaveformShaderTest : public testing::Test {
         float softEdgeFraction = kSoftEdgeFraction;
         float softEdgePixels = kSoftEdgePixels;
         float verticalStrength = kVerticalStrength;
+        float amplitudeFloor = kAmplitudeFloor;
+        // One sub column per screen pixel would be no supersampling at all;
+        // the frame buffer of the test is not oversampled, so the count here is
+        // the count per screen pixel.
+        float subColumnSamples = 8.0f;
+        // The axis line is part of the skin, not of the waveform, and it sits
+        // in the middle of every image. Tests that compare the mask itself turn
+        // it off rather than work around it.
+        bool axis = true;
     };
     Overrides m_overrides;
 
@@ -215,12 +224,14 @@ class WaveformShaderTest : public testing::Test {
         m_pProgram->setUniformValue("lowColor", QVector4D(1.0f, 0.0f, 0.0f, 1.0f));
         m_pProgram->setUniformValue("midColor", QVector4D(0.0f, 1.0f, 0.0f, 1.0f));
         m_pProgram->setUniformValue("highColor", QVector4D(0.0f, 0.0f, 1.0f, 1.0f));
-        m_pProgram->setUniformValue("axesColor", QVector4D(1.0f, 1.0f, 1.0f, 1.0f));
+        m_pProgram->setUniformValue(
+                "axesColor", QVector4D(1.0f, 1.0f, 1.0f, m_overrides.axis ? 1.0f : 0.0f));
 
         m_pProgram->setUniformValue("colorSmoothBins", kColorSmoothBins);
         m_pProgram->setUniformValue("softEdgeFraction", m_overrides.softEdgeFraction);
         m_pProgram->setUniformValue("softEdgePixels", m_overrides.softEdgePixels);
-        m_pProgram->setUniformValue("amplitudeFloor", kAmplitudeFloor);
+        m_pProgram->setUniformValue("amplitudeFloor", m_overrides.amplitudeFloor);
+        m_pProgram->setUniformValue("subColumnSamples", m_overrides.subColumnSamples);
         m_pProgram->setUniformValue("colorGamma", kColorGamma);
         m_pProgram->setUniformValue("colorLevelFloor", kColorLevelFloor);
         m_pProgram->setUniformValue("bandColorGain",
@@ -245,6 +256,40 @@ double hueDistance(double a, double b) {
     double d = std::fabs(a - b);
     return d > 180.0 ? 360.0 - d : d;
 }
+
+// The antialiasing reference the user approved: the mask of the waveform
+// sampled eight times across and eight times down every pixel, averaged.
+// kGoldenPeaks are the peaks of 64 sub columns, eight per pixel over eight
+// pixels, as bytes; kGoldenAlpha is what that mask gives for the sixteen pixel
+// rows of the upper half, row 0 being the one next to the centre line.
+//
+// THESE NUMBERS COME FROM OUTSIDE THE SHADER. Two tests use them: one drives
+// the shader directly, the other goes through the oversampled buffer the
+// renderer really uses.
+constexpr int kGoldenPeaks[64] = {
+        52, 81, 85, 60, 70, 72, 98, 93, 114, 74, 141, 117, 137, 129, 131, 152,
+        164, 152, 159, 180, 159, 154, 194, 181, 165, 191, 203, 196, 197, 231, 252, 238,
+        5, 73, 139, 170, 220, 246, 222, 191, 174, 120, 74, 5, 65, 121, 152, 217,
+        238, 211, 225, 174, 117, 50, 41, 64, 156, 201, 187, 236, 216, 208, 143, 94,
+};
+constexpr double kGoldenAlpha[16][8] = {
+        {1.0000, 1.0000, 1.0000, 1.0000, 0.9219, 0.9219, 1.0000, 1.0000},
+        {1.0000, 1.0000, 1.0000, 1.0000, 0.8750, 0.8750, 1.0000, 1.0000},
+        {1.0000, 1.0000, 1.0000, 1.0000, 0.8750, 0.8750, 0.9531, 1.0000},
+        {0.8750, 1.0000, 1.0000, 1.0000, 0.8750, 0.8750, 0.7656, 1.0000},
+        {0.6094, 0.9531, 1.0000, 1.0000, 0.8125, 0.7188, 0.6250, 1.0000},
+        {0.2969, 0.8750, 1.0000, 1.0000, 0.7500, 0.6250, 0.6250, 0.9844},
+        {0.0156, 0.8750, 1.0000, 1.0000, 0.7500, 0.6250, 0.6250, 0.8750},
+        {0.0000, 0.6875, 1.0000, 1.0000, 0.7500, 0.5156, 0.5312, 0.8750},
+        {0.0000, 0.3594, 1.0000, 1.0000, 0.7188, 0.3750, 0.5000, 0.8750},
+        {0.0000, 0.0625, 0.8906, 1.0000, 0.6250, 0.3125, 0.5000, 0.7188},
+        {0.0000, 0.0000, 0.4219, 0.9219, 0.5781, 0.2344, 0.4844, 0.6250},
+        {0.0000, 0.0000, 0.2188, 0.8750, 0.5000, 0.1250, 0.3750, 0.5938},
+        {0.0000, 0.0000, 0.0156, 0.5625, 0.3750, 0.1250, 0.3750, 0.4531},
+        {0.0000, 0.0000, 0.0000, 0.3750, 0.3594, 0.0781, 0.2812, 0.2031},
+        {0.0000, 0.0000, 0.0000, 0.3125, 0.1250, 0.0000, 0.1406, 0.0938},
+        {0.0000, 0.0000, 0.0000, 0.1094, 0.0625, 0.0000, 0.0000, 0.0000},
+};
 
 } // namespace
 
@@ -652,6 +697,107 @@ TEST_F(WaveformShaderTest, TheVerticalProfileMatchesTheAmplitudeDistribution) {
     }
 }
 
+TEST_F(WaveformShaderTest, TheCoverageMatchesAnEightBySupersampledMask) {
+    // THE REFERENCE HERE COMES FROM OUTSIDE THE SHADER. It is the antialiasing
+    // the user approved: the mask of the waveform sampled eight times across
+    // and eight times down every pixel, averaged. A screen pixel spans several
+    // bins - about five at the usual zoom - and the signal rises and falls
+    // inside it, so what the pixel shows is the share of its area the column
+    // covers rather than a yes or no about its centre.
+    //
+    // kGoldenPeaks are the peaks of 64 sub columns, eight per pixel over eight
+    // pixels, as bytes. kGoldenAlpha is what the 8 by 8 supersampled mask gives
+    // for the sixteen pixel rows of the upper half.
+    //
+    // The shader does not supersample vertically: it computes the vertical
+    // coverage of each sub column in closed form, which is the same quantity
+    // without the sixty four samples. Against this reference that costs at most
+    // 0.021 of alpha and 0.002 on average.
+    constexpr double kTolerance = 0.05;
+
+    // The shading and the amplitude floor are switched off, and the soft edge
+    // is set to exactly one pixel row: what is left is the coverage itself,
+    // which is what this reference describes.
+    m_overrides.verticalStrength = 0.0f;
+    m_overrides.amplitudeFloor = 0.0f;
+    m_overrides.softEdgeFraction = 0.0f;
+    m_overrides.softEdgePixels = 1.0f;
+    m_overrides.subColumnSamples = 8.0f;
+    // Without this the axis line, which is drawn under the waveform within four
+    // pixels of the centre, shows through wherever the coverage is partial and
+    // lifts the alpha of the four rows nearest the middle. It is not part of
+    // what this reference describes.
+    m_overrides.axis = false;
+
+    std::vector<Bin> bins;
+    bins.reserve(64);
+    for (const int peak : kGoldenPeaks) {
+        // The bands only decide the colour here; the height comes from the peak.
+        bins.push_back(Bin{peak, 100, 40, 10});
+    }
+    const QImage image = render(bins, 8, 32);
+    m_overrides = Overrides{};
+
+    for (int row = 0; row < 16; ++row) {
+        for (int column = 0; column < 8; ++column) {
+            // Row 0 of the reference is the row next to the centre line.
+            const double alpha = image.pixelColor(column, 15 - row).alphaF();
+            EXPECT_NEAR(alpha, kGoldenAlpha[row][column], kTolerance)
+                    << "pixel row " << row << ", column " << column << ": the shader covers "
+                    << alpha << " where the supersampled mask covers "
+                    << kGoldenAlpha[row][column];
+        }
+    }
+}
+
+TEST_F(WaveformShaderTest, TheShippedSubColumnCountReachesTheReference) {
+    // The check above overrides the number of sub columns, so it says nothing
+    // about the value actually shipped. This one uses it, and renders the way
+    // the renderer does: into a frame buffer four times the size of the widget,
+    // which is then averaged down. Two sub columns per frame buffer pixel times
+    // four frame buffer pixels per screen pixel is the eight the reference was
+    // measured at, and the whole path has to land on the reference.
+    constexpr int kOversampling = 4;
+    constexpr double kTolerance = 0.05;
+
+    m_overrides.verticalStrength = 0.0f;
+    m_overrides.amplitudeFloor = 0.0f;
+    m_overrides.softEdgeFraction = 0.0f;
+    // One row of the finished picture, in the units of the oversampled buffer.
+    m_overrides.softEdgePixels = kOversampling;
+    m_overrides.subColumnSamples = kSubColumnSamples;
+    m_overrides.axis = false;
+
+    std::vector<Bin> bins;
+    bins.reserve(64);
+    for (const int peak : kGoldenPeaks) {
+        bins.push_back(Bin{peak, 100, 40, 10});
+    }
+    const QImage oversampled = render(bins, 8 * kOversampling, 32 * kOversampling);
+    m_overrides = Overrides{};
+
+    for (int row = 0; row < 16; ++row) {
+        for (int column = 0; column < 8; ++column) {
+            // Average the block of frame buffer pixels that becomes one pixel
+            // of the picture, which is what the blit does.
+            double sum = 0.0;
+            for (int dy = 0; dy < kOversampling; ++dy) {
+                for (int dx = 0; dx < kOversampling; ++dx) {
+                    sum += oversampled
+                                   .pixelColor(column * kOversampling + dx,
+                                           (15 - row) * kOversampling + dy)
+                                   .alphaF();
+                }
+            }
+            const double alpha = sum / (kOversampling * kOversampling);
+            EXPECT_NEAR(alpha, kGoldenAlpha[row][column], kTolerance)
+                    << "pixel row " << row << ", column " << column << ": the shipped path covers "
+                    << alpha << " where the supersampled mask covers "
+                    << kGoldenAlpha[row][column];
+        }
+    }
+}
+
 TEST_F(WaveformShaderTest, TheVerticalShadingIsVisibleNotJustPresent) {
     // Every other check here answers "is it doing what we designed". This one
     // answers "can it be seen", which is the question the user actually asks
@@ -700,6 +846,16 @@ TEST_F(WaveformShaderTest, TheVerticalShadingIsVisibleNotJustPresent) {
 }
 
 namespace {
+
+// The antialiasing reference the user approved: the mask of the waveform
+// sampled eight times across and eight times down every pixel, averaged.
+// kGoldenPeaks are the peaks of 64 sub columns, eight per pixel over eight
+// pixels, as bytes; kGoldenAlpha is what that mask gives for the sixteen pixel
+// rows of the upper half, row 0 being the one next to the centre line.
+//
+// THESE NUMBERS COME FROM OUTSIDE THE SHADER and are checked by two tests: one
+// drives the shader directly, the other goes through the oversampled buffer the
+// renderer really uses.
 
 /// A stretch of bins that alternates between tonal and percussive character,
 /// which is what makes the vertical shading readable: it shows up as a

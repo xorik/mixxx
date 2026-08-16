@@ -462,6 +462,7 @@ void WaveformRendererTextured::paintGL() {
             m_frameShaderProgram->setUniformValue("colorSmoothBins", kColorSmoothBins);
             // The shader works in frame buffer pixels, the tunable is in
             // device pixels.
+            m_frameShaderProgram->setUniformValue("subColumnSamples", kSubColumnSamples);
             m_frameShaderProgram->setUniformValue("softEdgeFraction", kSoftEdgeFraction);
             m_frameShaderProgram->setUniformValue("softEdgePixels",
                     kSoftEdgePixels * static_cast<float>(kOversamplingFactor));
