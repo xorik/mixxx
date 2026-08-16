@@ -389,7 +389,12 @@ bool WaveformWidgetFactory::setConfig(UserSettingsPointer config) {
     bool ok = false;
 
     int frameRate = m_config->getValue(kFrameRateKey, m_frameRate);
-    m_frameRate = math_clamp(frameRate, 1, 120);
+    // Commit 122bcdc50a raised the frame rate limit to 240 in two places out of
+    // three: setFrameRate() below and the spin box in dlgprefwaveformdlg.ui both
+    // accept 240, but this path - the one that loads the value on every start -
+    // still cut it back to 120. A user who set 240 got 120 silently, with
+    // nothing in the UI or the log to show for it.
+    m_frameRate = math_clamp(frameRate, 1, 240);
 
     int endTime = m_config->getValueString(kEndOfTrackWarningKey).toInt(&ok);
     if (ok) {
