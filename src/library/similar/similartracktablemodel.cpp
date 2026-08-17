@@ -12,8 +12,11 @@
 #include "moc_similartracktablemodel.cpp"
 #include "track/keyutils.h"
 #include "util/db/sqltransaction.h"
+#include "util/logger.h"
 
 namespace {
+
+const mixxx::Logger kLogger("SimilarTrackTableModel");
 
 constexpr char kModelSettingsNamespace[] = "mixxx.db.model.similar";
 
@@ -269,6 +272,9 @@ void SimilarTrackTableModel::refill() {
         }
     }
     const auto seedValues = bpmAndKey.value(m_result.seedTrackId, qMakePair(0.0, 0));
+    kLogger.debug() << "seed" << m_result.seedTrackId << "bpm" << seedValues.first
+                    << "key_id" << seedValues.second
+                    << "(0 means the filters cannot judge and let everything through)";
 
     QSqlQuery insertQuery(m_database);
     insertQuery.prepare(QStringLiteral(
@@ -373,6 +379,10 @@ void SimilarTrackTableModel::setResult(const mixxx::SimilarityResult& result) {
     updateHeaders();
     refill();
     select();
+    kLogger.debug() << "answer for seed" << m_result.seedTrackId
+                    << "provider" << m_result.tool
+                    << "candidates" << m_result.tracks.size()
+                    << "shown" << rowCount();
 }
 
 void SimilarTrackTableModel::clearResult() {
@@ -390,6 +400,12 @@ void SimilarTrackTableModel::setLevels(BpmLevel bpmLevel, KeyLevel keyLevel) {
     // The distances are already in the rows; only the thresholds move.
     writeLevels();
     select();
+    // One line per slider move, so a "the filter does nothing" report can be
+    // answered with numbers instead of guesses.
+    kLogger.debug() << "filter bpm level" << static_cast<int>(m_bpmLevel)
+                    << "key level" << static_cast<int>(m_keyLevel)
+                    << "candidates" << m_result.tracks.size()
+                    << "shown" << rowCount();
 }
 
 SimilarTrackTableModel::HiddenCounts SimilarTrackTableModel::hiddenCounts() const {
