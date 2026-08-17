@@ -63,6 +63,12 @@ class SimilarTrackTableModel : public BaseSqlTableModel {
             QObject* parent, TrackCollectionManager* pTrackCollectionManager);
     ~SimilarTrackTableModel() override = default;
 
+    /// Tempo and key of the seed, taken from the loaded track rather than from
+    /// its database row: a track analysed in this session may not have been
+    /// written back yet, and a seed that looks unanalysed silently disables
+    /// both filters.
+    void setSeedAttributes(double bpm, int keyId);
+
     /// Replace the contents with one answer from the stand. Tracks the local
     /// library no longer has (purged in the meantime) drop out silently.
     void setResult(const mixxx::SimilarityResult& result);
@@ -79,6 +85,16 @@ class SimilarTrackTableModel : public BaseSqlTableModel {
     void setRankTools(const QStringList& toolKeys, const QStringList& toolNames);
 
     HiddenCounts hiddenCounts() const;
+    /// False when the seed itself has no key: nothing can be measured against
+    /// it, so the key filter is inert and the pane has to say so instead of
+    /// looking broken.
+    bool seedHasKey() const {
+        return m_seedHasKey;
+    }
+    /// Same for tempo.
+    bool seedHasBpm() const {
+        return m_seedHasBpm;
+    }
     bool scoreIsMeanRank() const {
         return m_result.scoreIsMeanRank;
     }
@@ -103,6 +119,10 @@ class SimilarTrackTableModel : public BaseSqlTableModel {
     int keyVisibleFrom(int seedKeyId, int candidateKeyId) const;
 
     mixxx::SimilarityResult m_result;
+    double m_seedBpm;
+    int m_seedKeyId;
+    bool m_seedHasKey;
+    bool m_seedHasBpm;
     BpmLevel m_bpmLevel;
     KeyLevel m_keyLevel;
     QStringList m_rankToolKeys;

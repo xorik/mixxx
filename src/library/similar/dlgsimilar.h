@@ -68,6 +68,7 @@ class DlgSimilar : public QWidget, public Ui::DlgSimilar, public virtual Library
     void setSeed(TrackPointer pTrack);
     /// Pinned seed, else the playing deck, else the deck loaded last.
     void resolveSeed();
+    void updateFilterAvailability();
     void updateHiddenLabel();
     void updateSeedLabel();
     QString selectedProviderKey() const;

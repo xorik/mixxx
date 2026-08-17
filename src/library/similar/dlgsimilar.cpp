@@ -333,6 +333,8 @@ void DlgSimilar::setSeed(TrackPointer pTrack) {
         return;
     }
     m_seedTrackId = trackId;
+    m_pTrackTableModel->setSeedAttributes(
+            pTrack->getBpm(), static_cast<int>(pTrack->getKey()));
     const QString artist = pTrack->getArtist();
     const QString title = pTrack->getTitle();
     m_seedLabel = artist.isEmpty() ? title : artist + QStringLiteral(" - ") + title;
@@ -474,6 +476,7 @@ void DlgSimilar::slotSimilarReady(const mixxx::SimilarityResult& result) {
         return;
     }
     m_pTrackTableModel->setResult(result);
+    updateFilterAvailability();
     labelStatus->setText(tr("%1 of %2 ranked")
                                  .arg(QString::number(result.tracks.size()),
                                          QString::number(result.total)));
@@ -531,6 +534,28 @@ void DlgSimilar::slotFiltersChanged() {
     // No request is sent.
     m_pTrackTableModel->setLevels(bpmLevel, keyLevel);
     updateHiddenLabel();
+}
+
+void DlgSimilar::updateFilterAvailability() {
+    // A seed without a key cannot be compared to anything, so the key filter is
+    // inert whatever the slider says. Saying that out loud is the difference
+    // between "this build is broken" and "this track has no key".
+    const bool canJudgeKey = m_pTrackTableModel->seedHasKey();
+    const bool canJudgeBpm = m_pTrackTableModel->seedHasBpm();
+    sliderKeyFilter->setEnabled(canJudgeKey);
+    labelKeyFilterCaption->setEnabled(canJudgeKey);
+    sliderBpmFilter->setEnabled(canJudgeBpm);
+    labelBpmFilterCaption->setEnabled(canJudgeBpm);
+    if (!canJudgeKey) {
+        labelKeyFilter->setText(tr("seed has no key"));
+    }
+    if (!canJudgeBpm) {
+        labelBpmFilter->setText(tr("seed has no BPM"));
+    }
+    if (canJudgeKey && canJudgeBpm) {
+        // Put the position names back.
+        slotFiltersChanged();
+    }
 }
 
 void DlgSimilar::updateHiddenLabel() {

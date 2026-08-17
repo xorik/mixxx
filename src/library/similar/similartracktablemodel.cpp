@@ -47,6 +47,10 @@ constexpr int kBpmAnyLevel = static_cast<int>(std::size(kBpmTolerancePercent));
 SimilarTrackTableModel::SimilarTrackTableModel(
         QObject* parent, TrackCollectionManager* pTrackCollectionManager)
         : BaseSqlTableModel(parent, pTrackCollectionManager, kModelSettingsNamespace),
+          m_seedBpm(0.0),
+          m_seedKeyId(0),
+          m_seedHasKey(false),
+          m_seedHasBpm(false),
           m_bpmLevel(BpmLevel::Any),
           m_keyLevel(KeyLevel::All) {
     createTables();
@@ -271,7 +275,18 @@ void SimilarTrackTableModel::refill() {
                     qMakePair(query.value(1).toDouble(), query.value(2).toInt()));
         }
     }
-    const auto seedValues = bpmAndKey.value(m_result.seedTrackId, qMakePair(0.0, 0));
+    // The loaded track wins over its database row, which can lag behind an
+    // analysis that ran in this session; the row is only a fallback for a seed
+    // that is not on a deck (pinned from the context menu).
+    auto seedValues = bpmAndKey.value(m_result.seedTrackId, qMakePair(0.0, 0));
+    if (m_seedBpm > 0.0) {
+        seedValues.first = m_seedBpm;
+    }
+    if (m_seedKeyId > 0) {
+        seedValues.second = m_seedKeyId;
+    }
+    m_seedHasBpm = seedValues.first > 0.0;
+    m_seedHasKey = seedValues.second > 0;
     kLogger.debug() << "seed" << m_result.seedTrackId << "bpm" << seedValues.first
                     << "key_id" << seedValues.second
                     << "(0 means the filters cannot judge and let everything through)";
@@ -373,6 +388,11 @@ void SimilarTrackTableModel::setRankTools(
     updateHeaders();
 }
 
+void SimilarTrackTableModel::setSeedAttributes(double bpm, int keyId) {
+    m_seedBpm = bpm;
+    m_seedKeyId = keyId;
+}
+
 void SimilarTrackTableModel::setResult(const mixxx::SimilarityResult& result) {
     m_result = result;
     writeLevels();
@@ -387,6 +407,8 @@ void SimilarTrackTableModel::setResult(const mixxx::SimilarityResult& result) {
 
 void SimilarTrackTableModel::clearResult() {
     m_result = mixxx::SimilarityResult();
+    m_seedHasKey = false;
+    m_seedHasBpm = false;
     refill();
     select();
 }
