@@ -1064,6 +1064,14 @@ void BaseTrackPlayerImpl::setupEqControls() {
 }
 
 void BaseTrackPlayerImpl::slotWaveformZoomValueChangeRequest(double v) {
+    // A deck remembers its own zoom, and one saved before the deck waveform
+    // became four times as dense means a quarter of the time on screen. Such a
+    // value is recognisable: it is below a minimum that used to be its whole
+    // range. Scaled rather than rejected, so that a returning user finds the
+    // view they left.
+    if (v < WaveformWidgetRenderer::s_waveformMinZoom) {
+        v *= WaveformWidgetRenderer::s_waveformMinZoom;
+    }
     if (v <= WaveformWidgetRenderer::s_waveformMaxZoom
             && v >= WaveformWidgetRenderer::s_waveformMinZoom) {
         m_pWaveformZoom->setAndConfirm(v);

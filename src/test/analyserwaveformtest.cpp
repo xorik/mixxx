@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <functional>
+
 #include <QDir>
 #include <QtDebug>
 #include <vector>
@@ -98,6 +100,70 @@ class AnalyzerWaveformTest : public MixxxTest {
     TrackPointer m_pTrack;
     std::vector<CSAMPLE> m_canaryBigBuf;
 };
+
+// The height of a column is the span of the signal in it, (max - min) / 2, not
+// the peak of its magnitude. The two agree on a symmetric signal and disagree
+// on a one sided one, and this checks both halves of that statement - the
+// second one is the point of the change, the first one is what keeps the edge
+// geometry of the waveform from moving under a change that was supposed to
+// affect only asymmetric material.
+TEST_F(AnalyzerWaveformTest, theHeightIsTheSpanOfTheSignal) {
+    const auto analyse = [this](const std::function<float(int)>& sample) {
+        constexpr std::size_t kFrames = 2 * 1920;
+        std::vector<CSAMPLE> buffer(kFrames * 2);
+        for (std::size_t i = 0; i < kFrames; ++i) {
+            const auto value = static_cast<CSAMPLE>(sample(static_cast<int>(i)));
+            buffer[i * 2] = value;
+            buffer[i * 2 + 1] = value;
+        }
+        AnalyzerWaveform analyzer(config(), QSqlDatabase());
+        TrackPointer pTrack = Track::newTemporary();
+        pTrack->setAudioProperties(mixxx::audio::ChannelCount(2),
+                mixxx::audio::SampleRate(44100),
+                mixxx::audio::Bitrate(),
+                mixxx::Duration::fromSeconds(1));
+        analyzer.initialize(AnalyzerTrack(pTrack),
+                pTrack->getSampleRate(),
+                pTrack->getChannels(),
+                kFrames);
+        analyzer.processSamples(buffer.data(), buffer.size());
+        analyzer.storeResults(pTrack);
+        analyzer.cleanup();
+        ConstWaveformPointer pWaveform = pTrack->getWaveform();
+        int tallest = 0;
+        for (int i = 0; i < pWaveform->getDataSize(); ++i) {
+            tallest = std::max(tallest, static_cast<int>(pWaveform->getAll(i)));
+        }
+        return tallest;
+    };
+
+    // The tone is deliberately far above the block rate - several periods fit
+    // inside one block at any analysis density we are likely to use. That makes
+    // the expected numbers independent of that density: a block always sees the
+    // full excursion. An earlier version of this test used a slow tone and its
+    // numbers moved when the analysis rate changed, which says nothing about
+    // the height law and everything about the tone.
+    constexpr float kRadiansPerSample = 0.6f;
+
+    // Swinging +-0.5: the span and the peak of the magnitude are both 0.5, so
+    // the two laws agree here and the height must not move.
+    const int symmetric = analyse([](int i) {
+        return 0.5f * std::sin(kRadiansPerSample * i);
+    });
+
+    // The same excursion on one side only. Its magnitude peak is still 0.5, but
+    // its span is half of that, and that difference is the whole point.
+    const int oneSided = analyse([](int i) {
+        const float value = std::sin(kRadiansPerSample * i);
+        return value > 0.0f ? 0.5f * value : 0.0f;
+    });
+
+    // 0.5 of full scale, divided by the height headroom, in a byte.
+    EXPECT_NEAR(symmetric, 73, 4) << "a symmetric tone changed height, which it must not";
+    EXPECT_NEAR(oneSided, symmetric / 2, 4)
+            << "a one sided signal was drawn " << oneSided << " against " << symmetric
+            << " for a symmetric one of the same peak: the height is not the span";
+}
 
 // A canary, and it is worth being clear about what that means.
 //

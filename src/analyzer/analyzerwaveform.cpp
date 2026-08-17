@@ -55,7 +55,28 @@ bool AnalyzerWaveform::initialize(const AnalyzerTrack& track,
     createFilters(sampleRate);
 
     //TODO (vrince) Do we want to expose this as settings or whatever ?
-    constexpr int mainWaveformSampleRate = 441;
+    // Values per second stored for the deck waveform, per channel.
+    //
+    // 441 was not enough for the shape of a column to come out of the data. The
+    // renderer works out the alpha of a pixel from how many of its sub columns
+    // reach a given height, and at zoom 3 on a retina screen 441 values per
+    // second put 1.5 of them in a pixel: eight sub columns then read two
+    // distinct values, the transition happens in one step, and a drum hit is
+    // drawn as a block. At 1764 there are six values in a pixel and the fall
+    // from the tip of the column appears by itself, from the data, without any
+    // curve applied on top.
+    //
+    // The colour does not need this - measured, the density contributes 0.2
+    // degrees of hue against a model error of 16 - but the four channels share
+    // one packed record, and separating them would mean a second texture and a
+    // second grid through a hundred call sites. Four times the data on all four
+    // channels costs 1.8 MB more per seven-minute track, which is the cheaper
+    // side of that trade by a wide margin.
+    //
+    // NOTE: the user visible zoom scale is multiplied by the same factor, in
+    // WaveformWidgetRenderer, so that a given zoom number keeps showing the
+    // same stretch of time. The two constants belong together.
+    constexpr int mainWaveformSampleRate = 1764;
     // two visual sample per pixel in full width overview in full hd
     constexpr int summaryWaveformSamples = 2 * 1920;
 
@@ -232,11 +253,15 @@ bool AnalyzerWaveform::processSamples(const CSAMPLE* pIn, SINT count) {
     m_waveformSummary->setSaveState(Waveform::SaveState::NotSaved);
 
     for (SINT i = 0; i < count; i += 2) {
-        // The envelope that drives the height of the waveform is a peak.
-        CSAMPLE cover[2] = {fabs(pWaveformInput[i]), fabs(pWaveformInput[i + 1])};
-        // Record the max across this stride.
-        storeIfGreater(&m_stride.m_overallData[Left], cover[Left]);
-        storeIfGreater(&m_stride.m_overallData[Right], cover[Right]);
+        // The height of a column is the span of the signal inside it, so both
+        // ends of that span are tracked, with their sign. Taking the magnitude
+        // here instead would fold the two together and lose the asymmetry that
+        // makes a drum hit look like a hit.
+        for (int channel = 0; channel < 2; ++channel) {
+            const CSAMPLE sample = pWaveformInput[i + channel];
+            m_stride.m_minData[channel] = math_min(m_stride.m_minData[channel], sample);
+            m_stride.m_maxData[channel] = math_max(m_stride.m_maxData[channel], sample);
+        }
 
         // The band magnitudes that drive the colour are the RMS of the
         // filtered signal inside the bin, so accumulate energy here and take

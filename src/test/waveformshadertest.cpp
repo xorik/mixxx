@@ -33,6 +33,9 @@
 #include <QColor>
 #include <QImage>
 #include <QFile>
+#include <set>
+
+#include "waveform/renderers/waveformwidgetrenderer.h"
 #include <numeric>
 #include <QGuiApplication>
 #include <QOffscreenSurface>
@@ -207,11 +210,6 @@ class WaveformShaderTest : public testing::Test {
         // it off rather than work around it.
         bool axis = true;
         float pixelsPerScreenPixel = 1.0f;
-        // The brightness envelope of a column. Tests that measure COVERAGE turn
-        // it off: coverage is a geometric quantity and the envelope is a
-        // brightness one, and multiplying them together would make every
-        // measurement of the first depend on the second.
-        float rimBrightness = kRimBrightness;
     };
     Overrides m_overrides;
 
@@ -245,7 +243,6 @@ class WaveformShaderTest : public testing::Test {
         m_pProgram->setUniformValue("pixelsPerScreenPixel", m_overrides.pixelsPerScreenPixel);
         m_pProgram->setUniformValue("colorGamma", kColorGamma);
         m_pProgram->setUniformValue("colorLevelFloor", kColorLevelFloor);
-        m_pProgram->setUniformValue("rimBrightness", m_overrides.rimBrightness);
         m_pProgram->setUniformValue("bandColorGain",
                 QVector3D(kBandColorGainLow, kBandColorGainMid, kBandColorGainHigh));
     }
@@ -343,6 +340,46 @@ TEST_F(WaveformShaderTest, aabSomethingIsDrawn) {
                            << "% of the frame on loud data, which is an empty picture";
 }
 
+// The density of the data has to survive all the way to the sub columns, and
+// that is not something the build can tell us: the analysis rate lives in the
+// analyser, the zoom scale in the renderer, and either of them can be right
+// while the pair is wrong.
+//
+// What the shape of a column depends on is how many DISTINCT values the eight
+// sub columns of a pixel see. At the old rate they saw two, which is why a
+// drum hit came out as a block - the transition from body to background
+// happened in a single step because there was nothing in between to draw.
+TEST_F(WaveformShaderTest, aacTheSubColumnsSeeSeveralDistinctBins) {
+    // Bins per pixel at the default zoom on a retina screen. THE ZOOM IS READ
+    // FROM THE RENDERER, not written out here: a copy of it would keep this
+    // test green while the two constants drifted apart, which is the single
+    // thing it exists to catch. Checked by breaking it - putting the old zoom
+    // back has to turn this red.
+    const double kBinsPerPixel = WaveformWidgetRenderer::s_waveformDefaultZoom / 2.0;
+    constexpr int kSubColumns = 8;
+    constexpr int kSteps = 10;
+    constexpr int kExpectedDistinct = 4;
+
+    int worst = kSubColumns;
+    for (int step = 0; step < kSteps; ++step) {
+        const double centre = 100.0 + step / static_cast<double>(kSteps);
+        std::set<int> seen;
+        for (int k = 0; k < kSubColumns; ++k) {
+            const double offset = (k + 0.5) / kSubColumns - 0.5;
+            seen.insert(static_cast<int>(std::floor(centre + offset * kBinsPerPixel)));
+        }
+        worst = std::min(worst, static_cast<int>(seen.size()));
+    }
+    EXPECT_GE(worst, kExpectedDistinct)
+            << "at " << kBinsPerPixel << " bins per pixel the eight sub columns of a pixel see "
+            << worst << " distinct bins in the worst case; below " << kExpectedDistinct
+            << " a column has no shape to draw and comes out as a block. Either the analysis "
+               "rate or the zoom scale has moved without the other.";
+    printf("sub columns see at least %d distinct bins at %.1f bins per pixel\n",
+            worst,
+            kBinsPerPixel);
+}
+
 TEST_F(WaveformShaderTest, ColorOfAColumnFollowsTheModel) {
     // Synthetic band triples with the hue the colour model gives for them:
     // the bands are multiplied by the band gain, normalized to the brightest
@@ -416,9 +453,6 @@ TEST_F(WaveformShaderTest, EqualStoredBandsAreNeutral) {
 }
 
 TEST_F(WaveformShaderTest, TheEdgeIsAntialiasedAndNotABlur) {
-    // Coverage, not brightness: the envelope is switched off so that this
-    // measures the geometry it is about.
-    m_overrides.rimBrightness = 1.0f;
     // The edge has to be soft enough not to stair-step and hard enough to still
     // read as an edge. Both halves of that matter and the second one was got
     // wrong: a fade of four percent of the half height is over two pixels on a
@@ -452,55 +486,6 @@ TEST_F(WaveformShaderTest, TheEdgeIsAntialiasedAndNotABlur) {
                               << " the edge is a hard step, it will stair-step as it scrolls";
         EXPECT_LE(partial, 3) << "at height " << height << " the edge fades over " << partial
                               << " rows, which is a gradient rather than an edge";
-    }
-}
-
-TEST_F(WaveformShaderTest, TheBrightnessEnvelopeFollowsTheMeasuredCurve) {
-    // THE REFERENCE COMES FROM OUTSIDE. Measured on a deck capture of Traktor
-    // over 1848 columns: the brightness of a column relative to its centre line
-    // is 0.896 at the centre, 0.707 at half height, 0.240 at the rim.
-    //
-    // Checked as a curve, not as one number. If only the rim were checked, an
-    // envelope that hit 0.24 there and sagged in the middle would pass - and
-    // the middle is most of what a column is made of.
-    //
-    // Alpha rather than colour, because the envelope is a brightness effect and
-    // leaves the hue alone: measured, the hue is constant down a column to
-    // within 5.6 degrees.
-    struct Point {
-        double position;
-        double relative;
-        double tolerance;
-    };
-    constexpr Point kCurve[] = {
-            {0.00, 1.000, 0.02},
-            {0.25, 0.952, 0.05},
-            {0.50, 0.810, 0.05},
-            {0.75, 0.573, 0.05},
-            {0.95, 0.314, 0.05},
-    };
-
-    const QImage image = render(uniformBins(Bin{128, 100, 40, 10}), 128, 200);
-    const int centre = 100;
-    const double centreAlpha = image.pixelColor(64, centre).alphaF();
-    ASSERT_GT(centreAlpha, 0.5) << "nothing was drawn, there is no envelope to measure";
-
-    int rim = centre;
-    for (int y = 0; y < centre; ++y) {
-        if (image.pixelColor(64, y).alphaF() > 0.02f) {
-            rim = y;
-            break;
-        }
-    }
-    const double height = centre - rim;
-    ASSERT_GT(height, 20) << "the column is too short to measure an envelope on";
-
-    for (const Point& point : kCurve) {
-        const int y = centre - static_cast<int>(std::lround(point.position * height));
-        const double relative = image.pixelColor(64, y).alphaF() / centreAlpha;
-        EXPECT_NEAR(relative, point.relative, point.tolerance)
-                << "at " << point.position << " of the height the column is " << relative
-                << " of its centre brightness, the measurement says " << point.relative;
     }
 }
 
@@ -548,9 +533,6 @@ TEST_F(WaveformShaderTest, TheAxisDoesNotShowThroughTheWaveform) {
 }
 
 TEST_F(WaveformShaderTest, TheBodyOfAColumnStaysOpaque) {
-    // Coverage, not brightness: the envelope is switched off so that this
-    // measures the geometry it is about.
-    m_overrides.rimBrightness = 1.0f;
     // This used to check that no part of a column is nearly white, as a way of
     // catching the axis line showing through it. That test cannot survive the
     // balance moving into the analyser: a column whose three bands are equal is
@@ -713,9 +695,6 @@ constexpr double kVisibleBrightnessStep = 18.0;
 } // namespace
 
 TEST_F(WaveformShaderTest, TheCoverageMatchesAnEightBySupersampledMask) {
-    // Coverage, not brightness: the envelope is switched off so that this
-    // measures the geometry it is about.
-    m_overrides.rimBrightness = 1.0f;
     // THE REFERENCE HERE COMES FROM OUTSIDE THE SHADER. It is the antialiasing
     // the user approved: the mask of the waveform sampled eight times across
     // and eight times down every pixel, averaged. A screen pixel spans several
@@ -768,9 +747,6 @@ TEST_F(WaveformShaderTest, TheCoverageMatchesAnEightBySupersampledMask) {
 }
 
 TEST_F(WaveformShaderTest, TheShippedSubColumnCountReachesTheReference) {
-    // Coverage, not brightness: the envelope is switched off so that this
-    // measures the geometry it is about.
-    m_overrides.rimBrightness = 1.0f;
     // The check above overrides the number of sub columns, so it says nothing
     // about the value actually shipped. This one uses it, and renders the way
     // the renderer does: into a frame buffer four times the size of the widget,
@@ -975,9 +951,6 @@ TEST_F(WaveformShaderTest, TheRenderMatchesTheApprovedPicture) {
 }
 
 TEST_F(WaveformShaderTest, TheOversampledPathAgreesWithTheDirectOne) {
-    // Coverage, not brightness: the envelope is switched off so that this
-    // measures the geometry it is about.
-    m_overrides.rimBrightness = 1.0f;
     // The renderer does not draw into the picture: it draws into a buffer four
     // times denser and lets that be filtered down. The two have to arrive at
     // the same coverage, and for a while they did not - the averaging window

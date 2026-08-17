@@ -13,9 +13,17 @@
 #include "waveform/vsyncthread.h"
 #include "waveform/waveform.h"
 
-const double WaveformWidgetRenderer::s_waveformMinZoom = 1.0;
-const double WaveformWidgetRenderer::s_waveformMaxZoom = 10.0;
-const double WaveformWidgetRenderer::s_waveformDefaultZoom = 3.0;
+// Zoom is measured in visual samples per pixel, so it moves with the density of
+// the analysis: the deck waveform went from 441 values per second to 1764, and
+// these are the old 1, 10 and 3 multiplied by the same four. Without that a
+// user who had zoom 3 would suddenly be looking at a quarter of the time on
+// screen and would reasonably call it broken.
+//
+// Saved zoom values are migrated by the same factor, see
+// WaveformWidgetFactory::setDefaultZoom and BaseTrackPlayer.
+const double WaveformWidgetRenderer::s_waveformMinZoom = 4.0;
+const double WaveformWidgetRenderer::s_waveformMaxZoom = 40.0;
+const double WaveformWidgetRenderer::s_waveformDefaultZoom = 12.0;
 const double WaveformWidgetRenderer::s_defaultPlayMarkerPosition = 0.5;
 
 namespace {

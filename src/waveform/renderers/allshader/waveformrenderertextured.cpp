@@ -471,7 +471,6 @@ void WaveformRendererTextured::paintGL() {
                     QVector3D(kBandColorGainLow, kBandColorGainMid, kBandColorGainHigh));
             m_frameShaderProgram->setUniformValue("colorGamma", kColorGamma);
             m_frameShaderProgram->setUniformValue("colorLevelFloor", kColorLevelFloor);
-            m_frameShaderProgram->setUniformValue("rimBrightness", kRimBrightness);
         }
 
         m_frameShaderProgram->setUniformValue("axesColor",

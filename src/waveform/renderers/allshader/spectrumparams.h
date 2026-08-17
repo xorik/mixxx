@@ -62,18 +62,6 @@ constexpr float kAmplitudeFloor = 0.0f;
 /// against a median error of 16), so we do not compress at all.
 constexpr float kColorGamma = 1.0f;
 
-/// Brightness of a column at its rim, as a fraction of the centre line.
-///
-/// Measured on a deck capture of Traktor over 1848 columns: 0.896 at the
-/// centre, 0.707 at half height, 0.240 at the rim, hue constant to within 5.6
-/// degrees down the column - a brightness envelope, not a colour effect. The
-/// shader fits a quadratic through those three points.
-///
-/// This is what a waveform needs to read as a shape rather than as a bar: a
-/// snare drawn flat to its own height looks like a block, and the same snare
-/// with its edges falling away looks like the spike it is. The user described
-/// exactly that difference before this was measured.
-constexpr float kRimBrightness = 0.240f;
 
 /// Level below which the colour of a column is no longer normalized to full
 /// brightness. Without it a column that carries almost nothing is divided by

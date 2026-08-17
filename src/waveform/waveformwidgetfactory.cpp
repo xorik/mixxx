@@ -400,6 +400,16 @@ bool WaveformWidgetFactory::setConfig(UserSettingsPointer config) {
 
     double defaultZoom = m_config->getValueString(kDefaultZoomKey).toDouble(&ok);
     if (ok) {
+        // A zoom saved before the deck waveform was analysed four times as
+        // densely means a quarter of the time on screen now, which looks like
+        // a broken zoom rather than like more detail. Anything below the new
+        // minimum can only be such a value - the minimum used to be 1 and is
+        // now 4 - so it is scaled by the same four rather than clamped, which
+        // would silently move everyone to the same zoom.
+        if (defaultZoom < WaveformWidgetRenderer::s_waveformMinZoom) {
+            defaultZoom *= WaveformWidgetRenderer::s_waveformMinZoom;
+            m_config->setValue(kDefaultZoomKey, defaultZoom);
+        }
         setDefaultZoom(defaultZoom);
     } else{
         m_config->setValue(kDefaultZoomKey, m_defaultZoom);

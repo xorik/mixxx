@@ -59,9 +59,6 @@ uniform highp float colorGamma;
 // color decided by noise. With it, quiet columns simply get dark, which is
 // also what Traktor does. 0.0 restores the plain normalization.
 uniform highp float colorLevelFloor;
-// Brightness of a column at its rim, as a fraction of its brightness at the
-// centre line. See verticalProfile().
-uniform highp float rimBrightness;
 
 uniform sampler2D waveformDataTexture;
 
@@ -143,27 +140,6 @@ highp vec3 interpolatedBands(highp float visualIndex, highp float stereoOffset) 
     return mix(getBands(base, stereoOffset), getBands(base + 1.0, stereoOffset), fraction);
 }
 
-// Brightness across the height of a column: full at the centre line, falling
-// towards the rim.
-//
-// Measured on Traktor, over 1848 columns of a deck capture: 0.896 at the
-// centre, 0.707 at half height, 0.240 at the rim, with the hue constant to
-// within 5.6 degrees down the column. So it is a brightness envelope and
-// nothing else - it does not touch the colour, only how bright it is.
-//
-// A quadratic through those three points fits them to better than 0.01, and a
-// quadratic is what this is: 1 at the centre, rimBrightness at the rim.
-//
-// Applied to the FINISHED alpha rather than inside the coverage, so that it
-// multiplies the column instead of competing with the soft edge. The two would
-// otherwise darken the same pixels twice: the measured 0.240 already contains
-// whatever Traktor does at its own edge, so gasing our edge again would give a
-// rim darker than the reference rather than equal to it.
-highp float verticalProfile(highp float inside) {
-    highp float t = clamp(inside, 0.0, 1.0);
-    return mix(1.0, rimBrightness, t * t);
-}
-
 // Linearly combine the low, mid, and high colors according to the low, mid,
 // and high components, then normalize to the brightest component.
 highp vec3 bandColor(highp vec3 data) {
@@ -199,9 +175,6 @@ void main(void) {
     highp float signalCoverage = 0.0;
     highp float shadowCoverage = 0.0;
     highp float bodyCoverage = 0.0;
-    // Half height of the column at this fragment, kept for the brightness
-    // envelope below.
-    highp float bodyDistance = 1.0;
     // Distance of this fragment from the centre line, 0 at the centre and 1 at
     // the top of the widget. Declared here because the brightness envelope
     // below needs it after the block that fills it.
@@ -296,8 +269,6 @@ void main(void) {
         }
         signalCoverage = signalSum / samples;
         shadowCoverage = shadowSum / samples;
-        // Half height of the column here, for the brightness envelope below.
-        bodyDistance = max(binDistances(floor(centreIndex), stereoOffset).x, 1e-4);
 
         // How much of this fragment the waveform covers geometrically, before
         // the shading makes parts of it translucent. The axis line below hides
@@ -321,11 +292,19 @@ void main(void) {
     if (bodyAlpha > 0.0) {
         waveformRgb = (signalRgb * signalCoverage + shadowRgb * shadowAlpha) / bodyAlpha;
     }
-    // The brightness envelope of the column, by geometric position inside it.
-    // signalDistance is where the column ends, ourDistance where this fragment
-    // is, so their ratio is the position: 0 on the centre line, 1 at the rim.
-    highp float waveformAlpha = bodyAlpha *
-            verticalProfile(ourDistance / max(bodyDistance, 1e-4));
+    // The alpha of a column is its coverage and nothing else: the share of the
+    // sub columns inside this pixel that reach this height. The body comes out
+    // opaque because they all agree there, the rim translucent because they
+    // disagree, and how wide that rim is follows the data rather than a curve.
+    //
+    // There was a brightness envelope here for a while, a quadratic from the
+    // centre to the rim, fitted to a measurement of Traktor. It was wrong in a
+    // way worth remembering: the curve was an AVERAGE over many columns of
+    // different density, and applying an average of many columns to every
+    // single column is not the same statement. It matched the bench, which
+    // measured the same average, and looked wrong on screen, where each column
+    // is seen on its own.
+    highp float waveformAlpha = bodyAlpha;
 
     highp vec4 base = vec4(0.0, 0.0, 0.0, 0.0);
     if (bodyCoverage < 1.0 && abs(framebufferSize.y / 2.0 - pixelY) <= 4.0) {
