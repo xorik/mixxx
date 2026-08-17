@@ -389,8 +389,18 @@ void SimilarTrackTableModel::setRankTools(
 }
 
 void SimilarTrackTableModel::setSeedAttributes(double bpm, int keyId) {
+    if (bpm == m_seedBpm && keyId == m_seedKeyId) {
+        return;
+    }
     m_seedBpm = bpm;
     m_seedKeyId = keyId;
+    kLogger.debug() << "seed attributes from the loaded track: bpm" << bpm
+                    << "key_id" << keyId;
+    if (!m_result.tracks.isEmpty()) {
+        // The distances are measured against the seed, so they all change.
+        refill();
+        select();
+    }
 }
 
 void SimilarTrackTableModel::setResult(const mixxx::SimilarityResult& result) {

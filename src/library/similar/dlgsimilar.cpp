@@ -320,6 +320,7 @@ void DlgSimilar::updateSeedLabel() {
 
 void DlgSimilar::setSeed(TrackPointer pTrack) {
     if (!pTrack) {
+        watchSeedTrack(TrackPointer());
         m_seedTrackId = TrackId();
         m_seedLabel.clear();
         updateSeedLabel();
@@ -333,13 +334,53 @@ void DlgSimilar::setSeed(TrackPointer pTrack) {
         return;
     }
     m_seedTrackId = trackId;
-    m_pTrackTableModel->setSeedAttributes(
-            pTrack->getBpm(), static_cast<int>(pTrack->getKey()));
+    watchSeedTrack(pTrack);
+    pushSeedAttributes();
     const QString artist = pTrack->getArtist();
     const QString title = pTrack->getTitle();
     m_seedLabel = artist.isEmpty() ? title : artist + QStringLiteral(" - ") + title;
     updateSeedLabel();
     requestForSeed();
+}
+
+void DlgSimilar::watchSeedTrack(const TrackPointer& pTrack) {
+    if (m_pSeedTrack == pTrack) {
+        return;
+    }
+    if (m_pSeedTrack) {
+        disconnect(m_pSeedTrack.get(), nullptr, this, nullptr);
+    }
+    m_pSeedTrack = pTrack;
+    if (!m_pSeedTrack) {
+        return;
+    }
+    // Tempo and key usually arrive after the track is loaded, when the analyser
+    // is done. Reading them once at load time leaves both filters looking dead
+    // for a track whose numbers the rest of the UI already shows.
+    connect(m_pSeedTrack.get(),
+            &Track::bpmChanged,
+            this,
+            &DlgSimilar::slotSeedAttributesChanged);
+    connect(m_pSeedTrack.get(),
+            &Track::beatsUpdated,
+            this,
+            &DlgSimilar::slotSeedAttributesChanged);
+    connect(m_pSeedTrack.get(),
+            &Track::keyChanged,
+            this,
+            &DlgSimilar::slotSeedAttributesChanged);
+}
+
+void DlgSimilar::pushSeedAttributes() {
+    const double bpm = m_pSeedTrack ? m_pSeedTrack->getBpm() : 0.0;
+    const int keyId = m_pSeedTrack ? static_cast<int>(m_pSeedTrack->getKey()) : 0;
+    m_pTrackTableModel->setSeedAttributes(bpm, keyId);
+}
+
+void DlgSimilar::slotSeedAttributesChanged() {
+    pushSeedAttributes();
+    updateFilterAvailability();
+    updateHiddenLabel();
 }
 
 void DlgSimilar::slotPlayingTrackChanged(TrackPointer pTrack) {

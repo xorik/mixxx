@@ -49,6 +49,9 @@ class DlgSimilar : public QWidget, public Ui::DlgSimilar, public virtual Library
     void trackSelected(TrackPointer pTrack);
 
   private slots:
+    /// The seed's own tempo or key changed - the analyser usually fills them in
+    /// a moment after the track was loaded, and every distance depends on them.
+    void slotSeedAttributesChanged();
     void slotPlayingTrackChanged(TrackPointer pTrack);
     /// Any deck gaining or losing a track, playing or not.
     void slotPlayerTrackChanged(const QString& group,
@@ -66,6 +69,8 @@ class DlgSimilar : public QWidget, public Ui::DlgSimilar, public virtual Library
     void maybeArmScreenshot(Library* pLibrary);
     void requestForSeed();
     void setSeed(TrackPointer pTrack);
+    void watchSeedTrack(const TrackPointer& pTrack);
+    void pushSeedAttributes();
     /// Pinned seed, else the playing deck, else the deck loaded last.
     void resolveSeed();
     void updateFilterAvailability();
@@ -90,6 +95,9 @@ class DlgSimilar : public QWidget, public Ui::DlgSimilar, public virtual Library
     /// Providers as shown on the slider; the slider value is an index here.
     QList<mixxx::SimilarityProvider> m_providers;
 
+    /// Held so that its tempo and key can be re-read when the analyser fills
+    /// them in; a snapshot taken at load time is wrong a second later.
+    TrackPointer m_pSeedTrack;
     TrackId m_seedTrackId;
     QString m_seedLabel;
     /// True while the seed came from the context menu instead of the decks.
