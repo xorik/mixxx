@@ -51,9 +51,24 @@
         </widget>
         </item>
         <item>
-        <widget class="QComboBox" name="comboBoxProvider">
+        <widget class="QSlider" name="sliderProvider">
          <property name="focusPolicy"><enum>Qt::NoFocus</enum></property>
-         <property name="toolTip"><string>Which model ranks the tracks. Consensus averages the ranks of all models.</string></property>
+         <property name="minimumSize"><size><width>150</width><height>0</height></size></property>
+         <property name="maximumSize"><size><width>230</width><height>16777215</height></size></property>
+         <property name="toolTip"><string>Which model ranks the tracks. The models come from the stand; Consensus at the right end averages the ranks of the others.</string></property>
+         <property name="maximum"><number>0</number></property>
+         <property name="singleStep"><number>1</number></property>
+         <property name="pageStep"><number>1</number></property>
+         <property name="orientation"><enum>Qt::Horizontal</enum></property>
+         <property name="tickPosition"><enum>QSlider::TicksBelow</enum></property>
+         <property name="tickInterval"><number>1</number></property>
+        </widget>
+        </item>
+        <item>
+        <widget class="QLabel" name="labelProvider">
+         <property name="styleSheet"><string notr="true">margin-left: 5px;</string></property>
+         <property name="minimumSize"><size><width>66</width><height>0</height></size></property>
+         <property name="text"><string/></property>
         </widget>
         </item>
         <item>

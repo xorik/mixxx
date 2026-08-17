@@ -2,6 +2,7 @@
 
 #include <QApplication>
 #include <QBoxLayout>
+#include <QCollator>
 #include <QSignalBlocker>
 #include <QTimer>
 #include <algorithm>
@@ -106,8 +107,8 @@ DlgSimilar::DlgSimilar(WLibrary* parent, UserSettingsPointer pConfig, Library* p
             sliderKeyFilter->maximum()));
     slotFiltersChanged();
 
-    connect(comboBoxProvider,
-            QOverload<int>::of(&QComboBox::currentIndexChanged),
+    connect(sliderProvider,
+            &QSlider::valueChanged,
             this,
             &DlgSimilar::slotProviderChanged);
     connect(sliderBpmFilter,
@@ -278,7 +279,34 @@ void DlgSimilar::installEventFilter(QObject* pFilter) {
 }
 
 QString DlgSimilar::selectedProviderKey() const {
-    return comboBoxProvider->currentData().toString();
+    const int index = sliderProvider->value();
+    if (index < 0 || index >= m_providers.size()) {
+        return QString();
+    }
+    return m_providers.at(index).key;
+}
+
+QList<mixxx::SimilarityProvider> DlgSimilar::sortedForSlider(
+        const QList<mixxx::SimilarityProvider>& providers) {
+    // Numeric mode, so that a layer probe muq_L6 sits before muq_L10 - plain
+    // alphabetical order gets that backwards.
+    QCollator collator;
+    collator.setNumericMode(true);
+    collator.setCaseSensitivity(Qt::CaseInsensitive);
+
+    QList<mixxx::SimilarityProvider> sorted = providers;
+    std::sort(sorted.begin(),
+            sorted.end(),
+            [&collator](const mixxx::SimilarityProvider& left,
+                    const mixxx::SimilarityProvider& right) {
+                // The ensemble is an opinion about the others, so it belongs at
+                // the end whatever it is called.
+                if (left.scoreIsMeanRank != right.scoreIsMeanRank) {
+                    return right.scoreIsMeanRank;
+                }
+                return collator.compare(left.key, right.key) < 0;
+            });
+    return sorted;
 }
 
 void DlgSimilar::updateSeedLabel() {
@@ -391,37 +419,41 @@ void DlgSimilar::slotProvidersReady(
     const QString configured = m_pConfig->getValue(
             ConfigKey(kPreferenceGroup, kProviderConfigKey), QString());
 
+    m_providers = sortedForSlider(providers);
+
     QStringList rankToolKeys;
     QStringList rankToolNames;
-    {
-        const QSignalBlocker blocker(comboBoxProvider);
-        comboBoxProvider->clear();
-        int indexToSelect = 0;
-        for (const auto& provider : providers) {
-            comboBoxProvider->addItem(provider.shortName, provider.key);
-            const int index = comboBoxProvider->count() - 1;
-            comboBoxProvider->setItemData(index, provider.title, Qt::ToolTipRole);
-            if (provider.key == configured) {
-                indexToSelect = index;
-            }
-            if (!provider.scoreIsMeanRank) {
-                // The rank columns are the plain providers, in the order the
-                // stand lists them; the ensemble has no rank of its own.
-                rankToolKeys << provider.key;
-                rankToolNames << provider.shortName;
-            }
-        }
-        if (comboBoxProvider->count() > 0) {
-            comboBoxProvider->setCurrentIndex(indexToSelect);
+    for (const auto& provider : std::as_const(m_providers)) {
+        if (!provider.scoreIsMeanRank) {
+            // The rank columns are the plain models; the ensemble has no rank
+            // of its own.
+            rankToolKeys << provider.key;
+            rankToolNames << provider.shortName;
         }
     }
     m_pTrackTableModel->setRankTools(rankToolKeys, rankToolNames);
 
-    m_providersLoaded = !providers.isEmpty();
+    m_providersLoaded = !m_providers.isEmpty();
     if (!m_providersLoaded) {
         labelStatus->setText(tr("The stand has no providers"));
         return;
     }
+
+    int indexToSelect = 0;
+    for (int i = 0; i < m_providers.size(); ++i) {
+        if (m_providers.at(i).key == configured) {
+            indexToSelect = i;
+            break;
+        }
+    }
+    {
+        const QSignalBlocker blocker(sliderProvider);
+        sliderProvider->setMaximum(m_providers.size() - 1);
+        sliderProvider->setValue(indexToSelect);
+    }
+    labelProvider->setText(m_providers.at(indexToSelect).shortName);
+    sliderProvider->setToolTip(m_providers.at(indexToSelect).title);
+
     labelStatus->setText(tr("%1 tracks analysed").arg(trackCount));
     if (!m_seedTrackId.isValid()) {
         resolveSeed();
@@ -462,13 +494,15 @@ void DlgSimilar::slotRequestFailed(const QString& message, bool unreachable) {
     labelStatus->setText(tr("Not in the analysis set (%1)").arg(message));
 }
 
-void DlgSimilar::slotProviderChanged(int index) {
-    Q_UNUSED(index);
-    const QString key = selectedProviderKey();
-    if (key.isEmpty()) {
+void DlgSimilar::slotProviderChanged() {
+    const int index = sliderProvider->value();
+    if (index < 0 || index >= m_providers.size()) {
         return;
     }
-    m_pConfig->setValue(ConfigKey(kPreferenceGroup, kProviderConfigKey), key);
+    const auto& provider = m_providers.at(index);
+    labelProvider->setText(provider.shortName);
+    sliderProvider->setToolTip(provider.title);
+    m_pConfig->setValue(ConfigKey(kPreferenceGroup, kProviderConfigKey), provider.key);
     requestForSeed();
 }
 

@@ -57,7 +57,7 @@ class DlgSimilar : public QWidget, public Ui::DlgSimilar, public virtual Library
     void slotProvidersReady(const QList<mixxx::SimilarityProvider>& providers, int trackCount);
     void slotSimilarReady(const mixxx::SimilarityResult& result);
     void slotRequestFailed(const QString& message, bool unreachable);
-    void slotProviderChanged(int index);
+    void slotProviderChanged();
     void slotFiltersChanged();
     void slotUnpinClicked();
     void slotReloadClicked();
@@ -71,6 +71,10 @@ class DlgSimilar : public QWidget, public Ui::DlgSimilar, public virtual Library
     void updateHiddenLabel();
     void updateSeedLabel();
     QString selectedProviderKey() const;
+    /// Providers in the order the slider shows them: the plain models first,
+    /// with any layer probes of a model next to it, and the ensemble last.
+    static QList<mixxx::SimilarityProvider> sortedForSlider(
+            const QList<mixxx::SimilarityProvider>& providers);
 
     UserSettingsPointer m_pConfig;
     WTrackTableView* m_pTrackTableView;
@@ -81,6 +85,9 @@ class DlgSimilar : public QWidget, public Ui::DlgSimilar, public virtual Library
     /// is merely loaded is a perfectly good seed: the DJ is looking at what to
     /// play next, and nothing says he pressed play yet.
     QStringList m_loadedDeckGroups;
+
+    /// Providers as shown on the slider; the slider value is an index here.
+    QList<mixxx::SimilarityProvider> m_providers;
 
     TrackId m_seedTrackId;
     QString m_seedLabel;
