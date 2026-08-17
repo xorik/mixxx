@@ -37,12 +37,6 @@ uniform highp float lastVisualIndex;
 // covers rather than a yes or no about its centre.
 uniform highp float subColumnSamples;
 uniform highp float pixelsPerScreenPixel;
-uniform highp float softEdgeFraction;
-// Lower bound for that width, in framebuffer pixels (the caller multiplies the
-// wanted amount of device pixels by the oversampling factor), so the fade does
-// not disappear on a small deck. Both at 0.0 give the hard edge of the stock
-// RGB waveform.
-uniform highp float softEdgePixels;
 // Minimum visible half-height for bins that carry any signal at all, in
 // [0, 1] (0.19 reproduces the plateau of 0.214 measured in Traktor).
 // 0.0 disables the floor.
@@ -59,6 +53,14 @@ uniform highp float colorGamma;
 // color decided by noise. With it, quiet columns simply get dark, which is
 // also what Traktor does. 0.0 restores the plain normalization.
 uniform highp float colorLevelFloor;
+// The brightness envelope of a column, see verticalProfile().
+uniform highp float profileBody;
+// Bypasses the envelope so that a measurement of geometry is not multiplied by
+// a measurement of brightness. Used by the tests only.
+uniform bool profileFlat;
+uniform highp float profileRim;
+uniform highp float profileKnee;
+uniform highp float profileShape;
 
 uniform sampler2D waveformDataTexture;
 
@@ -67,12 +69,26 @@ uniform sampler2D waveformDataTexture;
 // subColumnSamples, so the cost follows that and not this number.
 const int kMaxSubColumns = 8;
 
+// How many bins one sub column may cover. A sub column is a pixel wide divided
+// by the number of sub columns, so at the density of a deck it covers less than
+// one bin and at the widest zoom a few; four is comfortably above what the
+// zoom range allows.
+const int kMaxBinsPerSubColumn = 4;
+
 highp vec4 getWaveformData(highp float index) {
     highp vec2 uv_data;
     uv_data.y = floor(index / float(textureStride));
     uv_data.x = floor(index - uv_data.y * float(textureStride));
-    // Divide again to convert to normalized UV coordinates.
-    return texture2D(waveformDataTexture, uv_data / float(textureStride));
+    // The CENTRE of the texel, not its corner. Without the half, the
+    // coordinate lands exactly on the boundary between two texels, and which
+    // one comes back is then decided by floating point rounding: most of the
+    // time the intended one, sometimes its neighbour. With GL_NEAREST there is
+    // no blending to hide it, so a sub column simply reads the wrong bin.
+    //
+    // It showed as 85 columns of 265 agreeing with the reference perfectly
+    // while 48 were out by a whole sub column, with heights that had rows of
+    // margin - a pattern that no rounding of the geometry can produce.
+    return texture2D(waveformDataTexture, (uv_data + 0.5) / float(textureStride));
 }
 
 // Low/mid/high of a single visual bin, following the stereo mode. A bin holds
@@ -140,6 +156,88 @@ highp vec3 interpolatedBands(highp float visualIndex, highp float stereoOffset) 
     return mix(getBands(base, stereoOffset), getBands(base + 1.0, stereoOffset), fraction);
 }
 
+// Brightness across the height of a column, as measured rather than as fitted.
+//
+// research/traktor/column_profile_aligned.json: 41 positions from the centre
+// line to the rim, measured on a deck capture with every column aligned on its
+// own knee before averaging. The alignment is what makes the curve usable -
+// averaging columns without it smears the flat body into a slope that no single
+// column has, and a renderer built on that slope was measurably worse than no
+// profile at all.
+//
+// The table is here whole rather than approximated. A plateau-plus-power fit
+// came within 0.019 rms of it, which is invisible on a graph and is still up to
+// six points of 255 on a pixel; forty-one floats are cheaper than that
+// argument.
+//
+// Normalised to the body of the curve, so this describes only its SHAPE. How
+// bright the body itself is stays our decision - Traktor draws its waveform
+// darker overall, and that is a presentation choice we do not copy.
+//
+// Applied to the finished alpha as a MULTIPLIER, so it scales whatever the
+// coverage produced instead of replacing it: where the data already thin the
+// column out, the two multiply and the column gets thinner still, which is the
+// intended composition.
+// GLSL 1.20 has no array initialisers, so the table is a chain of comparisons.
+// Unlovely, and deliberately not replaced by a formula: see above.
+const int kProfilePoints = 41;
+
+highp float profileAt(int i) {
+    if (i == 0) { return 0.9803; }
+    if (i == 1) { return 0.9819; }
+    if (i == 2) { return 0.9643; }
+    if (i == 3) { return 0.9717; }
+    if (i == 4) { return 0.9718; }
+    if (i == 5) { return 0.9770; }
+    if (i == 6) { return 0.9756; }
+    if (i == 7) { return 0.9866; }
+    if (i == 8) { return 0.9951; }
+    if (i == 9) { return 1.0066; }
+    if (i == 10) { return 1.0197; }
+    if (i == 11) { return 1.0248; }
+    if (i == 12) { return 1.0283; }
+    if (i == 13) { return 1.0282; }
+    if (i == 14) { return 1.0264; }
+    if (i == 15) { return 1.0247; }
+    if (i == 16) { return 1.0212; }
+    if (i == 17) { return 1.0230; }
+    if (i == 18) { return 1.0146; }
+    if (i == 19) { return 0.9896; }
+    if (i == 20) { return 0.9885; }
+    if (i == 21) { return 0.7752; }
+    if (i == 22) { return 0.7282; }
+    if (i == 23) { return 0.6789; }
+    if (i == 24) { return 0.6377; }
+    if (i == 25) { return 0.6013; }
+    if (i == 26) { return 0.5588; }
+    if (i == 27) { return 0.5167; }
+    if (i == 28) { return 0.4787; }
+    if (i == 29) { return 0.4445; }
+    if (i == 30) { return 0.4131; }
+    if (i == 31) { return 0.3558; }
+    if (i == 32) { return 0.3169; }
+    if (i == 33) { return 0.2854; }
+    if (i == 34) { return 0.2490; }
+    if (i == 35) { return 0.2219; }
+    if (i == 36) { return 0.1942; }
+    if (i == 37) { return 0.1673; }
+    if (i == 38) { return 0.1380; }
+    if (i == 39) { return 0.1022; }
+    if (i == 40) { return 0.0829; }
+    return 0.0;
+}
+
+highp float verticalProfile(highp float inside) {
+    if (profileFlat) {
+        return 1.0;
+    }
+    highp float u = clamp(inside, 0.0, 1.0) * float(kProfilePoints - 1);
+    // min() has no integer overload in GLSL 1.20, so the clamp happens in float.
+    int lower = int(floor(u));
+    int upper = int(min(float(lower) + 1.0, float(kProfilePoints - 1)));
+    return mix(profileAt(lower), profileAt(upper), u - float(lower)) * profileBody;
+}
+
 // Linearly combine the low, mid, and high colors according to the low, mid,
 // and high components, then normalize to the brightest component.
 highp vec3 bandColor(highp vec3 data) {
@@ -179,6 +277,8 @@ void main(void) {
     // the top of the widget. Declared here because the brightness envelope
     // below needs it after the block that fills it.
     highp float ourDistance = abs(uv.y - 0.5) * 2.0;
+    // Top of the column at this fragment, in whole rows from the centre line.
+    highp float topRows = 1.0;
     highp vec3 signalRgb = vec3(0.0);
     highp vec3 shadowRgb = vec3(0.0);
 
@@ -251,24 +351,88 @@ void main(void) {
         highp float screenPixel = floor(uv.x * framebufferSize.x / scale);
         highp float centreIndex =
                 firstVisualIndex + (screenPixel + 0.5) * indicesPerPixel;
-        highp float softness = max(softEdgeFraction,
-                max(softEdgePixels * 2.0 / framebufferSize.y, 1e-6));
+        // The transition from the body of a column to the background is
+        // whatever the sub columns make it: a pixel is opaque where all eight
+        // reach it, transparent where none do, and part way in between. There
+        // is no softening term. There used to be one - a fixed blur of about a
+        // pixel, inherited from before this waveform type existed - and it did
+        // exactly what a constant multiplier at the rim does: it darkened the
+        // edge by an amount that had nothing to do with the signal, by 14% here
+        // against the reference, more on short columns than on tall ones.
+        //
+        // The rule this follows: the alpha of a pixel comes from the data and
+        // from nothing else.
+        // COVERAGE, written as the model states it and nothing more:
+        //
+        //     for i in 0..7:  h[i] = max of the levels its slice covers
+        //     top            = max(floor(max h), 1)          in whole rows
+        //     coverage(row)  = count(h[i] >= row) / 8
+        //     alpha(row)     = coverage(row) * profile(row / top)
+        //
+        // Everything is in ROWS from the centre line, not in fractions of the
+        // widget, because that is the unit the model is written in and mixing
+        // the two is how the previous version lost two sub columns out of eight
+        // in the middle of a column.
         highp float samples = max(subColumnSamples, 1.0);
+        // (H - 1) / 2, not H / 2. Both are self consistent - a full scale
+        // column fills the widget either way - but only this one measures the
+        // distance and the height in the SAME unit: rows away from the centre
+        // ROW. With H / 2 the scale is pixels from the geometric middle of the
+        // widget, and the half row between the two costs a whole sub column
+        // wherever a height lands near a row boundary. Measured: it lost 8.5%
+        // of the points of the reference, all of them downward.
+        // TWO DIFFERENT FACTORS, and this is the whole subtlety.
+        //
+        // ourDistance came from the uv of the fragment: |uv.y - 0.5| * 2, so a
+        // row r of H sits at |2r - (H-1)| / H. Multiplying it by H/2 gives back
+        // the distance in whole rows from the centre row - that conversion is
+        // fixed by how uv was built and has nothing to choose in it.
+        //
+        // A stored height, on the other hand, is a fraction of the half height,
+        // and the half height is (H-1)/2 rows: the centre row belongs to both
+        // halves. A full scale column must reach the outermost row and no
+        // further.
+        //
+        // Using one factor for both is what cost a whole sub column wherever a
+        // height landed near a row boundary: 8.5% of the points of the
+        // reference, all of them downward. Using the other one for both does
+        // not fix it either - it moves the same half row to the other side.
+        highp float rowsPerHalfHeight = (framebufferSize.y - 1.0) * 0.5;
+        highp float ourRow = ourDistance * framebufferSize.y * 0.5;
         highp float signalSum = 0.0;
         highp float shadowSum = 0.0;
+        highp float maxSignalRows = 0.0;
         for (int k = 0; k < kMaxSubColumns; k++) {
             highp float step = float(k);
             if (step >= samples) {
                 break;
             }
-            highp float offset = (step + 0.5) / samples - 0.5;
-            highp vec2 distances =
-                    binDistances(floor(centreIndex + offset * indicesPerPixel), stereoOffset);
-            signalSum += clamp((distances.x - ourDistance) / softness + 0.5, 0.0, 1.0);
-            shadowSum += clamp((distances.y - ourDistance) / softness + 0.5, 0.0, 1.0);
+            // A sub column is a SLICE of the pixel, not a point in it, and it
+            // takes the largest bin its slice covers. A point sample loses
+            // whichever neighbour is taller: measured against the reference the
+            // heights were then out by a median of 2.7 rows and by up to 25, on
+            // 246 of 265 columns. With the maximum they agree exactly.
+            highp float sliceStart = centreIndex + (step / samples - 0.5) * indicesPerPixel;
+            highp float sliceEnd = sliceStart + indicesPerPixel / samples;
+            highp vec2 distances = binDistances(floor(sliceStart), stereoOffset);
+            for (int b = 1; b < kMaxBinsPerSubColumn; b++) {
+                highp float index = floor(sliceStart) + float(b);
+                if (index >= sliceEnd) {
+                    break;
+                }
+                distances = max(distances, binDistances(index, stereoOffset));
+            }
+            highp float signalRows = distances.x * rowsPerHalfHeight;
+            highp float shadowRows = distances.y * rowsPerHalfHeight;
+            maxSignalRows = max(maxSignalRows, signalRows);
+            signalSum += signalRows >= ourRow ? 1.0 : 0.0;
+            shadowSum += shadowRows >= ourRow ? 1.0 : 0.0;
         }
         signalCoverage = signalSum / samples;
         shadowCoverage = shadowSum / samples;
+        // The top of a column is a whole number of rows, and it is the top of
+        // the tallest sub column, not the height at the centre of the pixel.
+        topRows = max(floor(maxSignalRows), 1.0);
 
         // How much of this fragment the waveform covers geometrically, before
         // the shading makes parts of it translucent. The axis line below hides
@@ -304,7 +468,11 @@ void main(void) {
     // single column is not the same statement. It matched the bench, which
     // measured the same average, and looked wrong on screen, where each column
     // is seen on its own.
-    highp float waveformAlpha = bodyAlpha;
+    // Coverage decides the shape of the column, this decides its brightness
+    // inside. See verticalProfile(); bodyDistance is the half height of the
+    // column here, so the ratio is the position from the centre line to the rim.
+    highp float waveformAlpha =
+            bodyAlpha * verticalProfile(ourDistance * framebufferSize.y * 0.5 / topRows);
 
     highp vec4 base = vec4(0.0, 0.0, 0.0, 0.0);
     if (bodyCoverage < 1.0 && abs(framebufferSize.y / 2.0 - pixelY) <= 4.0) {

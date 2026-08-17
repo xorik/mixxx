@@ -165,6 +165,71 @@ TEST_F(AnalyzerWaveformTest, theHeightIsTheSpanOfTheSignal) {
             << " for a symmetric one of the same peak: the height is not the span";
 }
 
+// The height runs at four times the density of the colour, and the colour is
+// HELD across those four bins rather than written once and left at zero. Zeroes
+// would not read as "unchanged", they would read as "no signal", and the
+// renderer would draw three black columns between every coloured one.
+//
+// Checked on the stored bytes rather than on a picture: this is a statement
+// about the data, and a picture would only show it after several more steps.
+TEST_F(AnalyzerWaveformTest, theColourIsHeldAcrossTheDenserHeightBins) {
+    constexpr std::size_t kFrames = 8 * 1920;
+    std::vector<CSAMPLE> buffer(kFrames * 2);
+    for (std::size_t i = 0; i < kFrames; ++i) {
+        // Something with content in every band and a level that changes fast,
+        // so that a held colour is distinguishable from a held everything.
+        const auto value = static_cast<CSAMPLE>(
+                0.4 * std::sin(0.02 * i) + 0.3 * std::sin(0.5 * i) + 0.2 * std::sin(2.5 * i));
+        buffer[i * 2] = value;
+        buffer[i * 2 + 1] = value;
+    }
+    AnalyzerWaveform analyzer(config(), QSqlDatabase());
+    TrackPointer pTrack = Track::newTemporary();
+    pTrack->setAudioProperties(mixxx::audio::ChannelCount(2),
+            mixxx::audio::SampleRate(44100),
+            mixxx::audio::Bitrate(),
+            mixxx::Duration::fromSeconds(1));
+    analyzer.initialize(AnalyzerTrack(pTrack), pTrack->getSampleRate(), pTrack->getChannels(), kFrames);
+    analyzer.processSamples(buffer.data(), buffer.size());
+    analyzer.storeResults(pTrack);
+    analyzer.cleanup();
+
+    ConstWaveformPointer pWaveform = pTrack->getWaveform();
+    ASSERT_GT(pWaveform->getDataSize(), 64);
+
+    int zeroBands = 0;
+    int groupsWhole = 0;
+    int groupsBroken = 0;
+    // Stereo pairs, so a group of four bins is eight entries.
+    for (int i = 0; i + 7 < pWaveform->getDataSize(); i += 8) {
+        const unsigned char low = pWaveform->getLow(i);
+        const unsigned char mid = pWaveform->getMid(i);
+        const unsigned char high = pWaveform->getHigh(i);
+        bool whole = true;
+        for (int k = 2; k < 8; k += 2) {
+            if (pWaveform->getLow(i + k) != low || pWaveform->getMid(i + k) != mid ||
+                    pWaveform->getHigh(i + k) != high) {
+                whole = false;
+            }
+            if (pWaveform->getLow(i + k) == 0 && pWaveform->getMid(i + k) == 0 &&
+                    pWaveform->getHigh(i + k) == 0) {
+                zeroBands++;
+            }
+        }
+        if (whole) {
+            groupsWhole++;
+        } else {
+            groupsBroken++;
+        }
+    }
+    EXPECT_EQ(zeroBands, 0) << "the colour was left at zero between its own values, which draws "
+                               "black columns rather than holding the colour";
+    EXPECT_GT(groupsWhole, groupsBroken * 4)
+            << groupsBroken << " groups of four bins carry different colours where they should "
+                               "carry one, against " << groupsWhole << " that hold";
+    printf("colour held whole across %d groups of four, broken in %d\n", groupsWhole, groupsBroken);
+}
+
 // A canary, and it is worth being clear about what that means.
 //
 // WHAT IT IS: a check that the output of the analyser has not changed. It feeds

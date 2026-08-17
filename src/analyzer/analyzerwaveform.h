@@ -36,6 +36,7 @@ struct WaveformStride {
 
     inline void reset() {
         m_position = 0;
+        m_bandsHeldFor = 0;
         m_averageDivisor = 0;
         m_bandFrameCount = 0;
         m_bandMeanSquareDivisor = 0;
@@ -45,6 +46,9 @@ struct WaveformStride {
             m_averageOverallData[i] = 0.0f;
             for (int f = 0; f < BandCount; ++f) {
                 m_bandEnvelope[i][f] = 0.0f;
+            }
+            for (int f = 0; f < 3; ++f) {
+                m_heldBandBytes[i][f] = 0;
             }
             SampleUtil::clear(m_filteredData[i], BandCount);
             SampleUtil::clear(m_averageFilteredData[i], BandCount);
@@ -196,10 +200,37 @@ struct WaveformStride {
             const float dt = m_bandFrameCount > 0 && m_sampleRate > 0
                     ? static_cast<float>(m_bandFrameCount) / static_cast<float>(m_sampleRate)
                     : 0.0f;
-            datum.filtered.low = toByte(kBandScale * applyBallistics(i, Low, bandRms(i, Low), dt));
-            datum.filtered.mid = toByte(kBandScale * applyBallistics(i, Mid, bandRms(i, Mid), dt));
-            datum.filtered.high =
-                    toByte(kBandScale * applyBallistics(i, High, bandRms(i, High), dt));
+            // The COLOUR keeps the density it was measured and calibrated at,
+            // 441 values per second, while the height above runs at 1764. Only
+            // the height needed the extra density - it decides the shape of a
+            // column - and the colour is left alone deliberately: the band
+            // filters, their balance and their ballistics were all fitted at
+            // 441, and this is not the iteration to disturb them.
+            //
+            // The value is HELD across the four bins rather than written once
+            // and left at zero for the other three. Zeroes would not mean "no
+            // change", they would mean "no signal", and the renderer would draw
+            // three black columns between every coloured one.
+            //
+            // The four times redundancy costs 1.8 MB on a seven-minute track.
+            // Storing the colour in its own array would give that back and is
+            // the obvious next step; it also touches the layout of the texture,
+            // which is the one place where the colour could be broken by
+            // accident. Not in the same change as the height.
+            if (m_bandsHeldFor == 0) {
+                m_heldBandBytes[i][0] = toByte(
+                        kBandScale * applyBallistics(i, Low, bandRms(i, Low), dt));
+                m_heldBandBytes[i][1] = toByte(
+                        kBandScale * applyBallistics(i, Mid, bandRms(i, Mid), dt));
+                m_heldBandBytes[i][2] = toByte(
+                        kBandScale * applyBallistics(i, High, bandRms(i, High), dt));
+            }
+            datum.filtered.low = m_heldBandBytes[i][0];
+            datum.filtered.mid = m_heldBandBytes[i][1];
+            datum.filtered.high = m_heldBandBytes[i][2];
+            if (i == ChannelCount - 1) {
+                m_bandsHeldFor = (m_bandsHeldFor + 1) % kBandsHeldBins;
+            }
             m_loudestBandByte = std::max({m_loudestBandByte,
                     datum.filtered.low,
                     datum.filtered.mid,
@@ -302,6 +333,12 @@ struct WaveformStride {
     float m_averageFilteredData[ChannelCount][BandCount];
 
     float m_postScaleConversion;
+    /// How many level bins share one set of band values: the height runs at
+    /// 1764 values per second and the colour at 441.
+    static constexpr int kBandsHeldBins = 4;
+    int m_bandsHeldFor = 0;
+    unsigned char m_heldBandBytes[ChannelCount][3] = {};
+
     /// Largest band byte written for this track, see loudestBandByte().
     unsigned char m_loudestBandByte = 0;
     /// Largest height byte written for this track, see loudestHeightByte().

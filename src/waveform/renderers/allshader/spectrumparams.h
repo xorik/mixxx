@@ -30,19 +30,12 @@ namespace spectrumwaveform {
 /// at the size of the picture, and to be absent on screen.
 constexpr float kSubColumnSamples = 8.0f;
 
-/// Width over which the edge of a column fades. The coverage is supersampled
-/// across the pixel, so the edge is antialiased from the data already and this
-/// is only a floor under it - one device pixel, which is what antialiasing
-/// needs and no more.
-///
-/// It used to be four percent of the half height, which on a tall deck is eight
-/// pixels of deliberate blur on top of the antialiasing, and that reads as a
-/// gradient rather than as an edge. The measurement it came from (Traktor fades
-/// over 3-4 device pixels on a waveform 174 pixels tall) described a waveform
-/// whose edge was NOT antialiased from the data; with the supersampling in
-/// place the same softness is arrived at by drawing what is there.
-constexpr float kSoftEdgeFraction = 0.0f;
-constexpr float kSoftEdgePixels = 1.0f;
+/// There is no softening of the edge of a column, and that is deliberate: the
+/// transparency of a pixel is the share of the sub columns that reach it, and
+/// nothing is added on top. A fixed blur used to live here, inherited from
+/// before this waveform type; measured against the approved reference it made
+/// the rim 14% too dark, and by an amount that depended on how tall the column
+/// was rather than on the signal.
 
 /// Minimum visible half height of a column that carries any signal, as a
 /// fraction of the half height of the widget.
@@ -62,6 +55,18 @@ constexpr float kAmplitudeFloor = 0.0f;
 /// against a median error of 16), so we do not compress at all.
 constexpr float kColorGamma = 1.0f;
 
+
+/// Brightness envelope of a column: a flat body, then a fall to the rim.
+///
+/// Measured on a deck capture of Traktor over 41 positions, with each column
+/// aligned on its own knee before averaging - without that alignment the flat
+/// body is smeared away and what is left is a slope that no single column has.
+/// A plateau plus a power law fits those points with rms 0.019, no point worse
+/// than 0.062.
+constexpr float kProfileBody = 0.875f;
+constexpr float kProfileRim = 0.070f;
+constexpr float kProfileKnee = 0.50f;
+constexpr float kProfileShape = 0.6f;
 
 /// Level below which the colour of a column is no longer normalized to full
 /// brightness. Without it a column that carries almost nothing is divided by

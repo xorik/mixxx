@@ -406,7 +406,6 @@ void WaveformRendererTextured::paintGL() {
                                         m_options))),
                 QStringLiteral("shader=") + m_fragShader,
                 QStringLiteral("subColumnSamples=") + QString::number(kSubColumnSamples),
-                QStringLiteral("softEdgePixels=") + QString::number(kSoftEdgePixels),
                 QStringLiteral("amplitudeFloor=") + QString::number(kAmplitudeFloor),
                 QStringLiteral("colorLevelFloor=") +
                         QString::number(kColorLevelFloor),
@@ -463,14 +462,15 @@ void WaveformRendererTextured::paintGL() {
             m_frameShaderProgram->setUniformValue("subColumnSamples", kSubColumnSamples);
             m_frameShaderProgram->setUniformValue("pixelsPerScreenPixel",
                     static_cast<float>(kOversamplingFactor));
-            m_frameShaderProgram->setUniformValue("softEdgeFraction", kSoftEdgeFraction);
-            m_frameShaderProgram->setUniformValue("softEdgePixels",
-                    kSoftEdgePixels * static_cast<float>(kOversamplingFactor));
             m_frameShaderProgram->setUniformValue("amplitudeFloor", kAmplitudeFloor);
             m_frameShaderProgram->setUniformValue("bandColorGain",
                     QVector3D(kBandColorGainLow, kBandColorGainMid, kBandColorGainHigh));
             m_frameShaderProgram->setUniformValue("colorGamma", kColorGamma);
             m_frameShaderProgram->setUniformValue("colorLevelFloor", kColorLevelFloor);
+            m_frameShaderProgram->setUniformValue("profileBody", kProfileBody);
+            m_frameShaderProgram->setUniformValue("profileRim", kProfileRim);
+            m_frameShaderProgram->setUniformValue("profileKnee", kProfileKnee);
+            m_frameShaderProgram->setUniformValue("profileShape", kProfileShape);
         }
 
         m_frameShaderProgram->setUniformValue("axesColor",

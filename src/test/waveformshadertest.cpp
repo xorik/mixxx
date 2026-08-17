@@ -198,8 +198,6 @@ class WaveformShaderTest : public testing::Test {
     /// Values that the comparison sheet overrides to show what the waveform
     /// looked like before a change. Empty means "use the shipped constants".
     struct Overrides {
-        float softEdgeFraction = kSoftEdgeFraction;
-        float softEdgePixels = kSoftEdgePixels;
         float amplitudeFloor = kAmplitudeFloor;
         // One sub column per screen pixel would be no supersampling at all;
         // the frame buffer of the test is not oversampled, so the count here is
@@ -210,6 +208,17 @@ class WaveformShaderTest : public testing::Test {
         // it off rather than work around it.
         bool axis = true;
         float pixelsPerScreenPixel = 1.0f;
+        // The brightness envelope. Tests that measure COVERAGE switch it off:
+        // coverage is geometry and the envelope is brightness, and multiplying
+        // them would make every measurement of the first depend on the second.
+        float profileBody = kProfileBody;
+        float profileRim = kProfileRim;
+        // Switches the envelope off entirely for tests that measure geometry.
+        // Setting profileBody to 1 is NOT enough any more: the shape lives in
+        // the measured table, not in the body level, so the table has to be
+        // bypassed. Learned by breaking it - five coverage tests went red.
+        bool profileFlat = false;
+        float firstVisualIndex = 0.0f;
     };
     Overrides m_overrides;
 
@@ -218,8 +227,14 @@ class WaveformShaderTest : public testing::Test {
         m_pProgram->setUniformValue("waveformLength", 2 * columns);
         m_pProgram->setUniformValue("textureSize", kTextureStride * kTextureStride);
         m_pProgram->setUniformValue("textureStride", kTextureStride);
-        m_pProgram->setUniformValue("firstVisualIndex", 0.0f);
-        m_pProgram->setUniformValue("lastVisualIndex", static_cast<float>(columns));
+        // Normally zero. The golden-render harness sets it so that a segment
+        // whose data starts part way into a bin can be reproduced exactly:
+        // rounding that fraction away into the data changes which bin a sub
+        // column boundary falls into, which is not a rounding error but a
+        // different sample.
+        m_pProgram->setUniformValue("firstVisualIndex", m_overrides.firstVisualIndex);
+        m_pProgram->setUniformValue("lastVisualIndex",
+            m_overrides.firstVisualIndex + static_cast<float>(columns));
         m_pProgram->setUniformValue("allGain", 1.0f);
         m_pProgram->setUniformValue("lowGain", 1.0f);
         m_pProgram->setUniformValue("midGain", 1.0f);
@@ -233,9 +248,6 @@ class WaveformShaderTest : public testing::Test {
         m_pProgram->setUniformValue("highColor", QVector4D(0.0f, 0.0f, 1.0f, 1.0f));
         m_pProgram->setUniformValue(
                 "axesColor", QVector4D(1.0f, 1.0f, 1.0f, m_overrides.axis ? 1.0f : 0.0f));
-
-        m_pProgram->setUniformValue("softEdgeFraction", m_overrides.softEdgeFraction);
-        m_pProgram->setUniformValue("softEdgePixels", m_overrides.softEdgePixels);
         m_pProgram->setUniformValue("amplitudeFloor", m_overrides.amplitudeFloor);
         m_pProgram->setUniformValue("subColumnSamples", m_overrides.subColumnSamples);
         // The test renders at the size of the picture, so one framebuffer pixel
@@ -243,6 +255,11 @@ class WaveformShaderTest : public testing::Test {
         m_pProgram->setUniformValue("pixelsPerScreenPixel", m_overrides.pixelsPerScreenPixel);
         m_pProgram->setUniformValue("colorGamma", kColorGamma);
         m_pProgram->setUniformValue("colorLevelFloor", kColorLevelFloor);
+        m_pProgram->setUniformValue("profileBody", m_overrides.profileBody);
+        m_pProgram->setUniformValue("profileFlat", m_overrides.profileFlat);
+        m_pProgram->setUniformValue("profileRim", m_overrides.profileRim);
+        m_pProgram->setUniformValue("profileKnee", kProfileKnee);
+        m_pProgram->setUniformValue("profileShape", kProfileShape);
         m_pProgram->setUniformValue("bandColorGain",
                 QVector3D(kBandColorGainLow, kBandColorGainMid, kBandColorGainHigh));
     }
@@ -380,6 +397,87 @@ TEST_F(WaveformShaderTest, aacTheSubColumnsSeeSeveralDistinctBins) {
             kBinsPerPixel);
 }
 
+TEST_F(WaveformShaderTest, TheBrightnessEnvelopeFollowsTheMeasuredCurve) {
+    // THE REFERENCE COMES FROM OUTSIDE: research/traktor/column_profile_aligned.json,
+    // 41 positions measured on a deck capture with every column aligned on its
+    // own knee first. Without that alignment the flat body averages away and
+    // what is left is a slope no single column has - which is how an earlier
+    // version of this feature went wrong.
+    //
+    // Checked along the whole curve. A check on the rim alone would pass for an
+    // envelope that hit the right value there and sagged through the body, and
+    // the body is most of what a column is.
+    struct Point {
+        double position;
+        double relative;
+    };
+    // From the measurement, normalised to the body: the plateau, the knee, and
+    // the fall.
+    // Taken from the measured file and divided by its own body level, because
+    // what is compared here is the SHAPE: our body brightness is a separate
+    // decision and Traktor draws its waveform darker overall.
+    constexpr Point kCurve[] = {
+            {0.00, 0.980},
+            {0.20, 0.995},
+            {0.35, 1.026},
+            {0.50, 0.988},
+            {0.65, 0.559},
+            {0.80, 0.317},
+            {0.95, 0.138},
+    };
+    constexpr double kRmsLimit = 0.05;
+    constexpr double kWorstLimit = 0.10;
+
+    const QImage image = render(uniformBins(Bin{128, 100, 40, 10}), 128, 200);
+    const int centre = 100;
+    const double centreAlpha = image.pixelColor(64, centre).alphaF();
+    ASSERT_GT(centreAlpha, 0.5) << "nothing was drawn, there is no envelope to measure";
+
+    int rim = centre;
+    for (int y = 0; y < centre; ++y) {
+        if (image.pixelColor(64, y).alphaF() > 0.02f) {
+            rim = y;
+            break;
+        }
+    }
+    const double height = centre - rim;
+    ASSERT_GT(height, 20) << "the column is too short to measure an envelope on";
+
+    double sumOfSquares = 0.0;
+    double worst = 0.0;
+    for (const Point& point : kCurve) {
+        const int y = centre - static_cast<int>(std::lround(point.position * height));
+        const double relative = image.pixelColor(64, y).alphaF() / centreAlpha;
+        const double difference = std::abs(relative - point.relative);
+        sumOfSquares += difference * difference;
+        worst = std::max(worst, difference);
+        EXPECT_LT(difference, kWorstLimit)
+                << "at " << point.position << " of the height the column is " << relative
+                << " of its body brightness, the measurement says " << point.relative;
+    }
+    const double rms = std::sqrt(sumOfSquares / std::size(kCurve));
+    printf("brightness envelope: rms %.4f, worst %.4f\n", rms, worst);
+    EXPECT_LT(rms, kRmsLimit);
+
+    // Two statements about the SHAPE, which an rms alone would not make: the
+    // fall never turns back up, and there is a real step across the knee rather
+    // than a gentle slope.
+    double previous = 1.0;
+    for (double u = 0.6; u <= 1.0; u += 0.05) {
+        const int y = centre - static_cast<int>(std::lround(u * height));
+        const double relative = image.pixelColor(64, y).alphaF() / centreAlpha;
+        EXPECT_LE(relative, previous + 0.02) << "the envelope rises again at " << u;
+        previous = relative;
+    }
+    const auto at = [&](double u) {
+        return image.pixelColor(64, centre - static_cast<int>(std::lround(u * height))).alphaF() /
+                centreAlpha;
+    };
+    EXPECT_GE(at(0.35) - at(0.65), 0.25)
+            << "the body and the fall are not separated by a knee: " << at(0.35) << " against "
+            << at(0.65);
+}
+
 TEST_F(WaveformShaderTest, ColorOfAColumnFollowsTheModel) {
     // Synthetic band triples with the hue the colour model gives for them:
     // the bands are multiplied by the band gain, normalized to the brightest
@@ -452,44 +550,67 @@ TEST_F(WaveformShaderTest, EqualStoredBandsAreNeutral) {
     EXPECT_GT(color.valueF(), 0.9) << "equal stored bands should be bright, not dark";
 }
 
-TEST_F(WaveformShaderTest, TheEdgeIsAntialiasedAndNotABlur) {
-    // The edge has to be soft enough not to stair-step and hard enough to still
-    // read as an edge. Both halves of that matter and the second one was got
-    // wrong: a fade of four percent of the half height is over two pixels on a
-    // small deck and eight on a large one, which is a gradient painted on top
-    // of the antialiasing rather than an edge.
+TEST_F(WaveformShaderTest, TheEdgeIsSoftOnlyWhereTheDataAreUneven) {
+    // The transparency of a pixel is the share of its eight sub columns that
+    // reach it, and nothing else - there is no softening term any more. That
+    // has a consequence worth stating out loud rather than discovering later:
     //
-    // What softens it now is the coverage itself, worked out from the sub
-    // columns inside each pixel, so the fade should stay about a pixel wide
-    // whatever the deck is scaled to.
-    const auto bins = uniformBins(Bin{120, 90, 20, 5});
+    //   where the sub columns of a pixel see DIFFERENT heights, its edge fades;
+    //   where they all see the SAME height, the edge is a hard step.
+    //
+    // Both halves are checked here. The second one used to be the failure this
+    // test guarded against, and it is now correct behaviour: on data that does
+    // not vary inside a pixel there is nothing for a fade to be made of, and
+    // inventing one is exactly what the user has asked us four times not to do.
+    // Coverage, not brightness: the envelope is switched off, or every row of
+    // the body would count as partly transparent and this would measure the
+    // profile instead of the sub columns.
+    m_overrides.profileFlat = true;
     for (const int height : {120, 400}) {
-        const QImage image = render(bins, 128, height);
-        const int centre = height / 2;
-        int firstLit = -1;
-        for (int y = 0; y < centre; ++y) {
-            if (image.pixelColor(64, y).alphaF() > 0.02f) {
-                firstLit = y;
-                break;
-            }
+        // Uneven: neighbouring bins differ, so the sub columns of a pixel land
+        // on different heights.
+        std::vector<Bin> uneven;
+        uneven.reserve(64);
+        for (int i = 0; i < 64; ++i) {
+            const int peak = 60 + (i % 4) * 30;
+            uneven.push_back(Bin{peak, 90, 20, 5});
         }
-        ASSERT_GT(firstLit, 0) << "nothing was drawn at height " << height;
-
+        const QImage variedImage = render(uneven, 8, height);
         int partial = 0;
-        for (int y = firstLit; y < centre; ++y) {
-            const double alpha = image.pixelColor(64, y).alphaF();
+        for (int y = 0; y < height / 2; ++y) {
+            const double alpha = variedImage.pixelColor(4, y).alphaF();
             if (alpha > 0.02 && alpha < 0.98) {
                 partial++;
             }
         }
         EXPECT_GE(partial, 1) << "at height " << height
-                              << " the edge is a hard step, it will stair-step as it scrolls";
-        EXPECT_LE(partial, 3) << "at height " << height << " the edge fades over " << partial
-                              << " rows, which is a gradient rather than an edge";
+                              << " uneven data produced no partial coverage at all, so the sub "
+                                 "columns are not being read separately";
+
+        // Even: every bin the same, so every sub column agrees.
+        const QImage flatImage = render(uniformBins(Bin{120, 90, 20, 5}), 128, height);
+        int flatPartial = 0;
+        for (int y = 0; y < height / 2; ++y) {
+            const double alpha = flatImage.pixelColor(64, y).alphaF();
+            if (alpha > 0.02 && alpha < 0.98) {
+                flatPartial++;
+            }
+        }
+        EXPECT_EQ(flatPartial, 0)
+                << "at height " << height << " a column of constant height has " << flatPartial
+                << " partly transparent rows; with no softening term there is nothing they could "
+                   "come from except an invented gradient";
     }
 }
 
 TEST_F(WaveformShaderTest, TheCentreOfAColumnIsOpaque) {
+    // The envelope is flat here on purpose. What this test is about is the axis
+    // line showing through the body, and with the envelope the body is
+    // deliberately 0.875 rather than 1.0 - that is a decision about brightness,
+    // not a hole for the axis to come through. The axis is kept out by
+    // multiplying it by (1 - bodyCoverage), i.e. by the GEOMETRY of the column,
+    // which the envelope does not touch; the check below is what proves that.
+    m_overrides.profileFlat = true;
     // The axis line is drawn underneath the waveform. When the shading took the
     // alpha near the centre below one, the axis showed through the middle of
     // every column as a white stripe.
@@ -533,6 +654,8 @@ TEST_F(WaveformShaderTest, TheAxisDoesNotShowThroughTheWaveform) {
 }
 
 TEST_F(WaveformShaderTest, TheBodyOfAColumnStaysOpaque) {
+    // Geometry, not brightness: the envelope is flat here.
+    m_overrides.profileFlat = true;
     // This used to check that no part of a column is nearly white, as a way of
     // catching the axis line showing through it. That test cannot survive the
     // balance moving into the analyser: a column whose three bands are equal is
@@ -695,6 +818,8 @@ constexpr double kVisibleBrightnessStep = 18.0;
 } // namespace
 
 TEST_F(WaveformShaderTest, TheCoverageMatchesAnEightBySupersampledMask) {
+    // Geometry, not brightness: the envelope is flat here.
+    m_overrides.profileFlat = true;
     // THE REFERENCE HERE COMES FROM OUTSIDE THE SHADER. It is the antialiasing
     // the user approved: the mask of the waveform sampled eight times across
     // and eight times down every pixel, averaged. A screen pixel spans several
@@ -716,8 +841,6 @@ TEST_F(WaveformShaderTest, TheCoverageMatchesAnEightBySupersampledMask) {
     // is set to exactly one pixel row: what is left is the coverage itself,
     // which is what this reference describes.
     m_overrides.amplitudeFloor = 0.0f;
-    m_overrides.softEdgeFraction = 0.0f;
-    m_overrides.softEdgePixels = 1.0f;
     m_overrides.subColumnSamples = 8.0f;
     // Without this the axis line, which is drawn under the waveform within four
     // pixels of the centre, shows through wherever the coverage is partial and
@@ -747,6 +870,8 @@ TEST_F(WaveformShaderTest, TheCoverageMatchesAnEightBySupersampledMask) {
 }
 
 TEST_F(WaveformShaderTest, TheShippedSubColumnCountReachesTheReference) {
+    // Geometry, not brightness: the envelope is flat here.
+    m_overrides.profileFlat = true;
     // The check above overrides the number of sub columns, so it says nothing
     // about the value actually shipped. This one uses it, and renders the way
     // the renderer does: into a frame buffer four times the size of the widget,
@@ -757,9 +882,7 @@ TEST_F(WaveformShaderTest, TheShippedSubColumnCountReachesTheReference) {
     constexpr double kTolerance = 0.05;
 
     m_overrides.amplitudeFloor = 0.0f;
-    m_overrides.softEdgeFraction = 0.0f;
     // One row of the finished picture, in the units of the oversampled buffer.
-    m_overrides.softEdgePixels = kOversampling;
     m_overrides.subColumnSamples = kSubColumnSamples;
     m_overrides.pixelsPerScreenPixel = kOversampling;
     m_overrides.axis = false;
@@ -853,24 +976,33 @@ std::vector<Bin> mixedCharacterBins(int columns) {
 // from Traktor, and approved in that form the same way the previous one was.
 // It is not regenerated from the code on a whim: doing that turns the one gate
 // there is into a record of whatever the code happens to do.
-TEST_F(WaveformShaderTest, TheRenderMatchesTheApprovedPicture) {
-    // The reference is a picture the user looked at and approved, drawn from
-    // the same bytes the shader is given here. Both live next to this file.
+TEST_F(WaveformShaderTest, TheHueMatchesTheApprovedPicture) {
+    // WHAT THIS PICTURE IS AN AUTHORITY ON, and what it is not.
     //
-    // THE CRITERION IS A CEILING, NOT A SHARE, and that is the whole point. We
-    // first agreed on "fewer than five percent of the pixels differ by more
-    // than thirteen", and the user saw through it: nearly half of this picture
-    // is background that matches for free, so five percent of all pixels is a
-    // quarter of the waveform - which could be wrong everywhere while the test
-    // stayed green. A test that passes for a reason unrelated to its subject is
-    // worse than no test.
+    // spectrum_303x130.png was approved by the user for its COLOUR. It was
+    // rendered before the transparency of a pixel became the coverage of its
+    // sub columns and nothing else, so its alphas and its soft rim describe a
+    // model we have since removed on the user's instruction. Comparing whole
+    // pixels against it now would be asking a picture to rule on a question it
+    // predates - and it would fail: worst 113 of 255 against the current
+    // renderer, all of it brightness.
     //
-    // So no pixel of the waveform may differ by more than a tenth of the range
-    // on any channel, and the background has to match exactly. The distribution
-    // is printed either way, because passing with a mean of ten and passing
-    // with a mean of one are not the same thing.
-    constexpr int kCeiling = 26;    // a tenth of 255
-    constexpr int kBackground = 26; // the colour of the skin, #1a1a1a
+    // So the comparison is on HUE alone. Hue is what the picture was approved
+    // for, and it is invariant to a per-pixel scalar - which is exactly what
+    // the change to the alpha is. If the colour model ever drifts, this still
+    // catches it; if the transparency changes again, this stays silent, and
+    // correctly so.
+    //
+    // The ceiling is the one the whole-pixel version used to meet, 1 of 255,
+    // expressed in degrees of hue at that brightness. It is not set to whatever
+    // the renderer happens to produce now.
+    constexpr double kHueCeilingDegrees = 2.0;
+    constexpr int kBackground = 26;
+    // Hue is meaningless on a nearly grey or nearly black pixel: a rounding
+    // step of one in a dark channel swings it by tens of degrees. Only pixels
+    // with something to have a hue are judged.
+    constexpr int kMinSaturation = 40;
+    constexpr int kMinValue = 60;
 
     QImage reference(QStringLiteral(WAVEFORM_GOLDEN_DIR "/spectrum_303x130.png"));
     ASSERT_FALSE(reference.isNull()) << "the reference picture is missing";
@@ -887,11 +1019,6 @@ TEST_F(WaveformShaderTest, TheRenderMatchesTheApprovedPicture) {
         bins.push_back(Bin{p[3], p[0], p[1], p[2]});
     }
 
-    // The axis line belongs to the skin rather than to the waveform, and the
-    // reference does not contain it, so it is switched off here instead of
-    // being subtracted from the comparison afterwards. Under a ceiling metric
-    // that matters: the axis is white on a dark background and would be the
-    // worst pixel in the picture by a wide margin, hiding everything else.
     m_overrides.axis = false;
     const QImage rendered = render(bins, reference.width(), reference.height());
     m_overrides = Overrides{};
@@ -902,28 +1029,23 @@ TEST_F(WaveformShaderTest, TheRenderMatchesTheApprovedPicture) {
     painter.drawImage(0, 0, rendered);
     painter.end();
 
-    const auto isBackground = [](const QColor& c) {
-        return std::abs(c.red() - kBackground) <= 1 && std::abs(c.green() - kBackground) <= 1 &&
-                std::abs(c.blue() - kBackground) <= 1;
-    };
-
-    int worst = 0;
+    double worst = 0.0;
     int worstX = -1;
     int worstY = -1;
-    int backgroundWorst = 0;
-    std::vector<int> onWaveform;
+    std::vector<double> differences;
     for (int y = 0; y < reference.height(); ++y) {
         for (int x = 0; x < reference.width(); ++x) {
             const QColor a = reference.pixelColor(x, y);
             const QColor b = ours.pixelColor(x, y);
-            const int difference = std::max({std::abs(a.red() - b.red()),
-                    std::abs(a.green() - b.green()),
-                    std::abs(a.blue() - b.blue())});
-            if (isBackground(a) && isBackground(b)) {
-                backgroundWorst = std::max(backgroundWorst, difference);
+            if (a.saturation() < kMinSaturation || a.value() < kMinValue ||
+                    b.saturation() < kMinSaturation || b.value() < kMinValue) {
                 continue;
             }
-            onWaveform.push_back(difference);
+            double difference = std::abs(a.hueF() * 360.0 - b.hueF() * 360.0);
+            if (difference > 180.0) {
+                difference = 360.0 - difference;
+            }
+            differences.push_back(difference);
             if (difference > worst) {
                 worst = difference;
                 worstX = x;
@@ -931,26 +1053,28 @@ TEST_F(WaveformShaderTest, TheRenderMatchesTheApprovedPicture) {
             }
         }
     }
-    ASSERT_FALSE(onWaveform.empty()) << "no waveform was drawn, there is nothing to compare";
+    ASSERT_GT(differences.size(), 5000u)
+            << "only " << differences.size()
+            << " pixels were coloured enough to have a hue; the render is not what it was";
 
-    std::sort(onWaveform.begin(), onWaveform.end());
-    const int p99 = onWaveform[onWaveform.size() * 99 / 100];
+    std::sort(differences.begin(), differences.end());
+    const double p99 = differences[differences.size() * 99 / 100];
     const double mean =
-            std::accumulate(onWaveform.begin(), onWaveform.end(), 0.0) / onWaveform.size();
-
-    printf("against the approved picture: worst %d, p99 %d, mean %.2f, over %zu waveform pixels\n",
+            std::accumulate(differences.begin(), differences.end(), 0.0) / differences.size();
+    printf("hue against the approved picture: worst %.2f deg, p99 %.2f, mean %.2f, over %zu "
+           "coloured pixels\n",
             worst,
             p99,
             mean,
-            onWaveform.size());
-    EXPECT_LE(backgroundWorst, 1) << "the background does not match the reference";
-    EXPECT_LE(worst, kCeiling)
-            << "the worst waveform pixel differs by " << worst << " of 255 at column " << worstX
-            << ", row " << worstY << "; over " << onWaveform.size()
-            << " waveform pixels the 99th percentile is " << p99 << " and the mean is " << mean;
+            differences.size());
+    EXPECT_LE(worst, kHueCeilingDegrees)
+            << "the worst hue differs by " << worst << " degrees at column " << worstX << ", row "
+            << worstY << "; p99 " << p99 << ", mean " << mean;
 }
 
 TEST_F(WaveformShaderTest, TheOversampledPathAgreesWithTheDirectOne) {
+    // Geometry, not brightness: the envelope is flat here.
+    m_overrides.profileFlat = true;
     // The renderer does not draw into the picture: it draws into a buffer four
     // times denser and lets that be filtered down. The two have to arrive at
     // the same coverage, and for a while they did not - the averaging window
@@ -1067,6 +1191,12 @@ TEST_F(WaveformShaderTest, DISABLED_GoldenRender) {
     if (qEnvironmentVariableIntValue("MIXXX_WF_NOAXIS") > 0) {
         m_overrides.axis = false;
     }
+    if (qEnvironmentVariableIntValue("MIXXX_WF_FLAT") > 0) {
+        m_overrides.profileFlat = true;
+    }
+    if (!qEnvironmentVariable("MIXXX_WF_FIRST").isEmpty()) {
+        m_overrides.firstVisualIndex = qEnvironmentVariable("MIXXX_WF_FIRST").toFloat();
+    }
     // The reference is drawn on the background of the skin rather than on
     // nothing, so the picture has to be composited over it before comparing.
     const QImage rendered = render(bins, width, height);
@@ -1100,8 +1230,6 @@ TEST_F(WaveformShaderTest, DISABLED_ComparisonSheet) {
     // under the centre of the pixel, which is the hard mask the user compared
     // against.
     m_overrides.subColumnSamples = 1.0f;
-    m_overrides.softEdgeFraction = 0.0f;
-    m_overrides.softEdgePixels = 0.0f;
     const QImage beforeSmall = render(bins, kWidth, kSmall);
     const QImage beforeLarge = render(bins, kWidth, kLarge);
     m_overrides = Overrides{};
