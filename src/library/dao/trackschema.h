@@ -80,9 +80,15 @@ const QString PLAYLISTTRACKSTABLE_DATETIMEADDED = QStringLiteral("pl_datetime_ad
 
 const QString REKORDBOX_ANALYZE_PATH = "analyze_path";
 
-// Not a library column: the score the annotation stand returned for a
-// candidate, carried by the temporary view behind SimilarTrackTableModel.
+// Not library columns: what the temporary view behind SimilarTrackTableModel
+// carries next to the track. The score is the weighted number shown in the
+// pane; the four rank columns are the position of the candidate in each
+// embedding tool of the stand, titled at runtime from the tool names.
 const QString SIMILARTABLE_SCORE = QStringLiteral("similarity");
+const QString SIMILARTABLE_RANK1 = QStringLiteral("similar_rank_1");
+const QString SIMILARTABLE_RANK2 = QStringLiteral("similar_rank_2");
+const QString SIMILARTABLE_RANK3 = QStringLiteral("similar_rank_3");
+const QString SIMILARTABLE_RANK4 = QStringLiteral("similar_rank_4");
 
 namespace mixxx {
 namespace trackschema {

@@ -791,6 +791,15 @@ void Library::showAutoDJ() {
     m_pSidebarModel->slotFeatureSelect(m_pAutoDJFeature, QModelIndex(), false);
 }
 
+void Library::showSimilarTracks(const TrackPointer& pTrack) {
+    VERIFY_OR_DEBUG_ASSERT(m_pSimilarFeature) {
+        return;
+    }
+    m_pSimilarFeature->showSimilarTracks(pTrack);
+    // Select it but don't scroll there
+    m_pSidebarModel->slotFeatureSelect(m_pSimilarFeature, QModelIndex(), false);
+}
+
 #ifdef __ENGINEPRIME__
 std::unique_ptr<mixxx::LibraryExporter> Library::makeLibraryExporter(
         QWidget* parent) {

@@ -108,6 +108,9 @@ class Library: public QObject {
     /// and shows the results by switching the view.
     void searchTracksInCollection(const QString& query);
     void showAutoDJ();
+    /// Open the Similar pane with this track as the seed, pinning it until the
+    /// user unpins - the deliberate way to walk the similarity graph.
+    void showSimilarTracks(const TrackPointer& pTrack);
 
     static const QString kAutoDJViewName;
 

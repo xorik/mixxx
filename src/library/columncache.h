@@ -71,6 +71,10 @@ class ColumnCache : public QObject {
         COLUMN_REKORDBOX_ANALYZE_PATH,
 
         COLUMN_SIMILARTABLE_SCORE,
+        COLUMN_SIMILARTABLE_RANK1,
+        COLUMN_SIMILARTABLE_RANK2,
+        COLUMN_SIMILARTABLE_RANK3,
+        COLUMN_SIMILARTABLE_RANK4,
 
         // NUM_COLUMNS should always be the last item.
         NUM_COLUMNS

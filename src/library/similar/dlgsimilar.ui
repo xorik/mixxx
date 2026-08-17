@@ -2,153 +2,190 @@
 <ui version="4.0">
  <class>DlgSimilar</class>
  <widget class="QWidget" name="DlgSimilar">
-  <property name="geometry">
-   <rect>
-    <x>0</x>
-    <y>0</y>
-    <width>500</width>
-    <height>399</height>
-   </rect>
-  </property>
-  <property name="windowTitle">
-   <string>Similar</string>
-  </property>
+  <property name="geometry"><rect><x>0</x><y>0</y><width>500</width><height>399</height></rect></property>
+  <property name="windowTitle"><string>Similar</string></property>
   <layout class="QVBoxLayout" name="verticalLayout">
-   <property name="spacing">
-    <number>0</number>
-   </property>
-   <property name="leftMargin">
-    <number>0</number>
-   </property>
-   <property name="topMargin">
-    <number>0</number>
-   </property>
-   <property name="rightMargin">
-    <number>0</number>
-   </property>
-   <property name="bottomMargin">
-    <number>0</number>
-   </property>
+   <property name="spacing"><number>0</number></property>
+   <property name="leftMargin"><number>0</number></property>
+   <property name="topMargin"><number>0</number></property>
+   <property name="rightMargin"><number>0</number></property>
+   <property name="bottomMargin"><number>0</number></property>
    <item>
     <widget class="QWidget" name="LibraryFeatureControls">
-      <layout class="QHBoxLayout" name="horizontalLayout">
-       <property name="spacing">
-        <number>0</number>
-       </property>
-       <property name="leftMargin">
-        <number>0</number>
-       </property>
-       <property name="topMargin">
-        <number>0</number>
-       </property>
-       <property name="rightMargin">
-        <number>0</number>
-       </property>
-       <property name="bottomMargin">
-        <number>0</number>
-       </property>
-       <item>
+     <layout class="QVBoxLayout" name="controlsLayout">
+      <property name="spacing"><number>2</number></property>
+      <property name="leftMargin"><number>0</number></property>
+      <property name="topMargin"><number>0</number></property>
+      <property name="rightMargin"><number>0</number></property>
+      <property name="bottomMargin"><number>0</number></property>
+      <item>
+       <layout class="QHBoxLayout" name="seedRow">
+        <property name="spacing"><number>0</number></property>
+        <item>
         <widget class="QLabel" name="labelSeedCaption">
-         <property name="styleSheet">
-          <string notr="true">margin-right: 5px;</string>
-         </property>
-         <property name="text">
-          <string>Similar to</string>
-         </property>
+         <property name="styleSheet"><string notr="true">margin-right: 5px;</string></property>
+         
+         <property name="text"><string>Similar to</string></property>
         </widget>
-       </item>
-       <item>
+        </item>
+        <item>
         <widget class="QLabel" name="labelSeed">
-         <property name="toolTip">
-          <string>The track the list is computed for.</string>
-         </property>
-         <property name="text">
-          <string>&lt;no track selected&gt;</string>
-         </property>
+         
+         <property name="toolTip"><string>The track the list is computed for. It follows the deck that is playing.</string></property>
+         <property name="text"><string>&lt;no track playing&gt;</string></property>
         </widget>
-       </item>
-       <item>
+        </item>
+        <item>
+        <widget class="QPushButton" name="pushButtonUnpin">
+         <property name="focusPolicy"><enum>Qt::NoFocus</enum></property>
+         <property name="styleSheet"><string notr="true">margin-left: 6px;</string></property>
+         <property name="toolTip"><string>The seed was picked by hand and no longer follows the decks. Click to follow the decks again.</string></property>
+         <property name="text"><string>Unpin</string></property>
+        </widget>
+        </item>
+        <item>
+        <widget class="QLabel" name="labelProviderCaption">
+         <property name="styleSheet"><string notr="true">margin-left: 10px; margin-right: 4px;</string></property>
+         <property name="toolTip"><string>Which model ranks the tracks.</string></property>
+         <property name="text"><string>Provider</string></property>
+        </widget>
+        </item>
+        <item>
         <widget class="QComboBox" name="comboBoxProvider">
-         <property name="focusPolicy">
-          <enum>Qt::NoFocus</enum>
-         </property>
-         <property name="styleSheet">
-          <string notr="true">margin-left: 10px;</string>
-         </property>
-         <property name="toolTip">
-          <string>Which model ranks the tracks. Consensus averages the ranks of all models.</string>
-         </property>
+         <property name="focusPolicy"><enum>Qt::NoFocus</enum></property>
+         <property name="toolTip"><string>Which model ranks the tracks. Consensus averages the ranks of all models.</string></property>
         </widget>
-       </item>
-       <item>
-        <widget class="QCheckBox" name="checkBoxFollowSelection">
-         <property name="focusPolicy">
-          <enum>Qt::NoFocus</enum>
-         </property>
-         <property name="styleSheet">
-          <string notr="true">margin-left: 10px;</string>
-         </property>
-         <property name="toolTip">
-          <string>Recompute the list whenever another track is selected in the library.</string>
-         </property>
-         <property name="text">
-          <string>Follow selection</string>
-         </property>
-         <property name="checked">
-          <bool>true</bool>
-         </property>
-        </widget>
-       </item>
-       <item>
+        </item>
+        <item>
         <widget class="QPushButton" name="pushButtonReload">
-         <property name="focusPolicy">
-          <enum>Qt::NoFocus</enum>
-         </property>
-         <property name="styleSheet">
-          <string notr="true">margin-left: 10px;</string>
-         </property>
-         <property name="toolTip">
-          <string>Ask the stand again: for the provider list and for this track.</string>
-         </property>
-         <property name="text">
-          <string>Reload</string>
-         </property>
+         <property name="focusPolicy"><enum>Qt::NoFocus</enum></property>
+         <property name="styleSheet"><string notr="true">margin-left: 6px;</string></property>
+         <property name="toolTip"><string>Ask the stand again: for the provider list and for this track.</string></property>
+         <property name="text"><string>Reload</string></property>
         </widget>
-       </item>
-       <item>
+        </item>
+        <item>
         <widget class="QLabel" name="labelStatus">
-         <property name="styleSheet">
-          <string notr="true">margin-left: 10px;</string>
-         </property>
-         <property name="textInteractionFlags">
-          <set>Qt::TextSelectableByMouse</set>
-         </property>
-         <property name="text">
-          <string/>
-         </property>
+         <property name="styleSheet"><string notr="true">margin-left: 10px;</string></property>
+         
+         <property name="text"><string></string></property>
         </widget>
-       </item>
-       <item>
-        <spacer name="horizontalSpacer">
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>40</width>
-           <height>20</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-      </layout>
+        </item>
+        <item>
+         <spacer name="seedSpacer">
+          <property name="orientation"><enum>Qt::Horizontal</enum></property>
+          <property name="sizeHint" stdset="0"><size><width>40</width><height>20</height></size></property>
+         </spacer>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="weightRow">
+        <property name="spacing"><number>0</number></property>
+        <item>
+        <widget class="QLabel" name="labelBpmWeightCaption">
+         <property name="styleSheet"><string notr="true">margin-right: 4px;</string></property>
+         <property name="toolTip"><string>How much a tempo difference pushes a track down. 0 ignores tempo, 1 hides everything outside the range.</string></property>
+         <property name="text"><string>BPM weight</string></property>
+        </widget>
+        </item>
+        <item>
+        <widget class="QSlider" name="sliderBpmWeight">
+         <property name="focusPolicy"><enum>Qt::NoFocus</enum></property>
+         <property name="minimumSize"><size><width>80</width><height>0</height></size></property>
+         <property name="maximumSize"><size><width>110</width><height>16777215</height></size></property>
+         <property name="toolTip"><string>How much a tempo difference pushes a track down. 0 ignores tempo, 1 hides everything outside the range.</string></property>
+         <property name="maximum"><number>100</number></property>
+         <property name="pageStep"><number>10</number></property>
+         <property name="orientation"><enum>Qt::Horizontal</enum></property>
+        </widget>
+        </item>
+        <item>
+        <widget class="QLabel" name="labelBpmWeight">
+         <property name="styleSheet"><string notr="true">margin-left: 4px; margin-right: 10px;</string></property>
+         
+         <property name="text"><string>0.00</string></property>
+        </widget>
+        </item>
+        <item>
+        <widget class="QLabel" name="labelBpmRangeCaption">
+         <property name="styleSheet"><string notr="true">margin-right: 2px;</string></property>
+         <property name="toolTip"><string>Tempo tolerance in per cent: the range over which the penalty grows from none to full.</string></property>
+         <property name="text"><string>BPM tolerance ±</string></property>
+        </widget>
+        </item>
+        <item>
+        <widget class="QSpinBox" name="spinBoxBpmRange">
+         <property name="focusPolicy"><enum>Qt::ClickFocus</enum></property>
+         <property name="minimumSize"><size><width>52</width><height>0</height></size></property>
+         <property name="toolTip"><string>Tempo tolerance in per cent: the range over which the penalty grows from none to full.</string></property>
+         <property name="frame"><bool>false</bool></property>
+         <property name="alignment"><set>Qt::AlignRight|Qt::AlignVCenter</set></property>
+         <property name="suffix"><string> %</string></property>
+         <property name="minimum"><number>1</number></property>
+         <property name="maximum"><number>50</number></property>
+         <property name="value"><number>6</number></property>
+        </widget>
+        </item>
+        <item>
+        <widget class="QLabel" name="labelKeyWeightCaption">
+         <property name="styleSheet"><string notr="true">margin-left: 14px; margin-right: 4px;</string></property>
+         <property name="toolTip"><string>How much a key mismatch pushes a track down. 0 ignores key, 1 hides everything that does not match.</string></property>
+         <property name="text"><string>Key weight</string></property>
+        </widget>
+        </item>
+        <item>
+        <widget class="QSlider" name="sliderKeyWeight">
+         <property name="focusPolicy"><enum>Qt::NoFocus</enum></property>
+         <property name="minimumSize"><size><width>80</width><height>0</height></size></property>
+         <property name="maximumSize"><size><width>110</width><height>16777215</height></size></property>
+         <property name="toolTip"><string>How much a key mismatch pushes a track down. 0 ignores key, 1 hides everything that does not match.</string></property>
+         <property name="maximum"><number>100</number></property>
+         <property name="pageStep"><number>10</number></property>
+         <property name="orientation"><enum>Qt::Horizontal</enum></property>
+        </widget>
+        </item>
+        <item>
+        <widget class="QLabel" name="labelKeyWeight">
+         <property name="styleSheet"><string notr="true">margin-left: 4px; margin-right: 6px;</string></property>
+         
+         <property name="text"><string>0.00</string></property>
+        </widget>
+        </item>
+        <item>
+        <widget class="QLabel" name="labelKeyModeCaption">
+         <property name="styleSheet"><string notr="true">margin-left: 10px; margin-right: 4px;</string></property>
+         <property name="toolTip"><string>What counts as a key mismatch.</string></property>
+         <property name="text"><string>Key match</string></property>
+        </widget>
+        </item>
+        <item>
+        <widget class="QComboBox" name="comboBoxKeyMode">
+         <property name="focusPolicy"><enum>Qt::NoFocus</enum></property>
+         <property name="toolTip"><string>What counts as a key mismatch.</string></property>
+        </widget>
+        </item>
+        <item>
+        <widget class="QLabel" name="labelHidden">
+         <property name="styleSheet"><string notr="true">margin-left: 10px;</string></property>
+         <property name="toolTip"><string>Tracks the weights removed from the list.</string></property>
+         <property name="text"><string></string></property>
+        </widget>
+        </item>
+        <item>
+         <spacer name="weightSpacer">
+          <property name="orientation"><enum>Qt::Horizontal</enum></property>
+          <property name="sizeHint" stdset="0"><size><width>40</width><height>20</height></size></property>
+         </spacer>
+        </item>
+       </layout>
+      </item>
+     </layout>
     </widget>
    </item>
    <item>
     <widget class="QTableView" name="m_pTrackTablePlaceholder">
-     <property name="showGrid">
-      <bool>true</bool>
-     </property>
+     <property name="showGrid"><bool>true</bool></property>
     </widget>
    </item>
   </layout>

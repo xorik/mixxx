@@ -2,6 +2,10 @@
 
 #include <QVariant>
 
+#include "track/track_decl.h"
+
+#include "track/track_decl.h"
+
 #include "library/libraryfeature.h"
 #include "library/treeitemmodel.h"
 #include "preferences/usersettings.h"
@@ -29,6 +33,9 @@ class SimilarFeature : public LibraryFeature {
     void bindLibraryWidget(WLibrary* pLibraryWidget,
             KeyboardEventFilter* pKeyboard) override;
     TreeItemModel* sidebarModel() const override;
+
+    /// Seed the pane with this track and pin it, then show the pane.
+    void showSimilarTracks(const TrackPointer& pTrack);
 
   public slots:
     void activate() override;

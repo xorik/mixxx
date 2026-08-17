@@ -402,6 +402,14 @@ void WTrackMenu::createActions() {
         connect(m_pSelectInLibraryAct, &QAction::triggered, this, &WTrackMenu::slotSelectInLibrary);
     }
 
+    if (featureIsEnabled(Feature::ShowSimilar)) {
+        m_pShowSimilarTracksAct = make_parented<QAction>(tr("Show similar tracks"), this);
+        connect(m_pShowSimilarTracksAct,
+                &QAction::triggered,
+                this,
+                &WTrackMenu::slotShowSimilarTracks);
+    }
+
     if (featureIsEnabled(Feature::Metadata)) {
         m_pImportMetadataFromFileAct =
                 make_parented<QAction>(tr("Import From File Tags"), m_pMetadataMenu);
@@ -629,8 +637,15 @@ void WTrackMenu::setupActions() {
         addAction(m_pSelectInLibraryAct);
     }
 
+    // Next to "Search related Tracks", which is where a DJ already looks for
+    // "something like this one".
+    if (featureIsEnabled(Feature::ShowSimilar)) {
+        addAction(m_pShowSimilarTracksAct);
+    }
+
     if (featureIsEnabled(Feature::SearchRelated) ||
-            featureIsEnabled(Feature::SelectInLibrary)) {
+            featureIsEnabled(Feature::SelectInLibrary) ||
+            featureIsEnabled(Feature::ShowSimilar)) {
         addSeparator();
     }
 
@@ -1452,6 +1467,16 @@ void WTrackMenu::slotSelectInLibrary() {
     if (m_pTrack) {
         emit m_pLibrary->selectTrack(m_pTrack->getId());
     }
+}
+
+void WTrackMenu::slotShowSimilarTracks() {
+    if (!m_pTrack) {
+        // Only meaningful for a single track; with a multi-selection the first
+        // one is loaded by loadTrack() into m_pTrack anyway.
+        return;
+    }
+    m_pLibrary->showSimilarTracks(m_pTrack);
+    hide();
 }
 
 namespace {

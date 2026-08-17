@@ -50,18 +50,21 @@ void SimilarFeature::bindLibraryWidget(
             this,
             &SimilarFeature::trackSelected);
 
-    // The seed follows whatever is selected in any track table. Library relays
-    // the selection of every view, including this one - DlgSimilar filters its
-    // own selection out so that walking down the result list does not keep
-    // reseeding the search.
-    connect(m_pLibrary,
-            &Library::trackSelected,
-            m_pSimilarView,
-            &DlgSimilar::slotTrackSelected);
+    // The seed follows the deck that is playing; DlgSimilar subscribes to
+    // PlayerInfo itself. The library selection deliberately seeds nothing - a
+    // click in a track list stays a plain click, and a seed picked by hand
+    // comes from the track context menu instead.
 
     m_pSimilarView->installEventFilter(pKeyboard);
 
     pLibraryWidget->registerView(kViewName, m_pSimilarView);
+}
+
+void SimilarFeature::showSimilarTracks(const TrackPointer& pTrack) {
+    if (m_pSimilarView) {
+        m_pSimilarView->pinSeed(pTrack);
+    }
+    activate();
 }
 
 void SimilarFeature::activate() {

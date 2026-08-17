@@ -59,11 +59,14 @@ class WTrackMenu : public QMenu {
         SelectInLibrary = 1 << 15,
         Analyze = 1 << 16,
         FindOnWeb = 1 << 17,
+        // Deliberately far from the block above: upstream keeps appending there,
+        // and a merge that renumbers a bit we picked would be silent.
+        ShowSimilar = 1 << 26,
         TrackModelFeatures = Remove | HideUnhidePurge,
         All = AutoDJ | LoadTo | Playlist | Crate | Remove | Metadata | Reset | Analyze |
                 BPM | Color | HideUnhidePurge | RemoveFromDisk | FileBrowser |
                 Properties | SearchRelated | UpdateReplayGainFromPregain | SelectInLibrary |
-                FindOnWeb
+                FindOnWeb | ShowSimilar
     };
     Q_DECLARE_FLAGS(Features, Feature)
 
@@ -135,6 +138,7 @@ class WTrackMenu : public QMenu {
     // File
     void slotOpenInFileBrowser();
     void slotSelectInLibrary();
+    void slotShowSimilarTracks();
 
     // Track rating
     void slotSetRating(int rating);
@@ -336,6 +340,7 @@ class WTrackMenu : public QMenu {
 
     // Select track in library
     parented_ptr<QAction> m_pSelectInLibraryAct;
+    parented_ptr<QAction> m_pShowSimilarTracksAct;
 
     // BPM feature
     parented_ptr<QAction> m_pBpmLockAction;

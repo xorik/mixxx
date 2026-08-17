@@ -189,7 +189,20 @@ constexpr ColumnProperties kColumnPropertiesByEnum[] = {
         DI(ColumnCache::COLUMN_REKORDBOX_ANALYZE_PATH){&REKORDBOX_ANALYZE_PATH, nullptr, 0},
         DI(ColumnCache::COLUMN_SIMILARTABLE_SCORE){&SIMILARTABLE_SCORE,
                 QT_TRANSLATE_NOOP("BaseSqlTableModel", "Similarity"),
-                kDefaultColumnWidth * 60 / 50}};
+                kDefaultColumnWidth * 60 / 50},
+        // Titles are replaced at runtime with the tool names the stand reports.
+        DI(ColumnCache::COLUMN_SIMILARTABLE_RANK1){&SIMILARTABLE_RANK1,
+                QT_TRANSLATE_NOOP("BaseSqlTableModel", "R1"),
+                kDefaultColumnWidth * 34 / 50},
+        DI(ColumnCache::COLUMN_SIMILARTABLE_RANK2){&SIMILARTABLE_RANK2,
+                QT_TRANSLATE_NOOP("BaseSqlTableModel", "R2"),
+                kDefaultColumnWidth * 34 / 50},
+        DI(ColumnCache::COLUMN_SIMILARTABLE_RANK3){&SIMILARTABLE_RANK3,
+                QT_TRANSLATE_NOOP("BaseSqlTableModel", "R3"),
+                kDefaultColumnWidth * 34 / 50},
+        DI(ColumnCache::COLUMN_SIMILARTABLE_RANK4){&SIMILARTABLE_RANK4,
+                QT_TRANSLATE_NOOP("BaseSqlTableModel", "R4"),
+                kDefaultColumnWidth * 34 / 50}};
 static_assert(std::size(kColumnPropertiesByEnum) == ColumnCache::NUM_COLUMNS);
 
 #if defined(__clang__)
