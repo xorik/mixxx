@@ -75,6 +75,9 @@ const int kMaxSubColumns = 8;
 // zoom range allows.
 const int kMaxBinsPerSubColumn = 4;
 
+// See signalDistance below.
+const highp float kSpectrumHeightGain = 2.0;
+
 highp vec4 getWaveformData(highp float index) {
     highp vec2 uv_data;
     uv_data.y = floor(index / float(textureStride));
@@ -120,11 +123,21 @@ highp vec2 binDistances(highp float visualIndex, highp float stereoOffset) {
     highp vec3 scaled = data.xyz * vec3(lowGain, midGain, highGain);
     highp float sumUnscaled = data.x + data.y + data.z;
     highp float sumScaled = scaled.x + scaled.y + scaled.z;
-    highp float signalDistance = data.w;
+    // Base amplification for Spectrum: the height comes from a single peak
+    // while RGB uses the sum of three bands. Users saw Spectrum look half as
+    // tall as RGB on the same track - measured, the median ratio is 0.44 over
+    // everything drawn and 0.64 over the loud tenth.
+    //
+    // Trade-off, accepted knowingly: peaks above 87% of headroom clip against
+    // the widget edge on loud tracks. The analyser keeps 1.75 of headroom
+    // against clipping in the DATA, and this consumes half of it at the drawing
+    // end. On a modern master, whose block peaks reach 1.6 of full scale, the
+    // loudest hits will flatten against the top of the widget.
+    highp float signalDistance = data.w * kSpectrumHeightGain;
     if (sumUnscaled > 0.0) {
         signalDistance *= sumScaled / sumUnscaled;
     }
-    highp float shadowDistance = data.w;
+    highp float shadowDistance = data.w * kSpectrumHeightGain;
     if (amplitudeFloor > 0.0 && data.w > 0.0) {
         signalDistance = amplitudeFloor + (1.0 - amplitudeFloor) * signalDistance;
         shadowDistance = amplitudeFloor + (1.0 - amplitudeFloor) * shadowDistance;

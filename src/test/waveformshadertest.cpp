@@ -290,11 +290,17 @@ double hueDistance(double a, double b) {
 // THESE NUMBERS COME FROM OUTSIDE THE SHADER. Two tests use them: one drives
 // the shader directly, the other goes through the oversampled buffer the
 // renderer really uses.
+//
+// The peaks were halved when the renderer began drawing a Spectrum column at
+// twice the height - the mask they describe is unchanged, and that is the
+// point: the same picture has to come out of half the input. Had they been left
+// alone, every column would have run past the top of the image and the alphas
+// below would have described a row of full-height blocks rather than a mask.
 constexpr int kGoldenPeaks[64] = {
-        52, 81, 85, 60, 70, 72, 98, 93, 114, 74, 141, 117, 137, 129, 131, 152,
-        164, 152, 159, 180, 159, 154, 194, 181, 165, 191, 203, 196, 197, 231, 252, 238,
-        5, 73, 139, 170, 220, 246, 222, 191, 174, 120, 74, 5, 65, 121, 152, 217,
-        238, 211, 225, 174, 117, 50, 41, 64, 156, 201, 187, 236, 216, 208, 143, 94,
+        26, 40, 42, 30, 35, 36, 49, 46, 57, 37, 70, 58, 68, 64, 66, 76,
+        82, 76, 80, 90, 80, 77, 97, 90, 82, 96, 102, 98, 98, 116, 126, 119,
+        2, 36, 70, 85, 110, 123, 111, 96, 87, 60, 37, 2, 32, 60, 76, 108,
+        119, 106, 112, 87, 58, 25, 20, 32, 78, 100, 94, 118, 108, 104, 72, 47,
 };
 constexpr double kGoldenAlpha[16][8] = {
         {1.0000, 1.0000, 1.0000, 1.0000, 0.9219, 0.9219, 1.0000, 1.0000},
@@ -665,10 +671,14 @@ TEST_F(WaveformShaderTest, TheBodyOfAColumnStaysOpaque) {
     // is drawn under the waveform and can only appear if the body is
     // translucent, so it is the alpha that has to be checked. That also states
     // the property directly instead of through one of its symptoms.
-    for (const Bin& bin : {Bin{200, 160, 30, 8},
-                 Bin{200, 50, 50, 50},
-                 Bin{160, 120, 60, 15},
-                 Bin{120, 100, 90, 80}}) {
+    // The peaks are halved against what they used to be here, because the
+    // renderer now doubles the height of a Spectrum column: a peak of 200 would
+    // reach past the top of the image and there would be no rim to look at. The
+    // test is about the body being opaque, so the column has to fit.
+    for (const Bin& bin : {Bin{100, 160, 30, 8},
+                 Bin{100, 50, 50, 50},
+                 Bin{80, 120, 60, 15},
+                 Bin{60, 100, 90, 80}}) {
         const QImage image = render(uniformBins(bin), 128, 200);
         const int centre = 100;
         int firstLit = -1;
