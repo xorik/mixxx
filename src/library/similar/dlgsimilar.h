@@ -50,13 +50,15 @@ class DlgSimilar : public QWidget, public Ui::DlgSimilar, public virtual Library
 
   private slots:
     void slotPlayingTrackChanged(TrackPointer pTrack);
+    /// Any deck gaining or losing a track, playing or not.
+    void slotPlayerTrackChanged(const QString& group,
+            TrackPointer pNewTrack,
+            TrackPointer pOldTrack);
     void slotProvidersReady(const QList<mixxx::SimilarityProvider>& providers, int trackCount);
     void slotSimilarReady(const mixxx::SimilarityResult& result);
     void slotRequestFailed(const QString& message, bool unreachable);
     void slotProviderChanged(int index);
-    void slotKeyModeChanged(int index);
-    void slotWeightsChanged();
-    void slotBpmRangeChanged(int percent);
+    void slotFiltersChanged();
     void slotUnpinClicked();
     void slotReloadClicked();
 
@@ -64,7 +66,8 @@ class DlgSimilar : public QWidget, public Ui::DlgSimilar, public virtual Library
     void maybeArmScreenshot(Library* pLibrary);
     void requestForSeed();
     void setSeed(TrackPointer pTrack);
-    void applySortForWeights();
+    /// Pinned seed, else the playing deck, else the deck loaded last.
+    void resolveSeed();
     void updateHiddenLabel();
     void updateSeedLabel();
     QString selectedProviderKey() const;
@@ -73,6 +76,11 @@ class DlgSimilar : public QWidget, public Ui::DlgSimilar, public virtual Library
     WTrackTableView* m_pTrackTableView;
     SimilarTrackTableModel* m_pTrackTableModel;
     mixxx::SimilarityClient* m_pClient;
+
+    /// Deck groups that hold a track, most recently loaded first. A deck that
+    /// is merely loaded is a perfectly good seed: the DJ is looking at what to
+    /// play next, and nothing says he pressed play yet.
+    QStringList m_loadedDeckGroups;
 
     TrackId m_seedTrackId;
     QString m_seedLabel;

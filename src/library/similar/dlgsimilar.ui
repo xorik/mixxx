@@ -80,100 +80,75 @@
        </layout>
       </item>
       <item>
-       <layout class="QHBoxLayout" name="weightRow">
+       <layout class="QHBoxLayout" name="filterRow">
         <property name="spacing"><number>0</number></property>
         <item>
-        <widget class="QLabel" name="labelBpmWeightCaption">
+        <widget class="QLabel" name="labelBpmFilterCaption">
          <property name="styleSheet"><string notr="true">margin-right: 4px;</string></property>
-         <property name="toolTip"><string>How much a tempo difference pushes a track down. 0 ignores tempo, 1 hides everything outside the range.</string></property>
-         <property name="text"><string>BPM weight</string></property>
+         <property name="toolTip"><string>Keep only tracks whose tempo is this close to the seed. Leftmost position keeps every tempo.</string></property>
+         <property name="text"><string>BPM filter</string></property>
         </widget>
         </item>
         <item>
-        <widget class="QSlider" name="sliderBpmWeight">
+        <widget class="QSlider" name="sliderBpmFilter">
          <property name="focusPolicy"><enum>Qt::NoFocus</enum></property>
-         <property name="minimumSize"><size><width>80</width><height>0</height></size></property>
-         <property name="maximumSize"><size><width>110</width><height>16777215</height></size></property>
-         <property name="toolTip"><string>How much a tempo difference pushes a track down. 0 ignores tempo, 1 hides everything outside the range.</string></property>
-         <property name="maximum"><number>100</number></property>
-         <property name="pageStep"><number>10</number></property>
+         <property name="minimumSize"><size><width>90</width><height>0</height></size></property>
+         <property name="maximumSize"><size><width>120</width><height>16777215</height></size></property>
+         <property name="toolTip"><string>Keep only tracks whose tempo is this close to the seed: within 1.5, 3, 4.5 or 6 per cent, or any tempo at the right end.</string></property>
+         <property name="maximum"><number>4</number></property>
+         <property name="value"><number>4</number></property>
+         <property name="singleStep"><number>1</number></property>
+         <property name="pageStep"><number>1</number></property>
          <property name="orientation"><enum>Qt::Horizontal</enum></property>
+         <property name="tickPosition"><enum>QSlider::TicksBelow</enum></property>
+         <property name="tickInterval"><number>1</number></property>
         </widget>
         </item>
         <item>
-        <widget class="QLabel" name="labelBpmWeight">
-         <property name="styleSheet"><string notr="true">margin-left: 4px; margin-right: 10px;</string></property>
-         
-         <property name="text"><string>0.00</string></property>
+        <widget class="QLabel" name="labelBpmFilter">
+         <property name="styleSheet"><string notr="true">margin-left: 5px; margin-right: 14px;</string></property>
+         <property name="minimumSize"><size><width>46</width><height>0</height></size></property>
+         <property name="text"><string>any</string></property>
         </widget>
         </item>
         <item>
-        <widget class="QLabel" name="labelBpmRangeCaption">
-         <property name="styleSheet"><string notr="true">margin-right: 2px;</string></property>
-         <property name="toolTip"><string>Tempo tolerance in per cent: the range over which the penalty grows from none to full.</string></property>
-         <property name="text"><string>BPM tolerance ±</string></property>
+        <widget class="QLabel" name="labelKeyFilterCaption">
+         <property name="styleSheet"><string notr="true">margin-right: 4px;</string></property>
+         <property name="toolTip"><string>Keep only tracks whose key fits the seed. Leftmost position keeps every key.</string></property>
+         <property name="text"><string>Key filter</string></property>
         </widget>
         </item>
         <item>
-        <widget class="QSpinBox" name="spinBoxBpmRange">
-         <property name="focusPolicy"><enum>Qt::ClickFocus</enum></property>
-         <property name="minimumSize"><size><width>52</width><height>0</height></size></property>
-         <property name="toolTip"><string>Tempo tolerance in per cent: the range over which the penalty grows from none to full.</string></property>
-         <property name="frame"><bool>false</bool></property>
-         <property name="alignment"><set>Qt::AlignRight|Qt::AlignVCenter</set></property>
-         <property name="suffix"><string> %</string></property>
-         <property name="minimum"><number>1</number></property>
-         <property name="maximum"><number>50</number></property>
-         <property name="value"><number>6</number></property>
-        </widget>
-        </item>
-        <item>
-        <widget class="QLabel" name="labelKeyWeightCaption">
-         <property name="styleSheet"><string notr="true">margin-left: 14px; margin-right: 4px;</string></property>
-         <property name="toolTip"><string>How much a key mismatch pushes a track down. 0 ignores key, 1 hides everything that does not match.</string></property>
-         <property name="text"><string>Key weight</string></property>
-        </widget>
-        </item>
-        <item>
-        <widget class="QSlider" name="sliderKeyWeight">
+        <widget class="QSlider" name="sliderKeyFilter">
          <property name="focusPolicy"><enum>Qt::NoFocus</enum></property>
-         <property name="minimumSize"><size><width>80</width><height>0</height></size></property>
-         <property name="maximumSize"><size><width>110</width><height>16777215</height></size></property>
-         <property name="toolTip"><string>How much a key mismatch pushes a track down. 0 ignores key, 1 hides everything that does not match.</string></property>
-         <property name="maximum"><number>100</number></property>
-         <property name="pageStep"><number>10</number></property>
+         <property name="minimumSize"><size><width>76</width><height>0</height></size></property>
+         <property name="maximumSize"><size><width>100</width><height>16777215</height></size></property>
+         <property name="toolTip"><string>harmonic: the relative key and the wheel neighbours, the set Mixxx calls harmonic. wide: up to two steps on the Camelot wheel. all: every key.</string></property>
+         <property name="maximum"><number>2</number></property>
+         <property name="value"><number>2</number></property>
+         <property name="singleStep"><number>1</number></property>
+         <property name="pageStep"><number>1</number></property>
          <property name="orientation"><enum>Qt::Horizontal</enum></property>
+         <property name="tickPosition"><enum>QSlider::TicksBelow</enum></property>
+         <property name="tickInterval"><number>1</number></property>
         </widget>
         </item>
         <item>
-        <widget class="QLabel" name="labelKeyWeight">
-         <property name="styleSheet"><string notr="true">margin-left: 4px; margin-right: 6px;</string></property>
-         
-         <property name="text"><string>0.00</string></property>
-        </widget>
-        </item>
-        <item>
-        <widget class="QLabel" name="labelKeyModeCaption">
-         <property name="styleSheet"><string notr="true">margin-left: 10px; margin-right: 4px;</string></property>
-         <property name="toolTip"><string>What counts as a key mismatch.</string></property>
-         <property name="text"><string>Key match</string></property>
-        </widget>
-        </item>
-        <item>
-        <widget class="QComboBox" name="comboBoxKeyMode">
-         <property name="focusPolicy"><enum>Qt::NoFocus</enum></property>
-         <property name="toolTip"><string>What counts as a key mismatch.</string></property>
+        <widget class="QLabel" name="labelKeyFilter">
+         <property name="styleSheet"><string notr="true">margin-left: 5px;</string></property>
+         <property name="minimumSize"><size><width>58</width><height>0</height></size></property>
+         <property name="text"><string>all</string></property>
         </widget>
         </item>
         <item>
         <widget class="QLabel" name="labelHidden">
          <property name="styleSheet"><string notr="true">margin-left: 10px;</string></property>
-         <property name="toolTip"><string>Tracks the weights removed from the list.</string></property>
-         <property name="text"><string></string></property>
+         <property name="toolTip"><string>Tracks the filters removed from the list.</string></property>
+         <property name="text"><string/></property>
         </widget>
         </item>
         <item>
-         <spacer name="weightSpacer">
+         <spacer name="filterSpacer">
           <property name="orientation"><enum>Qt::Horizontal</enum></property>
           <property name="sizeHint" stdset="0"><size><width>40</width><height>20</height></size></property>
          </spacer>

@@ -9,6 +9,7 @@
 #include "library/library.h"
 #include "library/trackcollectionmanager.h"
 #include "mixer/playerinfo.h"
+#include "mixer/playermanager.h"
 #include "moc_dlgsimilar.cpp"
 #include "track/track.h"
 #include "util/assert.h"
@@ -20,10 +21,8 @@ namespace {
 const char* kPreferenceGroup = "[Similar]";
 const char* kServerUrlConfigKey = "ServerUrl";
 const char* kProviderConfigKey = "Provider";
-const char* kBpmWeightConfigKey = "BpmWeight";
-const char* kKeyWeightConfigKey = "KeyWeight";
-const char* kBpmRangeConfigKey = "BpmRangePercent";
-const char* kKeyModeConfigKey = "KeyMatchMode";
+const char* kBpmFilterConfigKey = "BpmFilterLevel";
+const char* kKeyFilterConfigKey = "KeyFilterLevel";
 
 const QString kDefaultServerUrl = QStringLiteral("http://127.0.0.1:8731");
 
@@ -95,50 +94,30 @@ DlgSimilar::DlgSimilar(WLibrary* parent, UserSettingsPointer pConfig, Library* p
             this,
             &DlgSimilar::slotRequestFailed);
 
-    // Restore the knobs before anything is requested.
-    comboBoxKeyMode->addItem(tr("Camelot distance"),
-            static_cast<int>(SimilarTrackTableModel::KeyMatchMode::CamelotDistance));
-    comboBoxKeyMode->addItem(tr("Harmonic"),
-            static_cast<int>(SimilarTrackTableModel::KeyMatchMode::Harmonic));
-    comboBoxKeyMode->addItem(tr("Exact"),
-            static_cast<int>(SimilarTrackTableModel::KeyMatchMode::Exact));
-    const int keyMode = m_pConfig->getValue(
-            ConfigKey(kPreferenceGroup, kKeyModeConfigKey), 0);
-    comboBoxKeyMode->setCurrentIndex(std::clamp(keyMode, 0, comboBoxKeyMode->count() - 1));
-    m_pTrackTableModel->setKeyMatchMode(
-            static_cast<SimilarTrackTableModel::KeyMatchMode>(
-                    comboBoxKeyMode->currentData().toInt()));
-
-    spinBoxBpmRange->setValue(m_pConfig->getValue(
-            ConfigKey(kPreferenceGroup, kBpmRangeConfigKey), 6));
-    m_pTrackTableModel->setBpmRangePercent(spinBoxBpmRange->value());
-
-    sliderBpmWeight->setValue(m_pConfig->getValue(
-            ConfigKey(kPreferenceGroup, kBpmWeightConfigKey), 0));
-    sliderKeyWeight->setValue(m_pConfig->getValue(
-            ConfigKey(kPreferenceGroup, kKeyWeightConfigKey), 0));
-    slotWeightsChanged();
+    // Restore the sliders before anything is requested. Both default to their
+    // rightmost position, which filters nothing: a pane that greets the user
+    // with an almost empty list because his seed has an unusual tempo would be
+    // read as "it does not work".
+    sliderBpmFilter->setValue(m_pConfig->getValue(
+            ConfigKey(kPreferenceGroup, kBpmFilterConfigKey),
+            sliderBpmFilter->maximum()));
+    sliderKeyFilter->setValue(m_pConfig->getValue(
+            ConfigKey(kPreferenceGroup, kKeyFilterConfigKey),
+            sliderKeyFilter->maximum()));
+    slotFiltersChanged();
 
     connect(comboBoxProvider,
             QOverload<int>::of(&QComboBox::currentIndexChanged),
             this,
             &DlgSimilar::slotProviderChanged);
-    connect(comboBoxKeyMode,
-            QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this,
-            &DlgSimilar::slotKeyModeChanged);
-    connect(sliderBpmWeight,
+    connect(sliderBpmFilter,
             &QSlider::valueChanged,
             this,
-            &DlgSimilar::slotWeightsChanged);
-    connect(sliderKeyWeight,
+            &DlgSimilar::slotFiltersChanged);
+    connect(sliderKeyFilter,
             &QSlider::valueChanged,
             this,
-            &DlgSimilar::slotWeightsChanged);
-    connect(spinBoxBpmRange,
-            QOverload<int>::of(&QSpinBox::valueChanged),
-            this,
-            &DlgSimilar::slotBpmRangeChanged);
+            &DlgSimilar::slotFiltersChanged);
     connect(pushButtonUnpin,
             &QPushButton::clicked,
             this,
@@ -148,12 +127,17 @@ DlgSimilar::DlgSimilar(WLibrary* parent, UserSettingsPointer pConfig, Library* p
             this,
             &DlgSimilar::slotReloadClicked);
 
-    // The seed follows the deck that is playing. This works from any page of
-    // the library stack, because the decks are not part of the library.
+    // The seed follows the decks, which is visible from any page of the library
+    // stack because the decks are not part of the library. Both signals matter:
+    // one for what is playing, one for what was merely loaded.
     connect(&PlayerInfo::instance(),
             &PlayerInfo::currentPlayingTrackChanged,
             this,
             &DlgSimilar::slotPlayingTrackChanged);
+    connect(&PlayerInfo::instance(),
+            &PlayerInfo::trackChanged,
+            this,
+            &DlgSimilar::slotPlayerTrackChanged);
 
     connect(pLibrary,
             &Library::setTrackTableFont,
@@ -260,8 +244,7 @@ void DlgSimilar::onShow() {
         return;
     }
     if (!m_seedTrackId.isValid()) {
-        // Nothing has played yet in this session.
-        setSeed(PlayerInfo::instance().getCurrentPlayingTrack());
+        resolveSeed();
     }
 }
 
@@ -300,7 +283,7 @@ QString DlgSimilar::selectedProviderKey() const {
 
 void DlgSimilar::updateSeedLabel() {
     if (m_seedLabel.isEmpty()) {
-        labelSeed->setText(tr("<no track playing>"));
+        labelSeed->setText(tr("<no track loaded>"));
     } else {
         labelSeed->setText(m_seedLabel);
     }
@@ -313,7 +296,7 @@ void DlgSimilar::setSeed(TrackPointer pTrack) {
         m_seedLabel.clear();
         updateSeedLabel();
         m_pTrackTableModel->clearResult();
-        labelStatus->setText(tr("No track playing"));
+        labelStatus->setText(tr("No track loaded"));
         labelHidden->clear();
         return;
     }
@@ -330,11 +313,46 @@ void DlgSimilar::setSeed(TrackPointer pTrack) {
 }
 
 void DlgSimilar::slotPlayingTrackChanged(TrackPointer pTrack) {
+    Q_UNUSED(pTrack);
+    resolveSeed();
+}
+
+void DlgSimilar::slotPlayerTrackChanged(const QString& group,
+        TrackPointer pNewTrack,
+        TrackPointer pOldTrack) {
+    Q_UNUSED(pOldTrack);
+    if (!PlayerManager::isDeckGroup(group)) {
+        // Samplers and preview decks are not what the DJ is mixing towards.
+        return;
+    }
+    m_loadedDeckGroups.removeAll(group);
+    if (pNewTrack) {
+        // Most recently loaded first, which is the deck the DJ just prepared.
+        m_loadedDeckGroups.prepend(group);
+    }
+    resolveSeed();
+}
+
+void DlgSimilar::resolveSeed() {
     if (m_seedPinned) {
         // A hand-picked seed wins until the user unpins it.
         return;
     }
-    setSeed(pTrack);
+    const TrackPointer pPlaying = PlayerInfo::instance().getCurrentPlayingTrack();
+    if (pPlaying) {
+        setSeed(pPlaying);
+        return;
+    }
+    // Nothing is playing: fall back to the deck loaded last, so the pane has
+    // something to say while the DJ is still choosing.
+    for (const auto& group : std::as_const(m_loadedDeckGroups)) {
+        const TrackPointer pLoaded = PlayerInfo::instance().getTrackInfo(group);
+        if (pLoaded && pLoaded->getId().isValid()) {
+            setSeed(pLoaded);
+            return;
+        }
+    }
+    setSeed(TrackPointer());
 }
 
 void DlgSimilar::pinSeed(TrackPointer pTrack) {
@@ -351,12 +369,12 @@ void DlgSimilar::pinSeed(TrackPointer pTrack) {
 void DlgSimilar::slotUnpinClicked() {
     m_seedPinned = false;
     updateSeedLabel();
-    setSeed(PlayerInfo::instance().getCurrentPlayingTrack());
+    resolveSeed();
 }
 
 void DlgSimilar::requestForSeed() {
     if (!m_seedTrackId.isValid()) {
-        labelStatus->setText(tr("No track playing"));
+        labelStatus->setText(tr("No track loaded"));
         return;
     }
     if (!m_providersLoaded) {
@@ -406,7 +424,7 @@ void DlgSimilar::slotProvidersReady(
     }
     labelStatus->setText(tr("%1 tracks analysed").arg(trackCount));
     if (!m_seedTrackId.isValid()) {
-        setSeed(PlayerInfo::instance().getCurrentPlayingTrack());
+        resolveSeed();
     } else {
         requestForSeed();
     }
@@ -424,7 +442,6 @@ void DlgSimilar::slotSimilarReady(const mixxx::SimilarityResult& result) {
         return;
     }
     m_pTrackTableModel->setResult(result);
-    applySortForWeights();
     labelStatus->setText(tr("%1 of %2 ranked")
                                  .arg(QString::number(result.tracks.size()),
                                          QString::number(result.total)));
@@ -455,57 +472,31 @@ void DlgSimilar::slotProviderChanged(int index) {
     requestForSeed();
 }
 
-void DlgSimilar::slotKeyModeChanged(int index) {
-    Q_UNUSED(index);
-    m_pConfig->setValue(ConfigKey(kPreferenceGroup, kKeyModeConfigKey),
-            comboBoxKeyMode->currentIndex());
-    m_pTrackTableModel->setKeyMatchMode(
-            static_cast<SimilarTrackTableModel::KeyMatchMode>(
-                    comboBoxKeyMode->currentData().toInt()));
-    applySortForWeights();
-    updateHiddenLabel();
-}
+void DlgSimilar::slotFiltersChanged() {
+    const auto bpmLevel = static_cast<SimilarTrackTableModel::BpmLevel>(
+            sliderBpmFilter->value());
+    const auto keyLevel = static_cast<SimilarTrackTableModel::KeyLevel>(
+            sliderKeyFilter->value());
 
-void DlgSimilar::slotWeightsChanged() {
-    const double bpmWeight = sliderBpmWeight->value() / 100.0;
-    const double keyWeight = sliderKeyWeight->value() / 100.0;
-    labelBpmWeight->setText(QString::number(bpmWeight, 'f', 2));
-    labelKeyWeight->setText(QString::number(keyWeight, 'f', 2));
-    m_pConfig->setValue(ConfigKey(kPreferenceGroup, kBpmWeightConfigKey),
-            sliderBpmWeight->value());
-    m_pConfig->setValue(ConfigKey(kPreferenceGroup, kKeyWeightConfigKey),
-            sliderKeyWeight->value());
-    // Purely local: the whole ranking is already in the model, so a slider only
-    // rewrites one row of weights and re-runs the query. No request is sent.
-    m_pTrackTableModel->setWeights(bpmWeight, keyWeight);
-    applySortForWeights();
-    updateHiddenLabel();
-}
+    // The label is the whole readout of a stepped slider, so it says what the
+    // position means rather than which number it is.
+    static const char* const kBpmLabels[] = {"\u00b11.5%", "\u00b13%", "\u00b14.5%", "\u00b16%", "any"};
+    static const char* const kKeyLabels[] = {"harmonic", "wide", "all"};
+    labelBpmFilter->setText(QString::fromUtf8(
+            kBpmLabels[std::clamp(sliderBpmFilter->value(), 0, 4)]));
+    labelKeyFilter->setText(QString::fromUtf8(
+            kKeyLabels[std::clamp(sliderKeyFilter->value(), 0, 2)]));
 
-void DlgSimilar::slotBpmRangeChanged(int percent) {
-    m_pConfig->setValue(ConfigKey(kPreferenceGroup, kBpmRangeConfigKey), percent);
-    m_pTrackTableModel->setBpmRangePercent(percent);
-    applySortForWeights();
-    updateHiddenLabel();
-}
+    m_pConfig->setValue(ConfigKey(kPreferenceGroup, kBpmFilterConfigKey),
+            sliderBpmFilter->value());
+    m_pConfig->setValue(ConfigKey(kPreferenceGroup, kKeyFilterConfigKey),
+            sliderKeyFilter->value());
 
-void DlgSimilar::applySortForWeights() {
-    // Unweighted, the list keeps the order the stand sent (the '#' column):
-    // the stand ranks by the centred cosine while the column shows the plain
-    // one, so sorting by the column would silently disagree with the dashboard.
-    // With a weight on, the weighted number is the ranking and sorts the table.
-    const int column = m_pTrackTableModel->isWeighted()
-            ? m_pTrackTableModel->scoreColumn()
-            : m_pTrackTableModel->positionColumn();
-    if (column < 0) {
-        return;
-    }
-    const Qt::SortOrder order = m_pTrackTableModel->isWeighted() &&
-                    !m_pTrackTableModel->scoreIsMeanRank()
-            ? Qt::DescendingOrder
-            : Qt::AscendingOrder;
-    // Through the view, so that the header indicator follows.
-    m_pTrackTableView->sortByColumn(column, order);
+    // Purely local: the whole ranking is already in the model and every
+    // candidate carries how close it is, so a slider only moves a threshold.
+    // No request is sent.
+    m_pTrackTableModel->setLevels(bpmLevel, keyLevel);
+    updateHiddenLabel();
 }
 
 void DlgSimilar::updateHiddenLabel() {

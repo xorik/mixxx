@@ -25,29 +25,29 @@ const QString kViewName = QStringLiteral("mixxx_similar_view");
 
 // Internal columns of the score table, not exposed to the view.
 const QString kRawScore = QStringLiteral("raw_score");
-const QString kBpmPenalty = QStringLiteral("bpm_penalty");
-const QString kKeyPenalty = QStringLiteral("key_penalty");
+// The strictest slider position at which each candidate is still shown.
+// Computed once per answer: it depends on the seed and the candidate, not on
+// where the sliders stand.
+const QString kBpmLevelReached = QStringLiteral("bpm_visible_from");
+const QString kKeyLevelReached = QStringLiteral("key_visible_from");
 const QString kNoKey = QStringLiteral("no_key");
 
-constexpr double kDefaultBpmRangePercent = 6.0;
 constexpr int kRankColumnCount = 4;
 
-/// The penalty a full mismatch adds to a mean rank. Adding instead of dividing
-/// keeps the arithmetic away from a near-zero denominator, and one library
-/// length is enough to push a fully penalised track behind everything else.
-constexpr double kRankPenaltyScale = 100000.0;
+/// Tempo tolerance of each slider position, in per cent, left to right. The
+/// last position is "any" and filters nothing.
+constexpr double kBpmTolerancePercent[] = {1.5, 3.0, 4.5, 6.0};
+constexpr int kBpmAnyLevel = static_cast<int>(std::size(kBpmTolerancePercent));
 
 } // anonymous namespace
 
 SimilarTrackTableModel::SimilarTrackTableModel(
         QObject* parent, TrackCollectionManager* pTrackCollectionManager)
         : BaseSqlTableModel(parent, pTrackCollectionManager, kModelSettingsNamespace),
-          m_bpmWeight(0.0),
-          m_keyWeight(0.0),
-          m_bpmRangePercent(kDefaultBpmRangePercent),
-          m_keyMatchMode(KeyMatchMode::CamelotDistance) {
+          m_bpmLevel(BpmLevel::Any),
+          m_keyLevel(KeyLevel::All) {
     createTables();
-    writeWeights();
+    writeLevels();
 
     QStringList columns;
     columns << LIBRARYTABLE_ID
@@ -64,10 +64,9 @@ SimilarTrackTableModel::SimilarTrackTableModel(
             columns,
             pTrackCollectionManager->internalCollection()->getTrackSource());
     setSearch(QString());
-    // Rank order while no weight is active: the stand ranks by the centred
-    // cosine and we print the plain one, so sorting by the printed number would
-    // quietly disagree with the dashboard. As soon as a weight is on, the
-    // weighted score takes over (see setWeights).
+    // Always the order the stand sent: the sliders only take rows away, they
+    // never re-rank. That also keeps the list identical to the dashboard, which
+    // ranks by the centred cosine while the column shows the plain one.
     setDefaultSort(positionColumn(), Qt::AscendingOrder);
     setSort(defaultSortColumn(), defaultSortOrder());
 }
@@ -90,16 +89,16 @@ void SimilarTrackTableModel::createTables() {
             "  %2 INTEGER PRIMARY KEY,"
             "  %3 INTEGER,"
             "  %4 REAL,"
-            "  %5 REAL,"
-            "  %6 REAL,"
+            "  %5 INTEGER,"
+            "  %6 INTEGER,"
             "  %7 INTEGER,"
             "  %8 INTEGER, %9 INTEGER, %10 INTEGER, %11 INTEGER)")
                           .arg(kScoreTableName,
                                   LIBRARYTABLE_ID,
                                   PLAYLISTTRACKSTABLE_POSITION,
                                   kRawScore,
-                                  kBpmPenalty,
-                                  kKeyPenalty,
+                                  kBpmLevelReached,
+                                  kKeyLevelReached,
                                   kNoKey,
                                   SIMILARTABLE_RANK1,
                                   SIMILARTABLE_RANK2,
@@ -112,38 +111,29 @@ void SimilarTrackTableModel::createTables() {
 
     // One row, joined by the view: moving a slider is an UPDATE, not a rebuild.
     query.prepare(QStringLiteral(
-            "CREATE TEMPORARY TABLE IF NOT EXISTS %1 ("
-            "  w_bpm REAL, w_key REAL, is_rank INTEGER, rank_scale REAL)")
+            "CREATE TEMPORARY TABLE IF NOT EXISTS %1 (bpm_level INTEGER, key_level INTEGER)")
                           .arg(kWeightTableName));
     if (!query.exec()) {
         LOG_FAILED_QUERY(query);
         return;
     }
-    query.prepare(QStringLiteral("INSERT INTO %1 (w_bpm, w_key, is_rank, rank_scale) "
-                                 "SELECT 0.0, 0.0, 0, %2 WHERE NOT EXISTS (SELECT 1 FROM %1)")
-                          .arg(kWeightTableName, QString::number(kRankPenaltyScale)));
+    query.prepare(QStringLiteral("INSERT INTO %1 (bpm_level, key_level) "
+                                 "SELECT 0, 0 WHERE NOT EXISTS (SELECT 1 FROM %1)")
+                          .arg(kWeightTableName));
     if (!query.exec()) {
         LOG_FAILED_QUERY(query);
         return;
     }
 
-    // The weighted score:
-    //   cosine providers  score x (1 - w_bpm*p_bpm) x (1 - w_key*p_key)
-    //   the ensemble      mean rank + scale x (w_bpm*p_bpm + w_key*p_key)
-    // The ensemble counts upwards (lower is closer), so a penalty has to make
-    // the number bigger; adding avoids dividing by a near-zero factor.
-    // A weight of 1 against a full penalty removes the row altogether, which is
-    // the "hard filter" end of the slider.
+    // The sliders are thresholds, not weights: a candidate carries the
+    // strictest level it still passes, and the view keeps the rows that reach
+    // the level the slider is on. The score is left exactly as the stand sent
+    // it, so nothing on screen is a number we invented.
     query.prepare(QStringLiteral(
             "CREATE TEMPORARY VIEW IF NOT EXISTS %1 AS SELECT "
             "  scores.%2 AS %2,"
             "  scores.%3 AS %3,"
-            "  CASE WHEN w.is_rank = 1"
-            "    THEN scores.%4 + w.rank_scale *"
-            "         (w.w_bpm * scores.%5 + w.w_key * scores.%6)"
-            "    ELSE scores.%4 * (1.0 - w.w_bpm * scores.%5)"
-            "                   * (1.0 - w.w_key * scores.%6)"
-            "  END AS %7,"
+            "  scores.%4 AS %7,"
             "  scores.%8 AS %8, scores.%9 AS %9, scores.%10 AS %10, scores.%11 AS %11,"
             "  '' AS %12,"
             // The cover art column sorts by the digest, as everywhere else.
@@ -153,14 +143,14 @@ void SimilarTrackTableModel::createTables() {
             "INNER JOIN library ON library.id = scores.%2 "
             "INNER JOIN track_locations ON library.location = track_locations.id "
             "WHERE library.mixxx_deleted = 0 AND track_locations.fs_deleted = 0 "
-            "  AND w.w_bpm * scores.%5 < 1.0 "
-            "  AND w.w_key * scores.%6 < 1.0")
+            "  AND scores.%5 <= w.bpm_level "
+            "  AND scores.%6 <= w.key_level")
                           .arg(kViewName,
                                   LIBRARYTABLE_ID,
                                   PLAYLISTTRACKSTABLE_POSITION,
                                   kRawScore,
-                                  kBpmPenalty,
-                                  kKeyPenalty,
+                                  kBpmLevelReached,
+                                  kKeyLevelReached,
                                   SIMILARTABLE_SCORE,
                                   SIMILARTABLE_RANK1,
                                   SIMILARTABLE_RANK2,
@@ -176,67 +166,64 @@ void SimilarTrackTableModel::createTables() {
     }
 }
 
-void SimilarTrackTableModel::writeWeights() {
+void SimilarTrackTableModel::writeLevels() {
     QSqlQuery query(m_database);
-    query.prepare(QStringLiteral("UPDATE %1 SET w_bpm = :wbpm, w_key = :wkey, "
-                                 "is_rank = :isrank")
+    query.prepare(QStringLiteral("UPDATE %1 SET bpm_level = :bpm, key_level = :key")
                           .arg(kWeightTableName));
-    query.bindValue(QStringLiteral(":wbpm"), m_bpmWeight);
-    query.bindValue(QStringLiteral(":wkey"), m_keyWeight);
-    query.bindValue(QStringLiteral(":isrank"), m_result.scoreIsMeanRank ? 1 : 0);
+    query.bindValue(QStringLiteral(":bpm"), static_cast<int>(m_bpmLevel));
+    query.bindValue(QStringLiteral(":key"), static_cast<int>(m_keyLevel));
     if (!query.exec()) {
         LOG_FAILED_QUERY(query);
     }
 }
 
-double SimilarTrackTableModel::bpmPenalty(double seedBpm, double candidateBpm) const {
+int SimilarTrackTableModel::bpmVisibleFrom(double seedBpm, double candidateBpm) const {
     if (seedBpm <= 0.0) {
-        // Nothing to compare against: do not punish anybody.
-        return 0.0;
+        // Nothing to compare against: show it everywhere rather than emptying
+        // the list because the seed was never analysed.
+        return 0;
     }
     if (candidateBpm <= 0.0) {
-        // Unanalysed tempo is as far away as it gets.
-        return 1.0;
+        // An unanalysed tempo only survives "any".
+        return kBpmAnyLevel;
     }
     // No half/double folding on purpose: this library keeps drum & bass at half
     // tempo throughout, so 85 and 170 are different tempos here, not the same one.
-    const double tolerance = seedBpm * m_bpmRangePercent / 100.0;
-    if (tolerance <= 0.0) {
-        return candidateBpm == seedBpm ? 0.0 : 1.0;
+    const double differencePercent =
+            std::abs(candidateBpm - seedBpm) / seedBpm * 100.0;
+    for (int level = 0; level < kBpmAnyLevel; ++level) {
+        if (differencePercent <= kBpmTolerancePercent[level]) {
+            return level;
+        }
     }
-    return std::min(1.0, std::abs(candidateBpm - seedBpm) / tolerance);
+    return kBpmAnyLevel;
 }
 
-double SimilarTrackTableModel::keyPenalty(int seedKeyId, int candidateKeyId) const {
+int SimilarTrackTableModel::keyVisibleFrom(int seedKeyId, int candidateKeyId) const {
     const auto seedKey = KeyUtils::keyFromNumericValue(seedKeyId);
     const auto candidateKey = KeyUtils::keyFromNumericValue(candidateKeyId);
     if (seedKey == mixxx::track::io::key::INVALID) {
-        // The seed has no key, so nothing can be judged against it.
-        return 0.0;
+        // The seed has no key, so nothing can be judged against it: do not
+        // silently empty the list.
+        return static_cast<int>(KeyLevel::Harmonic);
     }
     if (candidateKey == mixxx::track::io::key::INVALID) {
-        return 1.0;
+        return static_cast<int>(KeyLevel::All);
     }
-    switch (m_keyMatchMode) {
-    case KeyMatchMode::Exact:
-        return seedKey == candidateKey ? 0.0 : 1.0;
-    case KeyMatchMode::Harmonic:
-        // The set Mixxx itself calls harmonic: the relative key and the wheel
-        // neighbours of both modes (also what the '~key:' search uses).
-        return KeyUtils::getCompatibleKeys(seedKey).contains(candidateKey) ? 0.0 : 1.0;
-    case KeyMatchMode::CamelotDistance:
-    default: {
-        const int seedNumber = KeyUtils::keyToOpenKeyNumber(seedKey);
-        const int candidateNumber = KeyUtils::keyToOpenKeyNumber(candidateKey);
-        int steps = std::abs(seedNumber - candidateNumber);
-        steps = std::min(steps, 12 - steps); // 0..6 around the wheel
-        if (KeyUtils::keyIsMajor(seedKey) != KeyUtils::keyIsMajor(candidateKey)) {
-            // Relative major/minor is one step, as on the Camelot wheel.
-            steps += 1;
-        }
-        return std::min(1.0, steps / 6.0);
+    if (seedKey == candidateKey ||
+            KeyUtils::getCompatibleKeys(seedKey).contains(candidateKey)) {
+        return static_cast<int>(KeyLevel::Harmonic);
     }
+    // Steps around the Camelot wheel, counting a major/minor change as a step.
+    const int seedNumber = KeyUtils::keyToOpenKeyNumber(seedKey);
+    const int candidateNumber = KeyUtils::keyToOpenKeyNumber(candidateKey);
+    int steps = std::abs(seedNumber - candidateNumber);
+    steps = std::min(steps, 12 - steps);
+    if (KeyUtils::keyIsMajor(seedKey) != KeyUtils::keyIsMajor(candidateKey)) {
+        steps += 1;
     }
+    return steps <= 2 ? static_cast<int>(KeyLevel::Wide)
+                      : static_cast<int>(KeyLevel::All);
 }
 
 void SimilarTrackTableModel::refill() {
@@ -286,14 +273,14 @@ void SimilarTrackTableModel::refill() {
     QSqlQuery insertQuery(m_database);
     insertQuery.prepare(QStringLiteral(
             "INSERT OR REPLACE INTO %1 (%2, %3, %4, %5, %6, %7, %8, %9, %10, %11) "
-            "VALUES (:id, :position, :score, :bpmpen, :keypen, :nokey, "
+            "VALUES (:id, :position, :score, :bpmlevel, :keylevel, :nokey, "
             ":rank1, :rank2, :rank3, :rank4)")
                                 .arg(kScoreTableName,
                                         LIBRARYTABLE_ID,
                                         PLAYLISTTRACKSTABLE_POSITION,
                                         kRawScore,
-                                        kBpmPenalty,
-                                        kKeyPenalty,
+                                        kBpmLevelReached,
+                                        kKeyLevelReached,
                                         kNoKey,
                                         SIMILARTABLE_RANK1,
                                         SIMILARTABLE_RANK2,
@@ -309,10 +296,10 @@ void SimilarTrackTableModel::refill() {
         insertQuery.bindValue(QStringLiteral(":id"), track.trackId.toVariant());
         insertQuery.bindValue(QStringLiteral(":position"), track.position);
         insertQuery.bindValue(QStringLiteral(":score"), track.score);
-        insertQuery.bindValue(QStringLiteral(":bpmpen"),
-                bpmPenalty(seedValues.first, values.first));
-        insertQuery.bindValue(QStringLiteral(":keypen"),
-                keyPenalty(seedValues.second, values.second));
+        insertQuery.bindValue(QStringLiteral(":bpmlevel"),
+                bpmVisibleFrom(seedValues.first, values.first));
+        insertQuery.bindValue(QStringLiteral(":keylevel"),
+                keyVisibleFrom(seedValues.second, values.second));
         insertQuery.bindValue(QStringLiteral(":nokey"), values.second <= 0 ? 1 : 0);
         for (int i = 0; i < kRankColumnCount; ++i) {
             const QString toolKey = m_rankToolKeys.value(i);
@@ -382,7 +369,7 @@ void SimilarTrackTableModel::setRankTools(
 
 void SimilarTrackTableModel::setResult(const mixxx::SimilarityResult& result) {
     m_result = result;
-    writeWeights(); // is_rank follows the provider
+    writeLevels();
     updateHeaders();
     refill();
     select();
@@ -394,29 +381,14 @@ void SimilarTrackTableModel::clearResult() {
     select();
 }
 
-void SimilarTrackTableModel::setWeights(double bpmWeight, double keyWeight) {
-    m_bpmWeight = std::clamp(bpmWeight, 0.0, 1.0);
-    m_keyWeight = std::clamp(keyWeight, 0.0, 1.0);
-    writeWeights();
-    select();
-}
-
-void SimilarTrackTableModel::setBpmRangePercent(double percent) {
-    if (percent <= 0.0 || qFuzzyCompare(percent, m_bpmRangePercent)) {
+void SimilarTrackTableModel::setLevels(BpmLevel bpmLevel, KeyLevel keyLevel) {
+    if (bpmLevel == m_bpmLevel && keyLevel == m_keyLevel) {
         return;
     }
-    m_bpmRangePercent = percent;
-    // The penalty itself changes, so the rows have to be written again.
-    refill();
-    select();
-}
-
-void SimilarTrackTableModel::setKeyMatchMode(KeyMatchMode mode) {
-    if (mode == m_keyMatchMode) {
-        return;
-    }
-    m_keyMatchMode = mode;
-    refill();
+    m_bpmLevel = bpmLevel;
+    m_keyLevel = keyLevel;
+    // The distances are already in the rows; only the thresholds move.
+    writeLevels();
     select();
 }
 
@@ -426,13 +398,13 @@ SimilarTrackTableModel::HiddenCounts SimilarTrackTableModel::hiddenCounts() cons
     query.setForwardOnly(true);
     query.prepare(QStringLiteral(
             "SELECT "
-            "  SUM(CASE WHEN :wkey * %2 >= 1.0 AND %4 = 1 THEN 1 ELSE 0 END),"
-            "  SUM(CASE WHEN :wkey * %2 >= 1.0 AND %4 = 0 THEN 1 ELSE 0 END),"
-            "  SUM(CASE WHEN :wbpm * %3 >= 1.0 THEN 1 ELSE 0 END) "
+            "  SUM(CASE WHEN %2 > :key AND %4 = 1 THEN 1 ELSE 0 END),"
+            "  SUM(CASE WHEN %2 > :key AND %4 = 0 THEN 1 ELSE 0 END),"
+            "  SUM(CASE WHEN %3 > :bpm THEN 1 ELSE 0 END) "
             "FROM %1")
-                          .arg(kScoreTableName, kKeyPenalty, kBpmPenalty, kNoKey));
-    query.bindValue(QStringLiteral(":wkey"), m_keyWeight);
-    query.bindValue(QStringLiteral(":wbpm"), m_bpmWeight);
+                          .arg(kScoreTableName, kKeyLevelReached, kBpmLevelReached, kNoKey));
+    query.bindValue(QStringLiteral(":key"), static_cast<int>(m_keyLevel));
+    query.bindValue(QStringLiteral(":bpm"), static_cast<int>(m_bpmLevel));
     if (!query.exec()) {
         LOG_FAILED_QUERY(query);
         return counts;

@@ -23,16 +23,29 @@ class SimilarTrackTableModel : public BaseSqlTableModel {
     Q_OBJECT
 
   public:
-    /// How the distance between two keys is turned into a penalty.
-    enum class KeyMatchMode {
-        /// Steps around the Camelot wheel, plus one for a major/minor change,
-        /// scaled so that the opposite side of the wheel is a full penalty.
-        CamelotDistance,
-        /// Free inside KeyUtils::getCompatibleKeys() (the wheel neighbours and
-        /// the relative key), full penalty outside.
-        Harmonic,
-        /// Free for the same key only.
-        Exact,
+    /// Positions of the key slider, left to right, exactly as the user named
+    /// them. Each position is a threshold, not a weight: a candidate either
+    /// survives it or is not shown. Moving right widens the list, so the
+    /// rightmost position is the default and nothing is hidden until asked.
+    enum class KeyLevel {
+        /// The set Mixxx already calls harmonic: KeyUtils::getCompatibleKeys(),
+        /// the relative key and the wheel neighbours - the same set '~key:' uses.
+        Harmonic = 0,
+        /// One step wider: up to two steps around the Camelot wheel, counting a
+        /// major/minor change as a step.
+        Wide = 1,
+        /// No key filter at all.
+        All = 2,
+    };
+
+    /// Positions of the tempo slider, left to right. The labels carry the
+    /// numbers, so no separate tolerance box is needed.
+    enum class BpmLevel {
+        OnePointFivePercent = 0,
+        ThreePercent = 1,
+        FourPointFivePercent = 2,
+        SixPercent = 3,
+        Any = 4,
     };
 
     /// What the weights dropped from the list, for the line under the table.
@@ -55,13 +68,11 @@ class SimilarTrackTableModel : public BaseSqlTableModel {
     void setResult(const mixxx::SimilarityResult& result);
     void clearResult();
 
-    /// 0 ignores the factor, 1 turns it into a hard filter, in between the
-    /// score is scaled down. Cheap: no request, no penalty recomputation.
-    void setWeights(double bpmWeight, double keyWeight);
-    /// Tempo tolerance in per cent, the range over which the tempo penalty
-    /// grows from none to full.
-    void setBpmRangePercent(double percent);
-    void setKeyMatchMode(KeyMatchMode mode);
+    /// Move a slider. Cheap by construction: how far each candidate is from the
+    /// seed does not depend on the sliders, so it is worked out once per answer
+    /// and only the thresholds change here - one UPDATE and a re-select, no
+    /// request and no recomputation.
+    void setLevels(BpmLevel bpmLevel, KeyLevel keyLevel);
 
     /// Tool keys behind the four rank columns, in column order, plus the names
     /// to put in their headers.
@@ -70,11 +81,6 @@ class SimilarTrackTableModel : public BaseSqlTableModel {
     HiddenCounts hiddenCounts() const;
     bool scoreIsMeanRank() const {
         return m_result.scoreIsMeanRank;
-    }
-    /// True while at least one weight is active, which is when the list is
-    /// ordered by the weighted score instead of the order the stand sent.
-    bool isWeighted() const {
-        return m_bpmWeight > 0.0 || m_keyWeight > 0.0;
     }
     int scoreColumn() const;
     int positionColumn() const;
@@ -87,17 +93,18 @@ class SimilarTrackTableModel : public BaseSqlTableModel {
 
   private:
     void createTables();
-    void writeWeights();
+    void writeLevels();
     void refill();
     void updateHeaders();
-    double bpmPenalty(double seedBpm, double candidateBpm) const;
-    double keyPenalty(int seedKeyId, int candidateKeyId) const;
+    /// Leftmost (strictest) slider position at which this candidate is still
+    /// shown. A row visible at one position stays visible at every looser one,
+    /// so the view only has to compare this with where the slider stands.
+    int bpmVisibleFrom(double seedBpm, double candidateBpm) const;
+    int keyVisibleFrom(int seedKeyId, int candidateKeyId) const;
 
     mixxx::SimilarityResult m_result;
-    double m_bpmWeight;
-    double m_keyWeight;
-    double m_bpmRangePercent;
-    KeyMatchMode m_keyMatchMode;
+    BpmLevel m_bpmLevel;
+    KeyLevel m_keyLevel;
     QStringList m_rankToolKeys;
     QStringList m_rankToolNames;
 };
