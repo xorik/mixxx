@@ -80,6 +80,10 @@ const QString PLAYLISTTRACKSTABLE_DATETIMEADDED = QStringLiteral("pl_datetime_ad
 
 const QString REKORDBOX_ANALYZE_PATH = "analyze_path";
 
+// Not a library column: the score the annotation stand returned for a
+// candidate, carried by the temporary view behind SimilarTrackTableModel.
+const QString SIMILARTABLE_SCORE = QStringLiteral("similarity");
+
 namespace mixxx {
 namespace trackschema {
 // TableForColumn returns the name of the table that contains the named column.

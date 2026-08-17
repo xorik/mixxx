@@ -24,6 +24,7 @@
 #include "library/rhythmbox/rhythmboxfeature.h"
 #include "library/serato/seratofeature.h"
 #include "library/sidebarmodel.h"
+#include "library/similar/similarfeature.h"
 #include "library/trackcollection.h"
 #include "library/trackcollectionmanager.h"
 #include "library/trackmodel.h"
@@ -176,6 +177,12 @@ Library::Library(
             &AnalysisFeature::trackProgress,
             this,
             &Library::onTrackAnalyzerProgress);
+
+    // Similar tracks: a pane fed by the external annotation stand over HTTP.
+    // Added last among the built-in features so that upstream changes to the
+    // list above merge without touching this block.
+    m_pSimilarFeature = make_parented<SimilarFeature>(this, m_pConfig);
+    addFeature(m_pSimilarFeature);
 
     // iTunes and Rhythmbox should be last until we no longer have an obnoxious
     // messagebox popup when you select them. (This forces you to reach for your

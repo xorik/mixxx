@@ -70,6 +70,8 @@ class ColumnCache : public QObject {
 
         COLUMN_REKORDBOX_ANALYZE_PATH,
 
+        COLUMN_SIMILARTABLE_SCORE,
+
         // NUM_COLUMNS should always be the last item.
         NUM_COLUMNS
     };

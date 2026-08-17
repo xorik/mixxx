@@ -1,0 +1,73 @@
+#include "library/similar/similarfeature.h"
+
+#include "controllers/keyboard/keyboardeventfilter.h"
+#include "library/library.h"
+#include "library/similar/dlgsimilar.h"
+#include "moc_similarfeature.cpp"
+#include "widget/wlibrary.h"
+
+namespace {
+
+const QString kViewName = QStringLiteral("Similar");
+
+} // anonymous namespace
+
+SimilarFeature::SimilarFeature(Library* pLibrary, UserSettingsPointer pConfig)
+        : LibraryFeature(pLibrary, pConfig, QStringLiteral("promotracks")),
+          m_title(tr("Similar")),
+          m_pSidebarModel(make_parented<TreeItemModel>(this)),
+          m_pSimilarView(nullptr) {
+}
+
+QVariant SimilarFeature::title() {
+    return m_title;
+}
+
+TreeItemModel* SimilarFeature::sidebarModel() const {
+    return m_pSidebarModel;
+}
+
+void SimilarFeature::bindLibraryWidget(
+        WLibrary* pLibraryWidget, KeyboardEventFilter* pKeyboard) {
+    m_pSimilarView = new DlgSimilar(pLibraryWidget, m_pConfig, m_pLibrary);
+    connect(m_pSimilarView,
+            &DlgSimilar::loadTrack,
+            this,
+            &SimilarFeature::loadTrack);
+    connect(m_pSimilarView,
+            &DlgSimilar::loadTrackToPlayer,
+            this,
+            [this](TrackPointer pTrack, const QString& group) {
+                emit loadTrackToPlayer(pTrack,
+                        group,
+#ifdef __STEM__
+                        mixxx::StemChannelSelection(),
+#endif
+                        false);
+            });
+    connect(m_pSimilarView,
+            &DlgSimilar::trackSelected,
+            this,
+            &SimilarFeature::trackSelected);
+
+    // The seed follows whatever is selected in any track table. Library relays
+    // the selection of every view, including this one - DlgSimilar filters its
+    // own selection out so that walking down the result list does not keep
+    // reseeding the search.
+    connect(m_pLibrary,
+            &Library::trackSelected,
+            m_pSimilarView,
+            &DlgSimilar::slotTrackSelected);
+
+    m_pSimilarView->installEventFilter(pKeyboard);
+
+    pLibraryWidget->registerView(kViewName, m_pSimilarView);
+}
+
+void SimilarFeature::activate() {
+    emit switchToView(kViewName);
+    if (m_pSimilarView) {
+        emit restoreSearch(m_pSimilarView->currentSearch());
+    }
+    emit enableCoverArtDisplay(true);
+}

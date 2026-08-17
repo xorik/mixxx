@@ -16,6 +16,7 @@
 #include "util/parented_ptr.h"
 
 class AnalysisFeature;
+class SimilarFeature;
 class AutoDJFeature;
 class BrowseFeature;
 class ControlObject;
@@ -203,6 +204,7 @@ class Library: public QObject {
     parented_ptr<CrateFeature> m_pCrateFeature;
     parented_ptr<BrowseFeature> m_pBrowseFeature;
     parented_ptr<AnalysisFeature> m_pAnalysisFeature;
+    parented_ptr<SimilarFeature> m_pSimilarFeature;
     QFont m_trackTableFont;
     int m_iTrackTableRowHeight;
     bool m_editMetadataSelectedClick;
