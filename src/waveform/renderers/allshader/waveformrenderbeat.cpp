@@ -4,8 +4,8 @@
 
 #include "moc_waveformrenderbeat.cpp"
 #include "rendergraph/geometry.h"
-#include "rendergraph/material/unicolormaterial.h"
-#include "rendergraph/vertexupdaters/vertexupdater.h"
+#include "rendergraph/material/rgbamaterial.h"
+#include "rendergraph/vertexupdaters/rgbavertexupdater.h"
 #include "skin/legacy/skincontext.h"
 #include "track/track.h"
 #include "waveform/renderers/waveformwidgetrenderer.h"
@@ -19,7 +19,11 @@ WaveformRenderBeat::WaveformRenderBeat(WaveformWidgetRenderer* waveformWidget,
         ::WaveformRendererAbstract::PositionSource type)
         : ::WaveformRendererAbstract(waveformWidget),
           m_isSlipRenderer(type == ::WaveformRendererAbstract::Slip) {
-    initForRectangles<UniColorMaterial>(0);
+    // RGBA rather than one colour for the whole grid: the first beat of a bar
+    // is drawn at the full alpha of the beat grid and the other three at half
+    // of it, so the alpha has to travel per vertex. One geometry and one draw
+    // call either way.
+    initForRectangles<RGBAMaterial>(0);
     setUsePreprocess(true);
 }
 
@@ -108,11 +112,42 @@ bool WaveformRenderBeat::preprocessInner() {
     const int reserved = numBeatsInRange * numVerticesPerLine;
     geometry().allocate(reserved);
 
-    VertexUpdater vertexUpdater{geometry().vertexDataAs<Geometry::Point2D>()};
+    RGBAVertexUpdater vertexUpdater{geometry().vertexDataAs<Geometry::RGBAColoredPoint2D>()};
+
+    // Which beat of the bar each line is. Counted from the first beat of the
+    // track in fours, because that is all the information there is: Mixxx knows
+    // where the beats are and not where a bar starts.
+    //
+    // NOTE, and it matters on real tracks: firstBeat is the first beat the
+    // ANALYSER found, not the musical downbeat. Where the analyser latched onto
+    // an off-beat - a shaker before the first kick, a pickup bar - the accent
+    // lands on the wrong beat of the bar, consistently, for the whole track.
+    // Moving the first beat in the beat editor fixes it; nothing here can,
+    // because the information is not in the file.
+    constexpr int kBeatsPerBar = 4;
+    const mixxx::audio::FramePos firstBeatPosition = trackBeats->firstBeat();
+    int beatIndex = 0;
+    if (firstBeatPosition.isValid()) {
+        int countedFromFirst = 0;
+        for (auto counter = trackBeats->iteratorFrom(firstBeatPosition);
+                counter != trackBeats->cend() && *counter < startPosition;
+                ++counter) {
+            countedFromFirst++;
+        }
+        beatIndex = countedFromFirst % kBeatsPerBar;
+    }
+
+    const float red = static_cast<float>(m_color.redF());
+    const float green = static_cast<float>(m_color.greenF());
+    const float blue = static_cast<float>(m_color.blueF());
+    const float fullAlpha = static_cast<float>(m_color.alphaF());
+    // Half the alpha of the grid, not a fixed number: the user sets how visible
+    // the grid is in the preferences, and the accent has to keep following it.
+    const float weakAlpha = fullAlpha * 0.5f;
 
     for (auto it = trackBeats->iteratorFrom(startPosition);
             it != trackBeats->cend() && *it <= endPosition;
-            ++it) {
+            ++it, beatIndex = (beatIndex + 1) % kBeatsPerBar) {
         double beatPosition = it->toEngineSamplePos();
         double xBeatPoint =
                 m_waveformRenderer->transformSamplePositionInRendererWorld(
@@ -123,15 +158,14 @@ bool WaveformRenderBeat::preprocessInner() {
         const float x1 = static_cast<float>(xBeatPoint);
         const float x2 = x1 + 1.f;
 
+        const float alpha = beatIndex == 0 ? fullAlpha : weakAlpha;
         vertexUpdater.addRectangle({x1, 0.f},
-                {x2, m_isSlipRenderer ? rendererBreadth / 2 : rendererBreadth});
+                {x2, m_isSlipRenderer ? rendererBreadth / 2 : rendererBreadth},
+                {red, green, blue, alpha});
     }
     markDirtyGeometry();
 
     DEBUG_ASSERT(reserved == vertexUpdater.index());
-
-    material().setUniform(1, m_color);
-    markDirtyMaterial();
 
     return true;
 }
