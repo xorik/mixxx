@@ -331,6 +331,27 @@ class Beats : private std::enable_shared_from_this<Beats> {
         return findNextBeat(mixxx::audio::kStartFramePos);
     }
 
+    /// NOTE on getLastMarkerPosition() below, which is the anchor of the grid
+    /// and NOT the first beat.
+    ///
+    /// For a track of constant tempo the beats are anchor + k * interval for
+    /// every integer k, in both directions, so the anchor is one particular
+    /// beat and the first beat is whichever of them lands at or after the start
+    /// of the track. Moving the anchor onto another beat leaves every beat
+    /// position exactly where it was, which is what makes it usable as a mark
+    /// of where a bar begins - see WaveformRenderBeat and slotBeatsTranslate.
+    ///
+    /// It survives being written to disk: the serialised field is called
+    /// "first_beat", but what is written into it and read back out of it is
+    /// this anchor. Anyone tempted to normalise that field to the real first
+    /// beat would silently move every downbeat mark in the library.
+
+    /// Frames between two beats at the anchor. Only meaningful for a track of
+    /// constant tempo.
+    audio::FrameDiff_t anchorBeatLengthFrames() const {
+        return lastBeatLengthFrames();
+    }
+
     /// Starting from frame position `position`, return the frame position of
     /// the closest beat in the track, or an invalid position if none exists.
     audio::FramePos findClosestBeat(audio::FramePos position) const;

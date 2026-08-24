@@ -1,6 +1,7 @@
 #include "waveform/renderers/allshader/waveformrenderbeat.h"
 
 #include <QDomNode>
+#include <cmath>
 
 #include "moc_waveformrenderbeat.cpp"
 #include "rendergraph/geometry.h"
@@ -114,46 +115,51 @@ bool WaveformRenderBeat::preprocessInner() {
 
     RGBAVertexUpdater vertexUpdater{geometry().vertexDataAs<Geometry::RGBAColoredPoint2D>()};
 
-    // Which beat of the bar each line is. Counted from the first beat of the
-    // track in fours, because that is all the information there is: Mixxx knows
-    // where the beats are and not where a bar starts.
+    // Which beat of the bar each line is.
     //
-    // THE COUNT HAS TO BE ANCHORED ON THE SAME BEAT THE DRAWING STARTS FROM,
-    // and that is less obvious than it sounds. Before the first beat,
-    // Beats::iteratorFrom does not stop - it extrapolates backwards from the
-    // first marker and hands out beats that are not in the file. At the very
-    // beginning of a track the visible window reaches back there, so the loop
-    // below starts on one of those, while a count that began at the first beat
-    // starts somewhere else entirely. The two anchors then disagree by however
-    // many extrapolated beats happen to be on screen - a number that falls by
-    // one with every beat the playhead passes, which is why the accent appeared
-    // to walk across the bar as the track started.
+    // COUNTED FROM THE ANCHOR OF THE GRID, not from the first beat, and the
+    // difference is the whole feature. For a constant tempo track the beats are
+    // anchor + k * interval for every integer k, so moving the anchor by a
+    // whole number of beats leaves every beat exactly where it was and changes
+    // only which of them is number zero. That is how the user marks where a bar
+    // begins - adjust_beatgrid puts the anchor on the beat nearest the playhead
+    // - without a single line on the waveform moving.
     //
-    // So the index is worked out for the beat the drawing actually starts on,
-    // counting in whichever direction that beat lies from the first one.
-    // Extrapolated beats keep being drawn, as they always were; they simply get
-    // the index the grid implies rather than a fresh zero.
+    // Counting from the first beat cannot do this: the first beat is whichever
+    // beat lands at or after the start of the track, and it does not move when
+    // the anchor does. Nor is there anywhere else to keep the mark - the anchor
+    // is the only thing in the grid that can carry it, and it already persists.
     //
-    // NOTE for whoever reads this next: the first beat is the first one the
-    // ANALYSER found, not the musical downbeat. Where the analyser latched onto
-    // an off-beat - a shaker before the first kick, a pickup bar - every accent
-    // in the track sits on the same wrong beat of the bar. Moving the first
-    // beat in the beat editor fixes it; nothing here can, because the
-    // information is not in the file.
+    // A track of varying tempo has no single anchor, so it falls back to the
+    // first beat and the mark cannot be moved. The user does not use those.
     constexpr int kBeatsPerBar = 4;
-    const mixxx::audio::FramePos firstBeatPosition = trackBeats->firstBeat();
+    const bool constantTempo = trackBeats->hasConstantTempo();
+    const mixxx::audio::FramePos anchorPosition =
+            constantTempo ? trackBeats->getLastMarkerPosition() : trackBeats->firstBeat();
+    const double beatLength = constantTempo ? trackBeats->anchorBeatLengthFrames() : 0.0;
+
     int beatIndex = 0;
-    if (firstBeatPosition.isValid()) {
+    if (constantTempo && beatLength > 0.0) {
+        // Arithmetic rather than counting: the anchor can be thousands of beats
+        // away from what is on screen, and walking there every frame would cost
+        // the same as drawing it.
+        const double beatsFromAnchor =
+                (startPosition - anchorPosition) / beatLength;
+        const int firstIndex = static_cast<int>(std::ceil(beatsFromAnchor - 1e-6));
+        beatIndex = ((firstIndex % kBeatsPerBar) + kBeatsPerBar) % kBeatsPerBar;
+    } else if (anchorPosition.isValid()) {
+        // Varying tempo: no interval to divide by, so the beats are counted.
+        // The count has to start on the beat the drawing starts on, or the two
+        // walk apart as the window moves - see the note in the history of this
+        // file.
         int offset = 0;
         auto counter = trackBeats->iteratorFrom(startPosition);
-        if (counter != trackBeats->cend() && *counter < firstBeatPosition) {
-            // The window starts before the first beat: count forwards to it and
-            // take the offset as negative.
-            for (; counter != trackBeats->cend() && *counter < firstBeatPosition; ++counter) {
+        if (counter != trackBeats->cend() && *counter < anchorPosition) {
+            for (; counter != trackBeats->cend() && *counter < anchorPosition; ++counter) {
                 offset--;
             }
         } else {
-            for (auto forward = trackBeats->iteratorFrom(firstBeatPosition);
+            for (auto forward = trackBeats->iteratorFrom(anchorPosition);
                     forward != trackBeats->cend() && *forward < startPosition;
                     ++forward) {
                 offset++;
@@ -161,6 +167,12 @@ bool WaveformRenderBeat::preprocessInner() {
         }
         beatIndex = ((offset % kBeatsPerBar) + kBeatsPerBar) % kBeatsPerBar;
     }
+
+    // NOTE for whoever reads this next: the anchor starts life where the
+    // ANALYSER put it, which is not the musical downbeat. Until the user marks
+    // one with adjust_beatgrid, every accent in the track may sit on the same
+    // wrong beat of the bar. That is not something the renderer can work out -
+    // Mixxx stores where the beats are, not where a bar begins.
 
     const float red = static_cast<float>(m_color.redF());
     const float green = static_cast<float>(m_color.greenF());

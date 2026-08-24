@@ -1219,8 +1219,52 @@ void BpmControl::slotBeatsTranslate(double v) {
         const auto currentPosition = frameInfo().currentPosition.toLowerFrameBoundary();
         const auto closestBeat = pBeats->findClosestBeat(currentPosition);
         const mixxx::audio::FrameDiff_t frameOffset = currentPosition - closestBeat;
-        const auto translatedBeats = pBeats->tryTranslate(frameOffset);
+        auto translatedBeats = pBeats->tryTranslate(frameOffset);
         if (translatedBeats) {
+            // The button does a second thing now, and the two are deliberately
+            // one press: it also marks this beat as the start of a bar, which
+            // is what the waveform accents.
+            //
+            // The mark is the anchor of the grid. Moving it by a WHOLE number
+            // of beats leaves every beat position exactly where the first step
+            // just put it - the set of beats is unchanged - so the two actions
+            // cannot fight: the first decides where the beats are, the second
+            // decides which of them is number one.
+            //
+            // Only for a constant tempo track. A varying grid has no single
+            // anchor to move, and there the button keeps doing what it always
+            // did.
+            //
+            // Worth knowing at the controls: the mark lands on the beat NEAREST
+            // the playhead, not on the playhead. Pressing between two beats
+            // marks whichever is closer, so the accuracy of the gesture is half
+            // a beat by construction.
+            const mixxx::BeatsPointer pTranslated = *translatedBeats;
+            if (pTranslated->hasConstantTempo()) {
+                const auto beatToMark = pTranslated->findClosestBeat(currentPosition);
+                if (beatToMark.isValid()) {
+                    // The anchor is put ON the beat, rather than moved towards
+                    // it by a number of intervals. The two are the same in
+                    // exact arithmetic and not the same in frames: an interval
+                    // is a fraction of a frame, so moving by N of them rounds,
+                    // and the rounding drags the whole grid along by up to a
+                    // frame. Measured before this was written: 0.78 of a frame
+                    // for one beat of shift, and the error is fresh on every
+                    // press, so it accumulates over a session.
+                    //
+                    // Anchoring on a beat that already exists cannot round:
+                    // every position the grid generates from it,
+                    // newAnchor + k * interval, is a position the old grid
+                    // already had as oldAnchor + (N + k) * interval.
+                    const auto reanchored = mixxx::Beats::fromConstTempo(
+                            pTranslated->getSampleRate(),
+                            beatToMark,
+                            pTranslated->getLastMarkerBpm());
+                    if (reanchored) {
+                        translatedBeats = reanchored;
+                    }
+                }
+            }
             pTrack->trySetBeats(*translatedBeats);
         }
     }

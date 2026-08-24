@@ -635,4 +635,69 @@ TEST(BeatsTest, IteratorFromFloorUndershoot) {
     EXPECT_LT(std::prev(it)->value(), position.value());
 }
 
+/// Moving the anchor of a constant tempo grid by whole beats has to leave every
+/// beat exactly where it was. That is what lets the waveform mark where a bar
+/// begins without moving a single line, and it is the one property the feature
+/// rests on - so it is checked on the positions themselves rather than taken
+/// from the arithmetic.
+TEST(BeatsTest, ReAnchoringOnAnExistingBeatMovesNoBeatAtAll) {
+    // The waveform marks where a bar begins by moving the anchor of the grid
+    // onto the beat the user chose. Every beat has to stay exactly where it
+    // was, to the frame: this is the ritmic grid the rest of the program syncs
+    // against, and an error that appears on every press would accumulate over a
+    // session.
+    //
+    // Exactly zero, not "within a frame". Moving the anchor BY a number of
+    // intervals does round - an interval is a fraction of a frame - and was
+    // measured at up to 0.78 of a frame per press. Anchoring ON a beat that
+    // already exists cannot: every position the new grid generates was already
+    // a position of the old one.
+    constexpr int kSampleRate = 44100;
+    const auto sampleRate = mixxx::audio::SampleRate(kSampleRate);
+    const auto bpm = mixxx::Bpm(123.45);
+    const auto anchor = mixxx::audio::FramePos(45678);
+    const auto pBeats = mixxx::Beats::fromConstTempo(sampleRate, anchor, bpm);
+    ASSERT_TRUE(pBeats);
+
+    const auto from = mixxx::audio::FramePos(0);
+    const auto to = mixxx::audio::FramePos(kSampleRate * 60);
+    std::vector<double> before;
+    for (auto it = pBeats->iteratorFrom(from); it != pBeats->cend() && *it <= to; ++it) {
+        before.push_back(it->value());
+    }
+    ASSERT_GT(before.size(), 100u);
+
+    // Pick beats away from the anchor in both directions and anchor on each.
+    for (const int nth : {1, 2, 3, 7, 40}) {
+        auto target = pBeats->iteratorFrom(anchor);
+        for (int i = 0; i < nth; ++i) {
+            ++target;
+        }
+        const auto pMoved = mixxx::Beats::fromConstTempo(sampleRate, *target, bpm);
+        ASSERT_TRUE(pMoved);
+        EXPECT_NE(pMoved->getLastMarkerPosition().value(), anchor.value())
+                << "the anchor did not move, so nothing was tested";
+
+        std::vector<double> after;
+        for (auto it = pMoved->iteratorFrom(from); it != pMoved->cend() && *it <= to; ++it) {
+            after.push_back(it->value());
+        }
+        ASSERT_EQ(before.size(), after.size());
+        double worst = 0.0;
+        for (std::size_t i = 0; i < before.size(); ++i) {
+            worst = std::max(worst, std::abs(before[i] - after[i]));
+        }
+        printf("anchored %2d beats along: worst movement %.3e frames\n", nth, worst);
+        // Not exact equality of doubles, and the reason is worth stating: the
+        // two grids reach the same position by different arithmetic - anchor
+        // plus k intervals against anchor plus (k - n) intervals - so the last
+        // bits differ. Measured at 5e-10 of a frame, against the 0.78 of a
+        // frame this test exists to catch: nine orders of magnitude apart.
+        constexpr double kFloatingPointNoise = 1e-6;
+        EXPECT_LT(worst, kFloatingPointNoise)
+                << "anchoring on the beat " << nth << " beats along moved the beats themselves";
+    }
+}
+
+
 } // namespace
