@@ -118,23 +118,48 @@ bool WaveformRenderBeat::preprocessInner() {
     // track in fours, because that is all the information there is: Mixxx knows
     // where the beats are and not where a bar starts.
     //
-    // NOTE, and it matters on real tracks: firstBeat is the first beat the
+    // THE COUNT HAS TO BE ANCHORED ON THE SAME BEAT THE DRAWING STARTS FROM,
+    // and that is less obvious than it sounds. Before the first beat,
+    // Beats::iteratorFrom does not stop - it extrapolates backwards from the
+    // first marker and hands out beats that are not in the file. At the very
+    // beginning of a track the visible window reaches back there, so the loop
+    // below starts on one of those, while a count that began at the first beat
+    // starts somewhere else entirely. The two anchors then disagree by however
+    // many extrapolated beats happen to be on screen - a number that falls by
+    // one with every beat the playhead passes, which is why the accent appeared
+    // to walk across the bar as the track started.
+    //
+    // So the index is worked out for the beat the drawing actually starts on,
+    // counting in whichever direction that beat lies from the first one.
+    // Extrapolated beats keep being drawn, as they always were; they simply get
+    // the index the grid implies rather than a fresh zero.
+    //
+    // NOTE for whoever reads this next: the first beat is the first one the
     // ANALYSER found, not the musical downbeat. Where the analyser latched onto
-    // an off-beat - a shaker before the first kick, a pickup bar - the accent
-    // lands on the wrong beat of the bar, consistently, for the whole track.
-    // Moving the first beat in the beat editor fixes it; nothing here can,
-    // because the information is not in the file.
+    // an off-beat - a shaker before the first kick, a pickup bar - every accent
+    // in the track sits on the same wrong beat of the bar. Moving the first
+    // beat in the beat editor fixes it; nothing here can, because the
+    // information is not in the file.
     constexpr int kBeatsPerBar = 4;
     const mixxx::audio::FramePos firstBeatPosition = trackBeats->firstBeat();
     int beatIndex = 0;
     if (firstBeatPosition.isValid()) {
-        int countedFromFirst = 0;
-        for (auto counter = trackBeats->iteratorFrom(firstBeatPosition);
-                counter != trackBeats->cend() && *counter < startPosition;
-                ++counter) {
-            countedFromFirst++;
+        int offset = 0;
+        auto counter = trackBeats->iteratorFrom(startPosition);
+        if (counter != trackBeats->cend() && *counter < firstBeatPosition) {
+            // The window starts before the first beat: count forwards to it and
+            // take the offset as negative.
+            for (; counter != trackBeats->cend() && *counter < firstBeatPosition; ++counter) {
+                offset--;
+            }
+        } else {
+            for (auto forward = trackBeats->iteratorFrom(firstBeatPosition);
+                    forward != trackBeats->cend() && *forward < startPosition;
+                    ++forward) {
+                offset++;
+            }
         }
-        beatIndex = countedFromFirst % kBeatsPerBar;
+        beatIndex = ((offset % kBeatsPerBar) + kBeatsPerBar) % kBeatsPerBar;
     }
 
     const float red = static_cast<float>(m_color.redF());
